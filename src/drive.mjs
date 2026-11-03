@@ -53,10 +53,11 @@ async function metadata(id) {
 
 async function withinLibrary(id) {
   if (!id || id.length > 200) throw new Error('معرف ملف Drive غير صالح.');
-  let item = await metadata(id);
+  const target = await metadata(id);
+  let item = target;
   const seen = new Set();
   for (let depth = 0; depth < 16; depth += 1) {
-    if (item.id === DRIVE_ROOT_FOLDER_ID) return item;
+    if (item.id === DRIVE_ROOT_FOLDER_ID) return target;
     const parent = item.parents?.[0];
     if (!parent || seen.has(parent)) break;
     seen.add(parent);
