@@ -7,7 +7,7 @@
   const escRe = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const normalize = value => String(value ?? '').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/[ىی]/g, 'ي').replace(/ک/g, 'ك').replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 1632)).replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 1776)).toLowerCase();
   const typeNames = { national: 'تشريع', judicial: 'اجتهاد ودراسة', juriscassation: 'قرار محكمة النقض' };
-  const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة', memo: 'مذكرة قانونية' };
+  const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة' };
   const kindNames = { extracted_text: 'نص مستخرج', source_summary: 'ملخص المصدر', image_only: 'بطاقة دون نص' };
   const kindClasses = { extracted_text: 'text', source_summary: 'summary', image_only: 'catalog' };
   const store = {
