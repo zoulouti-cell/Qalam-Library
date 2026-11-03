@@ -13,7 +13,7 @@ import { answerQuestion,aiCapability } from './src/assistant.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,listAgreementPdfs,scanLibraryPdfs } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -165,6 +165,9 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/drive/search'&&req.method==='GET'){
       try{return send(req,res,200,await searchDrivePdfs(url.searchParams.get('q')||'',12));}catch(error){return send(req,res,503,{error:error.message||'تعذر البحث عن أصل الوثيقة في Drive.'});}
+    }
+    if(p==='/api/drive/match'&&req.method==='GET'){
+      try{return send(req,res,200,await matchDrivePdf(url.searchParams.get('q')||'',url.searchParams.get('source')||''));}catch(error){return send(req,res,503,{error:error.message||'تعذر مطابقة الوثيقة مع أصلها في Drive.'});}
     }
     if(p==='/api/drive/agreements'&&req.method==='GET'){
       try{return send(req,res,200,await listAgreementPdfs(url.searchParams.get('q')||'',url.searchParams.get('page')||1,url.searchParams.get('limit')||20));}catch(error){return send(req,res,503,{error:error.message||'تعذر فهرسة ملفات الاتفاقيات والمعاهدات في Drive.'});}

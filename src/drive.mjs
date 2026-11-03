@@ -123,6 +123,32 @@ export async function searchDrivePdfs(query,limit=12) {
   const original=String(query||'').trim().slice(0,240),normalized=normalizeDriveName(original),tokens=normalized.split(/\s+/).filter(token=>token.length>1);if(!tokens.length)return {files:[],total:0};const files=await allLibraryPdfs(),scored=[];for(const file of files){const name=normalizeDriveName(file.name),matched=tokens.filter(token=>name.includes(token)),score=matched.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0)/tokens.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0);if(score>=0.34)scored.push({...file,score:Number(score.toFixed(3))});}scored.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ar'));return {files:scored.slice(0,Math.max(1,Math.min(20,limit))),total:scored.length,indexedFiles:files.length};
 }
 
+export async function matchDrivePdf(query = '', sourceUrl = '') {
+  const title = String(query || '').trim().slice(0, 500);
+  const source = String(sourceUrl || '').trim().slice(0, 2000);
+  const files = await allLibraryPdfs();
+  let sourceName = '';
+  try { sourceName = decodeURIComponent(new URL(source).pathname.split('/').filter(Boolean).at(-1) || '').replace(/\.pdf$/i, ''); } catch {}
+  const sourceKey = normalizeDriveName(sourceName), titleKey = normalizeDriveName(title);
+  const tokens = titleKey.split(/\s+/).filter(token => token.length > 2 && !/^(المملكة|المغربية|بالمصادقة|الصادر|الصادرة|بتنفيذ|المتعلق|المتعلقة|بشأن|ظهير|شريف)$/u.test(token));
+  const weighted = token => token.length >= 6 || /\d/.test(token) ? 1.5 : 1;
+  const scored = files.map(file => {
+    const key = normalizeDriveName(file.name);
+    const sameOfficialSource = source && file.officialUrl && String(file.officialUrl).replace(/\/+$/, '') === source.replace(/\/+$/, '');
+    const sourceExact = sameOfficialSource || (sourceKey && (key === sourceKey || key.includes(sourceKey) || sourceKey.includes(key)));
+    const titleExact = titleKey && (key === titleKey || key.includes(titleKey));
+    const matches = tokens.filter(token => key.split(/\s+/).some(part => part === token || part.startsWith(token) || token.startsWith(part)));
+    const totalWeight = tokens.reduce((sum, token) => sum + weighted(token), 0) || 1;
+    let score = matches.reduce((sum, token) => sum + weighted(token), 0) / totalWeight;
+    if (titleExact) score = Math.max(score, key === titleKey ? 1 : 0.98);
+    if (sourceExact) score = 1;
+    return { ...file, score: Number(score.toFixed(3)), sourceExact: !!sourceExact, titleExact: !!titleExact };
+  }).filter(file => file.score >= 0.35).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ar'));
+  const best = scored[0], runnerUp = scored[1];
+  const confident = !!best && (best.sourceExact || best.titleExact || (best.score >= 0.82 && (!runnerUp || best.score - runnerUp.score >= 0.12)));
+  return { match: confident ? best : null, candidates: scored.slice(0, 8), indexedFiles: files.length };
+}
+
 // Keep the agreement catalogue scoped to its Drive subtree. This makes treaty
 // discovery fast and avoids crawling the complete library on each search.
 export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
