@@ -43,4 +43,3 @@ export async function synthesize(text){
     child.stdin.end(text+'\n');
   });}finally{busy=false;try{const safe=path.resolve(dir),root=path.resolve(scratch);if(safe.startsWith(root+path.sep)&&path.basename(safe).startsWith('qalam-voice-'))fs.rmSync(safe,{recursive:true,force:true});}catch{}}
 }
-

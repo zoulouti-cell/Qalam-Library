@@ -10,4 +10,3 @@ export async function reserveInteractiveCompute(){
   try{const end=Date.now()+10000;while(Date.now()<end){const status=JSON.parse(fs.readFileSync(statusFile,'utf8'));if(!status.running||status.status==='paused_for_assistant')break;await new Promise(resolve=>setTimeout(resolve,250));}}catch{}
   return release;
 }
-

@@ -53,4 +53,3 @@ export function installCatalogOrder(db,original={},originalIds=[]) {
   db.prepare('INSERT OR REPLACE INTO metadata VALUES(?,?)').run('catalogOrderVersion',JSON.stringify(2));
   return {categories:categories.length,documents:position};
 }
-

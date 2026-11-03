@@ -84,4 +84,3 @@ export async function answerQuestion(library,{question,history=[],documentId,ret
   }catch(error){console.warn('Assistant answer not accepted:',error.name==='SyntaxError'?'incomplete_json':error.message);return extractive(question,sources,['تعذر اعتماد جواب النموذج: لم يجتز فحص البنية أو الاقتباسات أو الإحالات، أو لم يستجب في الوقت المحدد.']);}
   finally{releaseCompute();}
 }
-

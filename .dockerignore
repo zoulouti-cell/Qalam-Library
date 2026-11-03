@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+work
+release
+docs
+*.pdf
+*.zip
+*.sqlite
+*.db
+.env*

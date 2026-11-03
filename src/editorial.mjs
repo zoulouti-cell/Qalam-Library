@@ -61,4 +61,3 @@ export function revertLocalCorrection(file,historyId){
     updateHeadings(db,row.rowid,old);updateStats(db,row.review_status,h.old_review_status);db.prepare("UPDATE editorial_history SET status='reverted' WHERE id=?").run(n);updateGeneration(db);db.exec('COMMIT');return {id:h.doc_id,title:h.old_title,sha256:h.old_sha,reviewStatus:h.old_review_status};
   }catch(error){try{db.exec('ROLLBACK')}catch{}throw error;}finally{db.close();}
 }
-

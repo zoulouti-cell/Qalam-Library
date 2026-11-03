@@ -10,4 +10,3 @@
 .reader-body{max-width:none;color:#080808;font-weight:500;line-height:1.82}
 .reader-body p{line-height:1.82}
 @media(max-width:720px){.reader-dialog{width:100%;height:100dvh;max-height:100dvh}.reader-layout{grid-template-columns:minmax(0,1fr)}.reader-scroll{padding:18px 16px}.reader-body{font-weight:500}}
-

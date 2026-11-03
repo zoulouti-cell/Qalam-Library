@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { brotliCompressSync,gzipSync,constants } from 'node:zlib';
-import { createHash,randomBytes } from 'node:crypto';
+import { createHash,randomBytes,createHmac,timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { Library } from './src/library.mjs';
 import { answerQuestion,aiCapability } from './src/assistant.mjs';
@@ -13,6 +13,8 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
+const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
+if(process.env.NODE_ENV==='production'&&(!accessPassword||!sessionSecret))throw new Error('Set LIBRARY_ACCESS_PASSWORD and LIBRARY_SESSION_SECRET before production startup.');
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
@@ -36,7 +38,9 @@ function send(req,res,status,value,type='application/json; charset=utf-8'){
 function rate(req,post){const key=(req.socket.remoteAddress||'local')+':'+(post?'write':'read'),now=Date.now();let value=limits.get(key);if(!value||now-value.start>60000)value={start:now,n:0};value.n++;limits.set(key,value);return value.n<=(post?35:400);}
 async function read(req,max){const chunks=[];let size=0;for await(const c of req){size+=c.length;if(size>max){const e=new Error('حجم الطلب أكبر من المسموح.');e.status=413;throw e;}chunks.push(c);}return Buffer.concat(chunks);}
 async function jsonBody(req){try{return JSON.parse((await read(req,40000)).toString('utf8'));}catch(e){if(e.status)throw e;const error=new Error('صيغة الطلب غير صالحة.');error.status=400;throw error;}}
-function sameOrigin(req){if(!req.headers.origin)return true;try{const u=new URL(req.headers.origin);return ['127.0.0.1','localhost','[::1]'].includes(u.hostname)&&Number(u.port||80)===PORT;}catch{return false;}}
+function sameOrigin(req){if(!req.headers.origin)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';try{const u=new URL(req.headers.origin);return u.host===req.headers.host;}catch{return false;}}
+function authCookie(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(s=>s.trim().split(/=(.*)/s).slice(0,2)).filter(x=>x.length===2))['qalam_session']||'';}
+function validSession(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';const [expiry,signature,...rest]=authCookie(req).split('.');if(rest.length||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return false;const expected=createHmac('sha256',sessionSecret).update(expiry).digest('hex');const a=Buffer.from(signature||''),b=Buffer.from(expected);return a.length===b.length&&timingSafeEqual(a,b);}
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
 function ingestionSnapshot(progress){const age=Date.now()-Date.parse(progress.lastUpdate||'');const stale=progress.running===true&&Number.isFinite(age)&&age>300000;return stale?{...progress,running:false,status:'stalled',stale:true}:progress;}
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.ico':'image/x-icon'};
@@ -46,7 +50,22 @@ const server=http.createServer(async(req,res)=>{
     const url=new URL(req.url,'http://localhost:'+PORT),p=url.pathname;
     if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
     if(p.startsWith('/api/')&&!['GET','POST','HEAD'].includes(req.method))return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
-    if(p==='/api/health')return send(req,res,200,{ok:true,pdfFree:true,version:library.meta.version,documents:library.meta.documents});
+    if(p==='/api/health')return send(req,res,200,{ok:true});
+    if(p==='/api/session')return send(req,res,200,{authenticated:validSession(req)});
+    if(p==='/api/login'&&req.method==='POST'){
+      if(!accessPassword||!sessionSecret)return send(req,res,503,{error:'تسجيل الدخول غير مهيأ بعد.'});
+      const body=await jsonBody(req),given=Buffer.from(String(body.password||'')),expected=Buffer.from(accessPassword);
+      if(given.length!==expected.length||!timingSafeEqual(given,expected))return send(req,res,401,{error:'كلمة المرور غير صحيحة.'});
+      const expiry=String(Date.now()+7*86400000),signature=createHmac('sha256',sessionSecret).update(expiry).digest('hex');
+      res.setHeader('Set-Cookie',`qalam_session=${expiry}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`);
+      return send(req,res,200,{authenticated:true});
+    }
+    if(p==='/api/logout'&&req.method==='POST'){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
+    const loginAsset=p==='/login.html'||p==='/login.js';
+    if(process.env.NODE_ENV==='production'&&!validSession(req)&&!loginAsset){
+      if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
+      return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
+    }
     if(p.startsWith('/api/editorial/')){
       if(!localEditor(req))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});
       if(p==='/api/editorial/search'&&req.method==='GET'){const q=(url.searchParams.get('q')||'').trim().slice(0,160);if(q.length<2)return send(req,res,200,{results:[]});const result=library.search({q,scope:'all',limit:10});return send(req,res,200,{results:result.results.map(d=>({id:d.id,title:d.title,category:d.category,textKind:d.textKind,reviewStatus:d.reviewStatus,chars:d.chars}))});}
@@ -152,4 +171,3 @@ server.on('error',error=>{console.error(error.code==='EADDRINUSE'?'المنفذ 
 server.listen(PORT,HOST,()=>console.log(`Qalam Smart ${library.meta.version}: http://localhost:${PORT} — ${library.meta.documents} records; PDF-independent; PID ${process.pid}`));
 function stop(){server.close(()=>{library.close();process.exit(0);});setTimeout(()=>process.exit(0),1500).unref();}
 process.on('SIGINT',stop);process.on('SIGTERM',stop);
-

@@ -113,4 +113,3 @@ function bestPassage(doc,question){
   for(const term of terms){let pos=normalized.indexOf(term),seen=0;while(pos>=0&&seen++<12){const start=Math.max(0,pos-180),window=normalized.slice(start,start+1100);const score=terms.reduce((n,t)=>n+(window.includes(t)?1:0),0);if(score>best){best=score;at=start;}pos=normalized.indexOf(term,pos+term.length);}}
   const h=[...doc.headings].reverse().find(h=>h.start<=at);return {text:doc.text.slice(at,at+1200).trim(),label:h?.label||'مقتطف من النص المتاح'};
 }
-

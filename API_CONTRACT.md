@@ -55,4 +55,3 @@ metadata(key TEXT PRIMARY KEY,value TEXT JSON).
 catalog_order(doc_rowid INTEGER PRIMARY KEY,position INTEGER) preserves original browsing priorities within instrument ranks. Both browsing and search order active laws, independent dahirs, decrees, other documents, then repealed texts; relevance applies within each rank. law_titles preserves original headings and number evidence.
 
 normalizeSearch: NFKC; remove Arabic diacritics/tatweel; map alef variants to ا, ى/ی to ي, ک to ك; Arabic/extended digits to ASCII; lowercase. Never swap all ال to لا.
-

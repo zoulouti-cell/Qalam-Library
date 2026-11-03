@@ -93,4 +93,3 @@ export function isAnnualFinanceLaw(d) {
   const title=normalizeSearch(d.title).trim();
   return /(?:^|بتنفيذ\s+)قانون\s+(?:المالية|التصفية)(?:\s|$)/u.test(title);
 }
-

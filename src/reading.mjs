@@ -44,4 +44,3 @@ export function reflowReading(raw,{sourcePageSpans}={}){
   const text=blocks.map(b=>tidyPunctuation(b.replace(/\s+/g,' ').replace(/([0-9٠-٩])\s*([.\/-])\s*(?=[0-9٠-٩])/g,'$1$2').replace(/([\u0621-\u064a])(?=[0-9٠-٩])/g,'$1 ').replace(/([0-9٠-٩])(?=[\u0621-\u064a])/g,'$1 '))).filter(Boolean).join('\n\n');
   return {text,headings:headingsOf(text),sha256:createHash('sha256').update(text).digest('hex'),presentation:{mode:'continuous_legal_text',removedPageMarkers:removed,sourceWordingRewritten:false,typographyNormalized:true}};
 }
-

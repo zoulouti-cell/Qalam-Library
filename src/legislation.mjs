@@ -55,4 +55,3 @@ export function legislationHeading(d,text='',options={}){
   return {title:evidence.number?evidence.number+' — '+subject:subject,originalTitle,kind,subject,...evidence};
 }
 export const instrumentOrderSql=alias=>`${alias}.abrogated ASC,CASE ${alias}.kind WHEN 'law' THEN 0 WHEN 'dahir' THEN 1 WHEN 'decree' THEN 2 WHEN 'order' THEN 3 WHEN 'other' THEN 4 WHEN 'decision' THEN 5 WHEN 'jurisprudence' THEN 6 ELSE 7 END ASC`;
-
