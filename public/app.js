@@ -131,11 +131,11 @@
   function originalActions(doc, compact = false) {
     let url = ''; try { const parsed = new URL(doc?.sourceUrl || ''); if (parsed.protocol === 'https:') url = parsed.href; } catch {}
     if (!url) return '';
-    let downloadUrl = '';
-    try { const parsed = new URL(url); const driveId = parsed.hostname === 'drive.google.com' ? (parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || parsed.searchParams.get('id')) : ''; if (driveId) downloadUrl = 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(driveId); else if (/\.pdf$/i.test(decodeURIComponent(parsed.pathname))) downloadUrl = url; } catch {}
+    let previewUrl = url, downloadUrl = '';
+    try { const parsed = new URL(url); const driveId = parsed.hostname === 'drive.google.com' ? (parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || parsed.searchParams.get('id')) : ''; if (driveId) { previewUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=preview'; downloadUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=download'; } else if (/\.pdf$/i.test(decodeURIComponent(parsed.pathname))) downloadUrl = url; } catch {}
     const icon = (name) => name === 'preview' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v4h16v-4"/></svg>';
     const cls = compact ? 'source-action source-action-compact' : 'source-action';
-    return '<span class="source-actions" aria-label="الوصول إلى المصدر الأصلي"><a class="' + cls + '" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" aria-label="معاينة المصدر الأصلي" title="معاينة المصدر الأصلي">' + icon('preview') + '<span>معاينة الأصل</span></a>' + (downloadUrl ? '<a class="' + cls + '" href="' + esc(downloadUrl) + '" download target="_blank" rel="noopener noreferrer" aria-label="تحميل الوثيقة الأصلية" title="تحميل الوثيقة الأصلية">' + icon('download') + '<span>تحميل الأصل</span></a>' : '') + '</span>';
+    return '<span class="source-actions" aria-label="الوصول إلى المصدر الأصلي"><a class="' + cls + '" href="' + esc(previewUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="معاينة المصدر الأصلي" title="معاينة المصدر الأصلي">' + icon('preview') + '<span>معاينة الأصل</span></a>' + (downloadUrl ? '<a class="' + cls + '" href="' + esc(downloadUrl) + '" download aria-label="تحميل الوثيقة الأصلية" title="تحميل الوثيقة الأصلية">' + icon('download') + '<span>تحميل الأصل</span></a>' : '') + '</span>';
   }
   function foldWithOffsets(value) { let folded = '', map = []; let offset = 0; for (const char of String(value || '')) { const start = offset, end = start + char.length; offset = end; const part = normalize(char); for (const c of part) { folded += c; map.push({ start, end }); } } return { folded, map }; }
   function markText(text, query) {
