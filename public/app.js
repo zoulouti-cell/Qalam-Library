@@ -7,7 +7,7 @@
   const escRe = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const normalize = value => String(value ?? '').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/[ىی]/g, 'ي').replace(/ک/g, 'ك').replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 1632)).replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 1776)).toLowerCase();
   const typeNames = { national: 'تشريع', judicial: 'اجتهاد ودراسة', juriscassation: 'قرار محكمة النقض' };
-  const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة' };
+  const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة', memo: 'مذكرة قانونية' };
   const kindNames = { extracted_text: 'نص مستخرج', source_summary: 'ملخص المصدر', image_only: 'بطاقة دون نص' };
   const kindClasses = { extracted_text: 'text', source_summary: 'summary', image_only: 'catalog' };
   const store = {
@@ -18,7 +18,7 @@
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, ...storedPreferences };
   const state = {
-    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', expandedCard: '', previewCache: new Map(),
+    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [],
     categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
     document: null, documentId: '', askDocument: null, chat: [], suggestions: [], selectedSuggestion: -1,
@@ -130,13 +130,14 @@
   }
   function originalActions(doc, compact = false) {
     let url = ''; try { const parsed = new URL(doc?.sourceUrl || ''); if (parsed.protocol === 'https:') url = parsed.href; } catch {}
-    if (!url) return '';
-    let previewUrl = url, downloadUrl = '';
-    try { const parsed = new URL(url); const driveId = parsed.hostname === 'drive.google.com' ? (parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || parsed.searchParams.get('id')) : ''; if (driveId) { previewUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=preview'; downloadUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=download'; } else if (/\.pdf$/i.test(decodeURIComponent(parsed.pathname))) downloadUrl = url; } catch {}
+    let previewUrl = url, downloadUrl = '', driveId='';
+    try { const parsed = new URL(url); driveId = parsed.hostname === 'drive.google.com' ? (parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || parsed.searchParams.get('id')) : ''; if (driveId) { previewUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=preview'; downloadUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=download'; } } catch {}
     const icon = (name) => name === 'preview' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v4h16v-4"/></svg>';
     const cls = compact ? 'source-action source-action-compact' : 'source-action';
-    return '<span class="source-actions" aria-label="الوصول إلى المصدر الأصلي"><a class="' + cls + '" href="' + esc(previewUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="معاينة المصدر الأصلي" title="معاينة المصدر الأصلي">' + icon('preview') + '<span>معاينة الأصل</span></a>' + (downloadUrl ? '<a class="' + cls + '" href="' + esc(downloadUrl) + '" download aria-label="تحميل الوثيقة الأصلية" title="تحميل الوثيقة الأصلية">' + icon('download') + '<span>تحميل الأصل</span></a>' : '') + '</span>';
+    const driveSearch='<button type="button" class="'+cls+'" data-drive-search="'+esc([doc?.title,doc?.lawNumber,doc?.decisionNumber,doc?.caseNumber].filter(Boolean).join(' '))+'" aria-label="البحث عن الأصل في Google Drive" title="العثور على الأصل المخزن في Drive">'+icon('preview')+'<span>أصل Drive</span></button>';
+    return '<span class="source-actions" aria-label="الوصول إلى المصادر والوثيقة الأصلية">' + (driveId?'<a class="'+cls+'" href="'+esc(previewUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل من Drive">'+icon('preview')+'<span>معاينة الأصل</span></a><a class="'+cls+'" href="'+esc(downloadUrl)+'" aria-label="تحميل الأصل من Drive">'+icon('download')+'<span>تحميل الأصل</span></a>':driveSearch+(url?'<a class="'+cls+'" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي">'+icon('preview')+'<span>المصدر الرسمي</span></a>':'')) + '</span>';
   }
+  async function findDriveSource(query){const dialog=$('driveSourceDialog'),status=$('driveSourceStatus'),results=$('driveSourceResults');status.textContent='جارٍ البحث في أرشيف Drive عن: '+query;results.innerHTML='';if(!dialog.open)dialog.showModal();try{const data=await api('/api/drive/search?q='+encodeURIComponent(query));status.textContent='عُثر على '+fmt(data.total)+' ملفاً قريب الاسم من أصل '+fmt(data.indexedFiles)+' ملفاً مفهرساً. راجع الاسم والمجلد قبل الفتح.';results.innerHTML=data.files.length?data.files.map(file=>{const base='/api/drive/file?id='+encodeURIComponent(file.id);return '<article class="drive-source-result"><strong>'+esc(file.name)+'</strong><small>'+esc(file.path||'الأرشيف الجذري')+' · تطابق اسمي '+fmt(Math.round(file.score*100))+'٪</small><div><a href="'+base+'&mode=preview" target="_blank" rel="noopener noreferrer">معاينة الأصل</a><a href="'+base+'&mode=download">تحميل الأصل</a></div></article>';}).join(''):'<p class="sidebar-loading">لم يُعثر على ملف مطابق؛ يمكنك فتح أرشيف Drive واستعراض المجلدات يدوياً.</p>';}catch(error){status.textContent=error.message||'تعذر البحث في Drive.';}}
   function foldWithOffsets(value) { let folded = '', map = []; let offset = 0; for (const char of String(value || '')) { const start = offset, end = start + char.length; offset = end; const part = normalize(char); for (const c of part) { folded += c; map.push({ start, end }); } } return { folded, map }; }
   function markText(text, query) {
     const value = String(text || ''), terms = [...new Set((normalize(query).match(/[\p{L}\p{N}]+/gu) || []).flatMap(t => [t, t.replace(/^ال(?=.{3,})/, '')]))].filter(t => t.length > 1).slice(0, 12);
@@ -179,9 +180,18 @@
     const pane = $('browseContent'); pane.hidden = !state.browseGroup;
     if (!state.browseGroup) { pane.innerHTML = ''; $('browseGroups').hidden = false; return; }
     $('browseGroups').hidden = true;
+    if (state.browseGroup === 'agreements') { state.driveBrowseStack = []; browseAgreements(); return; }
     const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
     const rows = state.categories.filter(c => groups[state.browseGroup].includes(c.group));
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>');
+  }
+  async function browseAgreements() {
+    const pane=$('browseContent');pane.innerHTML='<p class="sidebar-loading">جارٍ فتح أرشيف الاتفاقيات في Drive…</p>';
+    try{const root=await api('/api/drive/files'),folder=(root.files||[]).find(f=>f.mimeType==='application/vnd.google-apps.folder'&&normalize(f.name).includes('اتفاق'));if(!folder)throw new Error('لم يُعثر على مجلد الاتفاقيات والمعاهدات في مجلد أصول المكتبة.');await browseDriveFolder(folder.id,folder.name,true);}catch(error){pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><p class="sidebar-loading">'+esc(error.message||'تعذر فتح أرشيف الاتفاقيات في Drive.')+'</p>';}
+  }
+  async function browseDriveFolder(id,name,reset=false){
+    const pane=$('browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';
+    try{const data=await api('/api/drive/files?folderId='+encodeURIComponent(id)),items=(data.files||[]).sort((a,b)=>Number(b.mimeType==='application/vnd.google-apps.folder')-Number(a.mimeType==='application/vnd.google-apps.folder')||String(a.name||'').localeCompare(String(b.name||''),'ar')),rows=items.map(file=>{if(file.mimeType==='application/vnd.google-apps.folder')return '<button type="button" class="drive-browse-item" data-drive-folder="'+esc(file.id)+'" data-drive-name="'+esc(file.name)+'"><strong>📁 '+esc(file.name)+'</strong><span>فتح المجلد ←</span></button>';const base='/api/drive/file?id='+encodeURIComponent(file.id);return '<article class="drive-browse-item"><strong>📄 '+esc(file.name)+'</strong><div><a href="'+base+'&mode=preview" target="_blank" rel="noopener noreferrer">معاينة الأصل</a><a href="'+base+'&mode=download">تحميل الأصل</a></div></article>';}).join('');pane.innerHTML='<div class="drive-browse-head"><button type="button" class="browse-back" data-drive-up>← رجوع</button><strong>'+esc(name)+' · '+fmt(items.length)+' عنصر</strong></div>'+(rows||'<p class="sidebar-loading">هذا المجلد فارغ.</p>');}catch(error){state.driveBrowseStack.pop();pane.innerHTML='<div class="drive-browse-head"><button type="button" class="browse-back" data-drive-up>← رجوع</button></div><p class="sidebar-loading">'+esc(error.message||'تعذر جلب محتوى المجلد.')+'</p>';}
   }
   function updateSavedCount() { $('savedCount').textContent = fmt(Object.keys(state.saved).length); }
   function toggleSaved(id, doc) {
@@ -693,6 +703,9 @@
       const button = event.target.closest('button');
       if (!event.target.closest('.search-form,.bottom-search-form')) closeSuggestions();
       if (!button || button.disabled) return;
+      if (button.dataset.driveSearch) { findDriveSource(button.dataset.driveSearch); return; }
+      if (button.dataset.driveFolder) { browseDriveFolder(button.dataset.driveFolder,button.dataset.driveName); return; }
+      if (button.hasAttribute('data-drive-up')) { if(state.driveBrowseStack.length>1){state.driveBrowseStack.pop();const parent=state.driveBrowseStack.pop();browseDriveFolder(parent.id,parent.name,true);}else renderBrowseGroup('agreements');return; }
       if (button.dataset.view) { setView(button.dataset.view); return; }
       if (button.dataset.query !== undefined) { applyQuery(button.dataset.query); return; }
       if (button.hasAttribute('data-browse-back')) { state.browseGroup = ''; renderBrowseGroup(''); return; }
@@ -754,6 +767,7 @@
     $('clearHistory').addEventListener('click', () => { state.history = []; store.set('history', []); renderLocalView(); toast('مُسح سجل القراءة على هذا الجهاز.'); });
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
     $('settingsClose').addEventListener('click', () => $('settings').close());$('settings').addEventListener('close',()=>clearTimeout(state.ocrSettingsTimer)); $('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
+    $('driveSourceClose').addEventListener('click',()=>$('driveSourceDialog').close());$('driveSourceDialog').addEventListener('click',event=>{if(event.target===$('driveSourceDialog'))$('driveSourceDialog').close();});
     $('ocrStartBtn').addEventListener('click',()=>controlOCR($('ocrWorkerState').textContent==='متوقف مؤقتاً'?'resume':'start'));$('ocrPauseBtn').addEventListener('click',()=>controlOCR('pause'));$('ocrRefreshBtn').addEventListener('click',()=>refreshOCRSettings(false));
     $('ocrWorkers').addEventListener('change',event=>{ocrPrefs.workers=Number(event.target.value)||2;store.set('ocrSettings',ocrPrefs);});$('ocrMaxPages').addEventListener('change',event=>{ocrPrefs.maxPages=Math.max(0,Math.min(10000,Number(event.target.value)||0));event.target.value=String(ocrPrefs.maxPages);store.set('ocrSettings',ocrPrefs);});
     $('personalize').addEventListener('change', event => { prefs.personalize = event.target.checked; persistPrefs(); toast(prefs.personalize ? 'فُعّل السجل والتخصيص على هذا الجهاز فقط.' : 'توقف حفظ القراءات وعمليات البحث الجديدة.'); });
@@ -807,7 +821,7 @@
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
     wireEvents(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
-    const responses = await Promise.allSettled([api('/api/stats'), api('/api/categories'), api('/api/capabilities')]);
+    const responses = await Promise.allSettled([api('/api/stats'), api('/api/categories'), api('/api/capabilities'), api('/api/session')]);
     if (responses[0].status === 'fulfilled') {
       applyStats(responses[0].value);
     } else { $('connectionPill').textContent = 'الخدمة غير متاحة'; }

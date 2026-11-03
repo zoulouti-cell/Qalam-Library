@@ -1,5 +1,5 @@
 import { MongoClient } from 'mongodb';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const DB_NAME = process.env.MONGODB_DB || 'qalam_library';
 const SECRET_KEY = createHash('sha256').update(process.env.LIBRARY_SESSION_SECRET || 'local-only').digest();
@@ -32,18 +32,33 @@ export async function connectAdminStore(uri) {
       db.collection('managedContent').createIndex({ documentId: 1, status: 1, updatedAt: -1 }),
       db.collection('managedContent').createIndex({ status: 1, category: 1, date: -1 }),
       db.collection('adminAudit').createIndex({ createdAt: -1 }),
+      db.collection('libraryUsers').createIndex({ email: 1 }, { unique: true }),
+      db.collection('libraryUsers').createIndex({ active: 1, role: 1 }),
     ]);
     return {
       client, db,
       settings: db.collection('librarySettings'),
       content: db.collection('managedContent'),
       audit: db.collection('adminAudit'),
+      users: db.collection('libraryUsers'),
     };
   } catch (error) {
     await client.close().catch(() => {});
     console.error('Library MongoDB connection unavailable:', error?.name || 'connection_error');
     return null;
   }
+}
+
+export function hashPassword(password, salt = randomBytes(16).toString('base64url')) {
+  return { salt, hash: scryptSync(String(password), salt, 64).toString('base64url') };
+}
+
+export function verifyPassword(password, salt, expectedHash) {
+  if (!salt || !expectedHash) return false;
+  try {
+    const actual = scryptSync(String(password), salt, 64), expected = Buffer.from(expectedHash, 'base64url');
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  } catch { return false; }
 }
 
 export async function recordAudit(store, actor, action, target, details = {}) {
