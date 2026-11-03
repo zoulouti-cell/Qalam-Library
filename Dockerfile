@@ -4,8 +4,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
-RUN git lfs install --local \
-    && git clone https://github.com/zoulouti-cell/Qalam-Library-data.git /tmp/qalam-library-data \
+RUN git clone https://github.com/zoulouti-cell/Qalam-Library-data.git /tmp/qalam-library-data \
     && cd /tmp/qalam-library-data && git lfs pull \
     && mkdir -p /app/data \
     && cp /tmp/qalam-library-data/library.sqlite /app/data/library.sqlite \
