@@ -14,5 +14,7 @@ services:
         value: 0.0.0.0
       - key: LIBRARY_ACCESS_PASSWORD
         sync: false
+      - key: LIBRARY_ADMIN_PASSWORD
+        sync: false
       - key: LIBRARY_SESSION_SECRET
         sync: false

@@ -14,7 +14,8 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
 const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
-if(process.env.NODE_ENV==='production'&&(!accessPassword||!sessionSecret))throw new Error('Set LIBRARY_ACCESS_PASSWORD and LIBRARY_SESSION_SECRET before production startup.');
+const adminPassword=process.env.LIBRARY_ADMIN_PASSWORD||'';
+if(process.env.NODE_ENV==='production'&&(!accessPassword||!adminPassword||!sessionSecret))throw new Error('Set library access, admin, and session secrets before production startup.');
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
@@ -40,7 +41,9 @@ async function read(req,max){const chunks=[];let size=0;for await(const c of req
 async function jsonBody(req){try{return JSON.parse((await read(req,40000)).toString('utf8'));}catch(e){if(e.status)throw e;const error=new Error('صيغة الطلب غير صالحة.');error.status=400;throw error;}}
 function sameOrigin(req){if(!req.headers.origin)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';try{const u=new URL(req.headers.origin);return u.host===req.headers.host;}catch{return false;}}
 function authCookie(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(s=>s.trim().split(/=(.*)/s).slice(0,2)).filter(x=>x.length===2))['qalam_session']||'';}
-function validSession(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';const [expiry,signature,...rest]=authCookie(req).split('.');if(rest.length||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return false;const expected=createHmac('sha256',sessionSecret).update(expiry).digest('hex');const a=Buffer.from(signature||''),b=Buffer.from(expected);return a.length===b.length&&timingSafeEqual(a,b);}
+function sessionRole(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production'?'admin':null;const [expiry,role,signature,...rest]=authCookie(req).split('.');if(rest.length||!['reader','admin'].includes(role)||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return null;const expected=createHmac('sha256',sessionSecret).update(expiry+'.'+role).digest('hex');const a=Buffer.from(signature||''),b=Buffer.from(expected);return a.length===b.length&&timingSafeEqual(a,b)?role:null;}
+function validSession(req){return !!sessionRole(req);}
+function issueSession(res,role){const expiry=String(Date.now()+7*86400000),signature=createHmac('sha256',sessionSecret).update(expiry+'.'+role).digest('hex');res.setHeader('Set-Cookie',`qalam_session=${expiry}.${role}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`);}
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
 function ingestionSnapshot(progress){const age=Date.now()-Date.parse(progress.lastUpdate||'');const stale=progress.running===true&&Number.isFinite(age)&&age>300000;return stale?{...progress,running:false,status:'stalled',stale:true}:progress;}
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.ico':'image/x-icon'};
@@ -51,20 +54,41 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
     if(p.startsWith('/api/')&&!['GET','POST','HEAD'].includes(req.method))return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
     if(p==='/api/health')return send(req,res,200,{ok:true});
-    if(p==='/api/session')return send(req,res,200,{authenticated:validSession(req)});
+    if(p==='/api/session'){const role=sessionRole(req);return send(req,res,200,{authenticated:!!role,role,canAdmin:role==='admin'});}
     if(p==='/api/login'&&req.method==='POST'){
       if(!accessPassword||!sessionSecret)return send(req,res,503,{error:'تسجيل الدخول غير مهيأ بعد.'});
       const body=await jsonBody(req),given=Buffer.from(String(body.password||'')),expected=Buffer.from(accessPassword);
       if(given.length!==expected.length||!timingSafeEqual(given,expected))return send(req,res,401,{error:'كلمة المرور غير صحيحة.'});
-      const expiry=String(Date.now()+7*86400000),signature=createHmac('sha256',sessionSecret).update(expiry).digest('hex');
-      res.setHeader('Set-Cookie',`qalam_session=${expiry}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`);
+      issueSession(res,'reader');
       return send(req,res,200,{authenticated:true});
     }
+    if(p==='/api/admin/login'&&req.method==='POST'){
+      if(!adminPassword||!sessionSecret)return send(req,res,503,{error:'دخول المدير غير مهيأ.'});
+      const body=await jsonBody(req),given=Buffer.from(String(body.password||'')),expected=Buffer.from(adminPassword);
+      if(given.length!==expected.length||!timingSafeEqual(given,expected))return send(req,res,401,{error:'كلمة مرور الإدارة غير صحيحة.'});
+      issueSession(res,'admin');return send(req,res,200,{authenticated:true,role:'admin'});
+    }
     if(p==='/api/logout'&&req.method==='POST'){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
-    const loginAsset=p==='/login.html'||p==='/login.js';
+    const loginAsset=['/login.html','/login.js','/admin-login.html','/admin-login.js','/admin.css'].includes(p);
+    const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
+    if(adminPage&&sessionRole(req)!=='admin')return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'admin-login.html')),'text/html; charset=utf-8');
+    if(p.startsWith('/api/admin/')&&sessionRole(req)!=='admin')return send(req,res,403,{error:'هذه الوظيفة مخصصة لمدير المكتبة.'});
     if(process.env.NODE_ENV==='production'&&!validSession(req)&&!loginAsset){
       if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
       return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
+    }
+    if(p==='/api/admin/overview'&&req.method==='GET'){
+      const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
+      const documents=library.db.prepare("SELECT id,title,category,text_kind,review_status,chars FROM documents WHERE review_status IN ('needs_review','automated_review') ORDER BY CASE review_status WHEN 'needs_review' THEN 0 ELSE 1 END, rowid LIMIT 60").all();
+      return send(req,res,200,{stats,statuses,reviewQueue:documents});
+    }
+    if(p==='/api/admin/search'&&req.method==='GET'){
+      const q=(url.searchParams.get('q')||'').trim().slice(0,160);if(q.length<2)return send(req,res,200,{results:[]});
+      const result=library.search({q,scope:'all',limit:20});return send(req,res,200,{results:result.results.map(d=>({id:d.id,title:d.title,category:d.category,textKind:d.textKind,reviewStatus:d.reviewStatus,chars:d.chars,sourceLabel:d.sourceLabel}))});
+    }
+    if(p==='/api/admin/document'&&req.method==='GET'){
+      const doc=library.document((url.searchParams.get('id')||'').slice(0,120));if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,type:doc.type,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel});
     }
     if(p.startsWith('/api/editorial/')){
       if(!localEditor(req))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});
@@ -158,7 +182,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/api/'))return send(req,res,404,{error:'الخدمة غير موجودة.'});
     if(!['GET','HEAD'].includes(req.method))return send(req,res,405,'Method not allowed','text/plain');
-    const relative=decodeURIComponent(p==='/'?'/index.html':p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
+    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/'?'/index.html':p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
     if(!target.startsWith(PUBLIC+path.sep)||relative.includes('\0'))return send(req,res,403,'Forbidden','text/plain');
     const type=MIME[path.extname(target).toLowerCase()];if(!type||!fs.existsSync(target)||!fs.statSync(target).isFile())return send(req,res,404,'Not found','text/plain');
     const bytes=fs.readFileSync(target),etag='"'+createHash('sha1').update(bytes).digest('hex')+'"';
