@@ -1,0 +1,109 @@
+{
+  "national:158": {
+    "number": "1.93.51",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "3bdb01cf10a518f4b0245d7b70e7b68737484515f7f56fa49d3d0e4222a6e768",
+    "humanVerified": false
+  },
+  "national:166": {
+    "number": "69.99",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "94358425c0220a31c6024caa59b097c9ef264aef1c4791b85a4e210c8b17f70c",
+    "humanVerified": false
+  },
+  "national:79": {
+    "number": "39.89",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "d83a45a5b18298c75d935f6c827b214e46bed80d54245402c6b50ff03d88e048",
+    "humanVerified": false
+  },
+  "national:423": {
+    "number": "38.12",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "3cdb43ee526a13c6de08e2f41ff8343e75a321b7bcf3feba7ba904de9b2147e8",
+    "humanVerified": false
+  },
+  "national:336": {
+    "number": "69.18",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "66994411d0137143fbee7fb0de6ea82295a90b48feabd3216be56a741c914877",
+    "humanVerified": false
+  },
+  "national:40": {
+    "number": "2-00",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "9384d491180ec883c2f0e26bb706fdded94571f5d83a538b1cd8962f43d9af67",
+    "humanVerified": false
+  },
+  "national:7796": {
+    "number": "5-79",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "f92ba3a1ecfdc59ef7d43c8bcf675e3cdde1c63a9ddc8cd18124a264b3364d8e",
+    "humanVerified": false
+  },
+  "national:307": {
+    "number": "113.13",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "2c946b9af4df7786b689c8ad4d96d9dba3878e450be4ef43572c94eff46660a6",
+    "humanVerified": false
+  },
+  "national:4299": {
+    "number": "40.80",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "c57b1c2b4c10461c87efb9eee42cd421360c9e27f298b25b56a52c18b9ef7337",
+    "humanVerified": false
+  },
+  "national:472": {
+    "number": "58.12",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "5ca86722ba86c2d36fcfecd1087915c92d12be5dc75d6b876f2f647fd53c1f35",
+    "humanVerified": false
+  },
+  "national:436": {
+    "number": "45.18",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "f2063b0aa7d82ec3720e303b5eee1133752da041bca5555b0cc2a63cde5b78d8",
+    "humanVerified": false
+  },
+  "national:231": {
+    "number": "085.13",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "c526c81d63690c064c81da8e7313bf2a92913482feb45b73a4e17df2979e6a83",
+    "humanVerified": false
+  },
+  "national:232": {
+    "number": "64.14",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "01a2e574c976fad1f4e122b39a0f8239484344428fcc23d2406fab9e00aa7f23",
+    "humanVerified": false
+  },
+  "national:34": {
+    "number": "514-65",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "a2e445ebe92e9989f9c2487b9534f48d1c9c6f542f74e584c9ff7ea8f0e598e8",
+    "humanVerified": false,
+    "officialVerification": "https://www.chambredesrepresentants.ma/ar/مراقبة-العمل-الحكومي/الأسـئلة-الكتابية/tnzyl-almqtdyat-alqanwnyt-waltnzymyt-almtlqt-balmsadt"
+  },
+  "national:84": {
+    "number": "69.19",
+    "basis": "assistant_visual_primary_heading_comparison",
+    "page": 2,
+    "sourceSha256": "8fc8023791067ea1661e1230efcf8a70e6f68d34a097f8f1fc08338c7d29dbd9",
+    "humanVerified": false,
+    "officialVerification": "https://www.sgg.gov.ma/Portals/1/lois/Loi-cadre_69.19_Ar.pdf"
+  }
+}
