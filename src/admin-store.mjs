@@ -40,6 +40,8 @@ export async function connectAdminStore(uri) {
       settings: db.collection('librarySettings'),
       content: db.collection('managedContent'),
       audit: db.collection('adminAudit'),
+      driveMonitorFiles: db.collection('driveMonitorFiles'),
+      driveMonitorState: db.collection('driveMonitorState'),
       users: db.collection('libraryUsers'),
     };
   } catch (error) {

@@ -105,8 +105,8 @@ function officialSourceFromDescription(description) {
   } catch { return ''; }
 }
 
-async function allLibraryPdfs() {
-  if (pdfIndexCache.files.length && Date.now()-pdfIndexCache.at < 15*60_000) return pdfIndexCache.files;
+async function allLibraryPdfs(force=false) {
+  if (!force && pdfIndexCache.files.length && Date.now()-pdfIndexCache.at < 15*60_000) return pdfIndexCache.files;
   if (pdfIndexCache.promise) return pdfIndexCache.promise;
   pdfIndexCache.promise=(async()=>{
     const files=[],queue=[{id:DRIVE_ROOT_FOLDER_ID,depth:0,path:''}],seen=new Set();
@@ -116,6 +116,8 @@ async function allLibraryPdfs() {
   })().catch(error=>{pdfIndexCache.promise=null;throw error;});
   return pdfIndexCache.promise;
 }
+
+export async function scanLibraryPdfs() { return allLibraryPdfs(true); }
 
 export async function searchDrivePdfs(query,limit=12) {
   const original=String(query||'').trim().slice(0,240),normalized=normalizeDriveName(original),tokens=normalized.split(/\s+/).filter(token=>token.length>1);if(!tokens.length)return {files:[],total:0};const files=await allLibraryPdfs(),scored=[];for(const file of files){const name=normalizeDriveName(file.name),matched=tokens.filter(token=>name.includes(token)),score=matched.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0)/tokens.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0);if(score>=0.34)scored.push({...file,score:Number(score.toFixed(3))});}scored.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ar'));return {files:scored.slice(0,Math.max(1,Math.min(20,limit))),total:scored.length,indexedFiles:files.length};

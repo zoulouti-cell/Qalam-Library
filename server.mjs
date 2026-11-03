@@ -13,7 +13,7 @@ import { answerQuestion,aiCapability } from './src/assistant.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,listAgreementPdfs } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,listAgreementPdfs,scanLibraryPdfs } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -26,7 +26,36 @@ const library=new Library(file),limits=new Map();
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
-let driveMonitorCache={at:0,value:null};
+let driveScanPromise=null;
+async function runDriveMetadataScan(actor='system'){
+  if(!adminStore)throw new Error('قاعدة إدارة المكتبة غير متاحة؛ تعذر حفظ نتيجة الفحص.');
+  if(driveScanPromise)return driveScanPromise;
+  driveScanPromise=(async()=>{
+    const now=new Date(),previousState=await adminStore.driveMonitorState.findOne({_id:'latest'}),baseline=!previousState?.checkedAt;
+    await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{status:'running',startedAt:now,error:''}},{upsert:true});
+    try{
+      const files=await scanLibraryPdfs();
+      if(files.length>=30000)throw new Error('تجاوز الفحص حد 30,000 ملف؛ لم تُعتمد نتيجة جزئية.');
+      const previous=await adminStore.driveMonitorFiles.find({present:true}).project({_id:1,name:1,folder:1,modifiedTime:1,size:1}).toArray(),old=new Map(previous.map(x=>[x._id,x]));
+      const added=[],changed=[],operations=[];
+      for(const f of files){const next={name:String(f.name||'').slice(0,500),folder:String(f.path||'').slice(0,1000),modifiedTime:f.modifiedTime||'',size:Number(f.size)||0,present:true,checkedAt:now};const before=old.get(f.id);if(!before&&!baseline)added.push({name:next.name,folder:next.folder,status:'جديد'});else if(before&&(before.name!==next.name||before.folder!==next.folder||before.modifiedTime!==next.modifiedTime||before.size!==next.size))changed.push({name:next.name,folder:next.folder,status:'معدّل'});old.delete(f.id);operations.push({updateOne:{filter:{_id:f.id},update:{$set:next},upsert:true}});}
+      const removed=[...old.values()].map(f=>({name:f.name,folder:f.folder,status:'أزيل من Drive'}));
+      for(let i=0;i<operations.length;i+=500)await adminStore.driveMonitorFiles.bulkWrite(operations.slice(i,i+500),{ordered:false});
+      await adminStore.driveMonitorFiles.updateMany({present:true,checkedAt:{$ne:now}},{$set:{present:false,removedAt:now}});
+      const completedAt=new Date(),result={status:'complete',available:true,checkedAt:completedAt.toISOString(),files:files.length,added:added.length,changed:changed.length,removed:removed.length,changes:[...added,...changed,...removed].slice(0,300),baseline};
+      await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{...result,finishedAt:completedAt,error:''}},{upsert:true});
+      await recordAudit(adminStore,actor,'drive_metadata_scan_completed','drive',{files:files.length,added:added.length,changed:changed.length,removed:removed.length});
+      return result;
+    }catch(error){const message=String(error?.message||'تعذر فحص Drive.').slice(0,500);await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{status:'error',finishedAt:new Date(),error:message}},{upsert:true});throw error;}
+  })().finally(()=>{driveScanPromise=null;});
+  return driveScanPromise;
+}
+const driveMonitorTimer=setInterval(async()=>{
+  if(!adminStore||driveScanPromise)return;
+  try{const state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;if(!last||Date.now()-last>=due)await runDriveMetadataScan('scheduled');}
+  catch(error){console.error('Scheduled Drive metadata scan failed:',error?.message||'unknown error');}
+},60*60_000);
+driveMonitorTimer.unref();
 const headers={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',
   'Content-Security-Policy':"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
@@ -118,8 +147,15 @@ const server=http.createServer(async(req,res)=>{
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});const entries=await adminStore.audit.find({}).sort({createdAt:-1}).limit(200).toArray();return send(req,res,200,{entries:entries.map(({actor,action,target,details,createdAt})=>({actor,action,target,details,createdAt}))});
     }
     if(p==='/api/admin/drive-monitor'&&req.method==='GET'){
-      if(driveMonitorCache.value&&Date.now()-driveMonitorCache.at<60_000)return send(req,res,200,driveMonitorCache.value);
-      try{const response=await fetch('https://api.github.com/repos/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml/runs?per_page=1',{headers:{accept:'application/vnd.github+json','user-agent':'Qalam-Library'},signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error(response.status===404?'مستودع بيانات المكتبة أو سجل الفحص غير متاح للقراءة.':'تعذر جلب حالة الفحص من GitHub.');const data=await response.json(),run=data.workflow_runs?.[0];const value=run?{available:true,status:run.status||'unknown',conclusion:run.conclusion||'',event:run.event||'',createdAt:run.created_at||'',updatedAt:run.updated_at||'',url:run.html_url||'https://github.com/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml',runNumber:run.run_number||0}:{available:true,status:'not_run',conclusion:'',createdAt:'',url:'https://github.com/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml'};driveMonitorCache={at:Date.now(),value};return send(req,res,200,value);}catch(error){return send(req,res,200,{available:false,error:error.message,url:'https://github.com/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml'});}
+      if(!adminStore)return send(req,res,503,{available:false,status:'error',error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ خط أساس الفحص.'});
+      let state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;
+      if(!driveScanPromise&&(!last||Date.now()-last>=due))runDriveMetadataScan('scheduled').catch(()=>{});
+      if(driveScanPromise)return send(req,res,200,{...(state||{}),status:'running',available:true});
+      return send(req,res,200,{...(state||{status:'not_run'}),available:true});
+    }
+    if(p==='/api/admin/drive-monitor/run'&&req.method==='POST'){
+      try{return send(req,res,200,await runDriveMetadataScan(auditActor(req)));}
+      catch(error){return send(req,res,503,{available:false,status:'error',error:error.message||'تعذر فحص أرشيف Drive.'});}
     }
     if(p==='/api/admin/drive/status'&&req.method==='GET'){
       try{const d=await listDriveFolder();return send(req,res,200,{connected:true,rootId:libraryDriveRoot(),rootName:d.folder.name||'الأصول',topLevelItems:d.files.length,pdfCount:d.files.filter(f=>f.mimeType==='application/pdf').length,folderCount:d.files.filter(f=>f.mimeType==='application/vnd.google-apps.folder').length,readOnly:true});}catch(error){return send(req,res,503,{connected:false,rootId:libraryDriveRoot(),error:error.message||'تعذر الاتصال بأرشيف Drive.'});}
