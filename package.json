@@ -1,0 +1,9 @@
+{
+  "name": "qalam-library",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.2.0" },
+  "scripts": { "start": "node server.mjs" }
+}
+
