@@ -44,8 +44,9 @@ async function driveFetch(url, options = {}) {
   return response;
 }
 
-const fields = 'id,name,mimeType,size,modifiedTime,md5Checksum,webViewLink,parents';
+const fields = 'id,name,mimeType,size,modifiedTime,md5Checksum,webViewLink,description,parents';
 let pdfIndexCache = { at: 0, promise: null, files: [] };
+let agreementIndexCache = { at: 0, promise: null, files: [] };
 async function metadata(id) {
   const query = new URLSearchParams({ fields, supportsAllDrives: 'true' });
   const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?${query}`);
@@ -67,7 +68,7 @@ async function withinLibrary(id) {
   throw new Error('هذا العنصر خارج مجلد أصول المكتبة.');
 }
 
-export async function listDriveFolder(folderId = DRIVE_ROOT_FOLDER_ID) {
+export async function listDriveFolder(folderId = DRIVE_ROOT_FOLDER_ID, includeSourceMetadata = false) {
   const folder = await withinLibrary(folderId);
   if (folder.mimeType !== 'application/vnd.google-apps.folder') throw new Error('المجلد المحدد غير صالح.');
   const files = [];
@@ -84,7 +85,7 @@ export async function listDriveFolder(folderId = DRIVE_ROOT_FOLDER_ID) {
     pageToken = data.nextPageToken || '';
   } while (pageToken);
   files.sort((a, b) => Number(b.mimeType === 'application/vnd.google-apps.folder') - Number(a.mimeType === 'application/vnd.google-apps.folder') || a.name.localeCompare(b.name, 'ar'));
-  return { folder: { id: folder.id, name: folder.name }, parentId: folder.id === DRIVE_ROOT_FOLDER_ID ? '' : (folder.parents?.[0] || ''), files: files.map(({ id, name, mimeType, size, modifiedTime, md5Checksum }) => ({ id, name, mimeType, size: Number(size) || 0, modifiedTime: modifiedTime || '', md5Checksum: md5Checksum || '' })) };
+  return { folder: { id: folder.id, name: folder.name }, parentId: folder.id === DRIVE_ROOT_FOLDER_ID ? '' : (folder.parents?.[0] || ''), files: files.map(({ id, name, mimeType, size, modifiedTime, md5Checksum, webViewLink, description }) => ({ id, name, mimeType, size: Number(size) || 0, modifiedTime: modifiedTime || '', md5Checksum: md5Checksum || '', ...(includeSourceMetadata ? { webViewLink: webViewLink || '', description: description || '' } : {}) })) };
 }
 
 export async function openDrivePdf(id) {
@@ -95,6 +96,14 @@ export async function openDrivePdf(id) {
 }
 
 function normalizeDriveName(value) { return String(value||'').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/[ىی]/g,'ي').replace(/ک/g,'ك').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)).replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/\.pdf$/i,'').replace(/^pdf\.\d+[-_ ]*/i,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim(); }
+function officialSourceFromDescription(description) {
+  const candidate = String(description || '').match(/https:\/\/[^\s<>"']+/i)?.[0];
+  if (!candidate) return '';
+  try {
+    const url = new URL(candidate), host = url.hostname.toLowerCase();
+    return ['justice.gov.ma','adala.justice.gov.ma','sgg.gov.ma','maroc.ma'].some(domain => host === domain || host.endsWith(`.${domain}`)) ? url.href : '';
+  } catch { return ''; }
+}
 
 async function allLibraryPdfs() {
   if (pdfIndexCache.files.length && Date.now()-pdfIndexCache.at < 15*60_000) return pdfIndexCache.files;
@@ -110,6 +119,37 @@ async function allLibraryPdfs() {
 
 export async function searchDrivePdfs(query,limit=12) {
   const original=String(query||'').trim().slice(0,240),normalized=normalizeDriveName(original),tokens=normalized.split(/\s+/).filter(token=>token.length>1);if(!tokens.length)return {files:[],total:0};const files=await allLibraryPdfs(),scored=[];for(const file of files){const name=normalizeDriveName(file.name),matched=tokens.filter(token=>name.includes(token)),score=matched.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0)/tokens.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0);if(score>=0.34)scored.push({...file,score:Number(score.toFixed(3))});}scored.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ar'));return {files:scored.slice(0,Math.max(1,Math.min(20,limit))),total:scored.length,indexedFiles:files.length};
+}
+
+// Keep the agreement catalogue scoped to its Drive subtree. This makes treaty
+// discovery fast and avoids crawling the complete library on each search.
+export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
+  if (Date.now() - agreementIndexCache.at >= 15 * 60_000) {
+    if (!agreementIndexCache.promise) agreementIndexCache.promise = (async () => {
+      const root = await listDriveFolder();
+      const rootFolder = root.files.find(item => item.mimeType === 'application/vnd.google-apps.folder' && normalizeDriveName(item.name).includes('اتفاق'));
+      if (!rootFolder) throw new Error('لم يُعثر على مجلد الاتفاقيات والمعاهدات في مجلد أصول المكتبة.');
+      const files = [], queue = [{ id: rootFolder.id, path: rootFolder.name, depth: 0 }], seen = new Set();
+      while (queue.length && files.length < 10000) {
+        const folder = queue.shift();
+        if (seen.has(folder.id) || folder.depth > 8) continue;
+        seen.add(folder.id);
+        const listed = await listDriveFolder(folder.id, true);
+        for (const item of listed.files) {
+          if (item.mimeType === 'application/vnd.google-apps.folder') queue.push({ id: item.id, path: `${folder.path} / ${item.name}`, depth: folder.depth + 1 });
+          else if (item.mimeType === 'application/pdf') files.push({ id: item.id, name: item.name, size: item.size, modifiedTime: item.modifiedTime, path: folder.path, webViewLink: item.webViewLink || '', officialUrl: officialSourceFromDescription(item.description) });
+        }
+      }
+      files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
+      agreementIndexCache = { at: Date.now(), promise: null, files };
+      return files;
+    })().catch(error => { agreementIndexCache.promise = null; throw error; });
+  }
+  const files = agreementIndexCache.at ? agreementIndexCache.files : await agreementIndexCache.promise;
+  const needle = normalizeDriveName(query), tokens = needle.split(/\s+/).filter(Boolean);
+  const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path}`).includes(token))) : files;
+  const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 20)), safePage = Math.max(1, Number(page) || 1);
+  return { files: matched.slice((safePage - 1) * safeLimit, safePage * safeLimit), total: matched.length, page: safePage, limit: safeLimit, indexedFiles: files.length };
 }
 
 export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {

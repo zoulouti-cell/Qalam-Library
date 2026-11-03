@@ -18,7 +18,7 @@
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, ...storedPreferences };
   const state = {
-    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [],
+    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [],
     categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
     document: null, documentId: '', askDocument: null, chat: [], suggestions: [], selectedSuggestion: -1,
@@ -186,9 +186,11 @@
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>');
   }
   async function browseAgreements() {
-    const pane=$('browseContent');pane.innerHTML='<p class="sidebar-loading">جارٍ فتح أرشيف الاتفاقيات في Drive…</p>';
-    try{const root=await api('/api/drive/files'),folder=(root.files||[]).find(f=>f.mimeType==='application/vnd.google-apps.folder'&&normalize(f.name).includes('اتفاق'));if(!folder)throw new Error('لم يُعثر على مجلد الاتفاقيات والمعاهدات في مجلد أصول المكتبة.');await browseDriveFolder(folder.id,folder.name,true);}catch(error){pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><p class="sidebar-loading">'+esc(error.message||'تعذر فتح أرشيف الاتفاقيات في Drive.')+'</p>';}
+    const pane=$('browseContent');pane.innerHTML='<p class="sidebar-loading">جارٍ فهرسة الاتفاقيات والمعاهدات…</p>';
+    try{const data=await api('/api/drive/agreements?limit=2000'),files=data.files||[];state.agreementFiles=files;const bilateral=files.filter(f=>normalize(f.path).includes('ثنائية')),multilateral=files.filter(f=>normalize(f.path).includes('متعددة'));pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية"><strong>اتفاقيات ثنائية الأطراف</strong><span>'+fmt(bilateral.length)+' وثيقة ←</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة"><strong>اتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral.length)+' وثيقة ←</span></button></div><div id="agreementBrowseList"></div>'+(files.length?'':'<p class="sidebar-loading">لم تُعثر على ملفات PDF في مجلد الاتفاقيات والمعاهدات.</p>');}catch(error){pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><p class="sidebar-loading">'+esc(error.message||'تعذر فهرسة الاتفاقيات والمعاهدات في Drive.')+'</p>';}
   }
+  function agreementIcons(file){const base='/api/drive/file?id='+encodeURIComponent(file.id),eye='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',globe='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>',download='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v4h16v-4"/></svg>';return '<div class="browse-agreement-icons"><a href="'+base+'&mode=preview" target="_blank" rel="noopener noreferrer" aria-label="معاينة الوثيقة الأصلية" title="معاينة الأصل من Drive">'+eye+'</a>'+(file.officialUrl?'<a href="'+esc(file.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">'+globe+'</a>':file.webViewLink?'<a href="'+esc(file.webViewLink)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح الملف في Google Drive" title="فتح الملف في Drive؛ لم يسجل رابط رسمي مستقل">'+globe+'</a>':'')+'<a href="'+base+'&mode=download" aria-label="تحميل الوثيقة الأصلية" title="تحميل الأصل">'+download+'</a></div>';}
+  function renderAgreementFiles(files,group){const host=$('agreementBrowseList');if(!host)return;const filtered=files.filter(f=>normalize(f.path).includes(normalize(group))),groups=new Map();for(const file of filtered){const parts=file.path.split(' / '),label=group==='ثنائية'?parts[2]||'دون دولة':file.name.replace(/\.pdf$/i,'');if(!groups.has(label))groups.set(label,[]);groups.get(label).push(file);}host.innerHTML=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar')).map(([name,items])=>'<details class="agreement-folder"><summary>'+esc(name)+' <span>'+fmt(items.length)+'</span></summary>'+items.map(file=>'<article class="drive-browse-item agreement-file"><strong>'+esc(file.name.replace(/\.pdf$/i,''))+'</strong><small>'+esc(file.path)+'</small>'+agreementIcons(file)+'</article>').join('')+'</details>').join('')||'<p class="sidebar-loading">لا توجد ملفات في هذا التصنيف.</p>';}
   async function browseDriveFolder(id,name,reset=false){
     const pane=$('browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';
     try{const data=await api('/api/drive/files?folderId='+encodeURIComponent(id)),items=(data.files||[]).sort((a,b)=>Number(b.mimeType==='application/vnd.google-apps.folder')-Number(a.mimeType==='application/vnd.google-apps.folder')||String(a.name||'').localeCompare(String(b.name||''),'ar')),rows=items.map(file=>{if(file.mimeType==='application/vnd.google-apps.folder')return '<button type="button" class="drive-browse-item" data-drive-folder="'+esc(file.id)+'" data-drive-name="'+esc(file.name)+'"><strong>📁 '+esc(file.name)+'</strong><span>فتح المجلد ←</span></button>';const base='/api/drive/file?id='+encodeURIComponent(file.id);return '<article class="drive-browse-item"><strong>📄 '+esc(file.name)+'</strong><div><a href="'+base+'&mode=preview" target="_blank" rel="noopener noreferrer">معاينة الأصل</a><a href="'+base+'&mode=download">تحميل الأصل</a></div></article>';}).join('');pane.innerHTML='<div class="drive-browse-head"><button type="button" class="browse-back" data-drive-up>← رجوع</button><strong>'+esc(name)+' · '+fmt(items.length)+' عنصر</strong></div>'+(rows||'<p class="sidebar-loading">هذا المجلد فارغ.</p>');}catch(error){state.driveBrowseStack.pop();pane.innerHTML='<div class="drive-browse-head"><button type="button" class="browse-back" data-drive-up>← رجوع</button></div><p class="sidebar-loading">'+esc(error.message||'تعذر جلب محتوى المجلد.')+'</p>';}
@@ -254,6 +256,13 @@
     $('resultsTitle').textContent = $('query').value.trim() ? 'نتائج البحث' : state.topic || state.category || 'استكشف المكتبة';
     $('resultsMeta').textContent = 'جارٍ البحث في المحتوى المتاح…'; $('pagination').hidden = true;
     try {
+      if(state.scope==='agreements'){
+        const result=await api('/api/drive/agreements?q='+encodeURIComponent($('query').value.trim())+'&page='+state.page+'&limit='+state.limit);
+        if(sequence!==state.searchSequence)return;state.results=result.files||[];state.total=result.total||0;state.page=result.page||state.page;
+        $('resultsTitle').textContent=$('query').value.trim()?'نتائج الاتفاقيات والمعاهدات':'الاتفاقيات والمعاهدات';
+        $('results').innerHTML=state.results.length?state.results.map(renderAgreementResult).join(''):emptyState('لا توجد اتفاقيات مطابقة','يبحث هذا النطاق في أسماء ملفات Drive ومسارات مجلداتها؛ النص الكامل للمعاهدة يحتاج إلى إدخال النص المستخرج في الفهرس.',{key:'clear-filters',label:'مسح التصفية'});
+        const first=state.total?(state.page-1)*state.limit+1:0,last=Math.min(state.page*state.limit,state.total);$('resultsMeta').textContent=state.total?fmt(first)+'–'+fmt(last)+' من '+fmt(state.total)+' ملفاً مفهرساً في Drive':'لم يُعثر على ملفات مطابقة';$('queryCorrections').hidden=true;$('queryCorrections').innerHTML='';renderPagination();return;
+      }
       const result = await api('/api/search?' + params, { signal: controller.signal });
       if (sequence !== state.searchSequence) return;
       state.results = result.results || []; state.total = result.total || 0; state.page = result.page || state.page;
@@ -272,6 +281,7 @@
     } finally { if (sequence === state.searchSequence) $('results').setAttribute('aria-busy', 'false'); }
   }
   function scheduleSearch() { state.page = 1; clearTimeout(state.searchTimer); state.searchTimer = setTimeout(runSearch, 190); }
+  function renderAgreementResult(file){return '<article class="result-card agreement-search-card"><span class="document-type national">اتفاقية أو معاهدة</span><h3>'+markText(file.name.replace(/\.pdf$/i,''),$('query').value)+'</h3><p class="result-snippet">'+esc(file.path)+' · الأصل محفوظ في Drive'+(file.modifiedTime?' · '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p>'+agreementIcons(file)+'</article>';}
   function rememberQuery(query) {
     if (!prefs.searchHistory || query.length < 2) return;
     state.queries = [query, ...state.queries.filter(q => q !== query)].slice(0, 15); store.set('queries', state.queries);
@@ -705,6 +715,7 @@
       if (!button || button.disabled) return;
       if (button.dataset.driveSearch) { findDriveSource(button.dataset.driveSearch); return; }
       if (button.dataset.driveFolder) { browseDriveFolder(button.dataset.driveFolder,button.dataset.driveName); return; }
+      if (button.dataset.agreementGroup) { renderAgreementFiles(state.agreementFiles,button.dataset.agreementGroup); return; }
       if (button.hasAttribute('data-drive-up')) { if(state.driveBrowseStack.length>1){state.driveBrowseStack.pop();const parent=state.driveBrowseStack.pop();browseDriveFolder(parent.id,parent.name,true);}else renderBrowseGroup('agreements');return; }
       if (button.dataset.view) { setView(button.dataset.view); return; }
       if (button.dataset.query !== undefined) { applyQuery(button.dataset.query); return; }
@@ -726,7 +737,7 @@
         if (state.view !== 'library') setView('library'); else runSearch(); renderCategories(); closeSidebar(); return;
       }
       if (button.hasAttribute('data-clear-category')) { state.category = ''; state.topic = ''; state.page = 1; renderCategories(); runSearch(); return; }
-      if (button.dataset.scope) { state.scope = button.dataset.scope; state.scopeTouched = true; if (state.topic && state.scope !== 'all') state.category = ''; else if (state.topic && state.scope === 'all') state.category = state.topic; state.page = 1; document.querySelectorAll('[data-scope]').forEach(b => { const active = b === button; b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active)); }); renderCategories(); runSearch(); return; }
+      if (button.dataset.scope) { state.scope = button.dataset.scope; state.scopeTouched = true; if (state.scope === 'agreements') { state.category = ''; state.topic = ''; } else if (state.topic && state.scope !== 'all') state.category = ''; else if (state.topic && state.scope === 'all') state.category = state.topic; state.page = 1; document.querySelectorAll('[data-scope]').forEach(b => { const active = b === button; b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active)); }); renderCategories(); runSearch(); return; }
       if (button.dataset.browseGroup) { renderBrowseGroup(button.dataset.browseGroup); return; }
       if (button.dataset.expandDoc) {
         const id = button.dataset.expandDoc;
