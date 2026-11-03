@@ -10,6 +10,7 @@ import { Library } from './src/library.mjs';
 import { answerQuestion,aiCapability } from './src/assistant.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
+import { connectAdminStore,sealSecret,openSecret,recordAudit } from './src/admin-store.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -19,6 +20,8 @@ if(process.env.NODE_ENV==='production'&&(!accessPassword||!adminPassword||!sessi
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
+const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
+if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
 const headers={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',
@@ -73,6 +76,7 @@ const server=http.createServer(async(req,res)=>{
     const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
     if(adminPage&&sessionRole(req)!=='admin')return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'admin-login.html')),'text/html; charset=utf-8');
     if(p.startsWith('/api/admin/')&&sessionRole(req)!=='admin')return send(req,res,403,{error:'هذه الوظيفة مخصصة لمدير المكتبة.'});
+    if(p.startsWith('/api/admin/')&&!adminStore&&['/api/admin/settings','/api/admin/content','/api/admin/content/save','/api/admin/content/publish','/api/admin/content/delete'].includes(p))return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً؛ تحقق من اتصال MongoDB.'});
     if(process.env.NODE_ENV==='production'&&!validSession(req)&&!loginAsset){
       if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
       return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
@@ -80,15 +84,50 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/admin/overview'&&req.method==='GET'){
       const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
       const documents=library.db.prepare("SELECT id,title,category,text_kind,review_status,chars FROM documents WHERE review_status IN ('needs_review','automated_review') ORDER BY CASE review_status WHEN 'needs_review' THEN 0 ELSE 1 END, rowid LIMIT 60").all();
-      return send(req,res,200,{stats,statuses,reviewQueue:documents});
+      const managed=adminStore?await adminStore.content.find({status:'draft'}).sort({updatedAt:-1}).limit(40).project({documentId:1,title:1,category:1,textKind:1,status:1,updatedAt:1}).toArray():[];
+      return send(req,res,200,{stats,statuses,reviewQueue:documents,managedDrafts:managed,mongoConnected:!!adminStore});
+    }
+    if(p==='/api/admin/settings'&&req.method==='GET'){
+      const saved=adminStore?await adminStore.settings.findOne({_id:'library'}):null,drive=saved?.drive||{},ocr=saved?.ocr||{};
+      return send(req,res,200,{mongoConnected:!!adminStore,drive:{account:drive.account||'',folders:drive.folders||{},autoBackup:drive.autoBackup!==false,connection:drive.connection||'reauthorization_required'},ocr:{engine:ocr.engine||'local',workers:ocr.workers||2,maxPages:ocr.maxPages||0,geminiConfigured:!!openSecret(ocr.geminiApiKeyEncrypted)},permissions:{reader:'اطلاع فقط',administrator:'إدارة ومراجعة ونشر',sharedReaderPassword:true}});
+    }
+    if(p==='/api/admin/settings'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req);}catch(e){return send(req,res,e.status||400,{error:e.message});}
+      const old=await adminStore.settings.findOne({_id:'library'})||{},oldDrive=old.drive||{},oldOcr=old.ocr||{},driveIn=body.drive||{},ocrIn=body.ocr||{};
+      const folders={...oldDrive.folders};for(const key of ['assets','results'])if(driveIn.folders?.[key]){const f=driveIn.folders[key];if(String(f.id||'').length>200||String(f.name||'').length>160)return send(req,res,400,{error:'بيانات مجلد Drive أطول من المسموح.'});folders[key]={id:String(f.id||''),name:String(f.name||'').trim()};}
+      const engine=['local','gemini'].includes(ocrIn.engine)?ocrIn.engine:(oldOcr.engine||'local');if(engine==='gemini'&&!openSecret(ocrIn.geminiApiKey?sealSecret(ocrIn.geminiApiKey):oldOcr.geminiApiKeyEncrypted))return send(req,res,400,{error:'أدخل مفتاح Gemini قبل اختيار OCR السحابي.'});
+      const encryptedKey=ocrIn.geminiApiKey?sealSecret(String(ocrIn.geminiApiKey).trim()):oldOcr.geminiApiKeyEncrypted||'';
+      const settings={drive:{account:String(driveIn.account??oldDrive.account??'').slice(0,160),folders,autoBackup:driveIn.autoBackup===undefined?oldDrive.autoBackup!==false:!!driveIn.autoBackup,connection:oldDrive.connection||'reauthorization_required'},ocr:{engine,workers:Math.max(1,Math.min(3,Number(ocrIn.workers)||2)),maxPages:Math.max(0,Math.min(10000,Number(ocrIn.maxPages)||0)),geminiApiKeyEncrypted:encryptedKey},permissions:{reader:'read-only',administrator:'full-control'},updatedAt:new Date()};
+      await adminStore.settings.updateOne({_id:'library'},{$set:settings,$setOnInsert:{createdAt:new Date()}},{upsert:true});await recordAudit(adminStore,'admin','settings_updated','library',{ocrEngine:engine,foldersUpdated:!!driveIn.folders});
+      return send(req,res,200,{ok:true,mongoConnected:true,settings:{drive:{account:settings.drive.account,folders,autoBackup:settings.drive.autoBackup,connection:settings.drive.connection},ocr:{engine,workers:settings.ocr.workers,maxPages:settings.ocr.maxPages,geminiConfigured:!!openSecret(encryptedKey)},permissions:{reader:'اطلاع فقط',administrator:'إدارة كاملة'}}});
+    }
+    if(p==='/api/admin/content'&&req.method==='GET'){
+      const status=['draft','published','superseded'].includes(url.searchParams.get('status'))?url.searchParams.get('status'):'draft';
+      const docs=await adminStore.content.find({status}).sort({updatedAt:-1}).limit(100).project({documentId:1,title:1,category:1,type:1,textKind:1,status:1,sourceUrl:1,reason:1,updatedAt:1,createdAt:1}).toArray();return send(req,res,200,{documents:docs});
+    }
+    if(p==='/api/admin/content/save'&&req.method==='POST'){
+      let body;try{body=JSON.parse((await read(req,650000)).toString('utf8'));}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const title=String(body.title||'').trim().slice(0,500),text=String(body.text||'').trim(),reason=String(body.reason||'').trim().slice(0,2000);if(title.length<3||text.length<40||!reason)return send(req,res,400,{error:'أدخل عنواناً ونصاً كاملاً وسبباً موثقاً للتعديل.'});
+      const documentId=String(body.documentId||'managed_'+randomBytes(12).toString('hex')).slice(0,120);let base=null;try{base=library.document(documentId);}catch{}if(!base&&!documentId.startsWith('managed_'))return send(req,res,404,{error:'الوثيقة الأصلية غير موجودة في فهرس المكتبة.'});
+      const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(base?.type||'national'),category:String(body.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||base?.date||'').slice(0,20),kind:String(body.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:String(body.sourceLabel||base?.sourceLabel||'').slice(0,300),reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin'};
+      if(!/^https:\/\//i.test(record.sourceUrl))return send(req,res,400,{error:'أدخل رابطاً رسمياً يبدأ بـ https:// قبل حفظ المسودة.'});
+      await adminStore.content.updateMany({documentId,status:'draft'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','draft_saved',documentId,{title,sourceUrl:record.sourceUrl});return send(req,res,201,{ok:true,documentId,status:'draft'});
+    }
+    if(p==='/api/admin/content/publish'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),draft=await adminStore.content.findOne({documentId,status:'draft'},{sort:{updatedAt:-1}});
+      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر الرسمي.'});
+      await adminStore.content.updateMany({documentId,status:'published'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.updateOne({_id:draft._id},{$set:{status:'published',publishedAt:new Date(),publishedBy:'admin',updatedAt:new Date()}});await recordAudit(adminStore,'admin','content_published',documentId,{title:draft.title,sourceUrl:draft.sourceUrl});library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());return send(req,res,200,{ok:true,documentId,status:'published'});
+    }
+    if(p==='/api/admin/content/delete'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),result=await adminStore.content.deleteMany({documentId,status:'draft'});if(!result.deletedCount)return send(req,res,404,{error:'لا توجد مسودة قابلة للحذف؛ لا يمكن حذف سجل منشور من هنا.'});await recordAudit(adminStore,'admin','draft_deleted',documentId);return send(req,res,200,{ok:true});
     }
     if(p==='/api/admin/search'&&req.method==='GET'){
       const q=(url.searchParams.get('q')||'').trim().slice(0,160);if(q.length<2)return send(req,res,200,{results:[]});
       const result=library.search({q,scope:'all',limit:20});return send(req,res,200,{results:result.results.map(d=>({id:d.id,title:d.title,category:d.category,textKind:d.textKind,reviewStatus:d.reviewStatus,chars:d.chars,sourceLabel:d.sourceLabel}))});
     }
     if(p==='/api/admin/document'&&req.method==='GET'){
-      const doc=library.document((url.searchParams.get('id')||'').slice(0,120));if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
-      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,type:doc.type,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel});
+      const id=(url.searchParams.get('id')||'').slice(0,120),draft=adminStore?await adminStore.content.findOne({documentId:id,status:'draft'},{sort:{updatedAt:-1}}):null;const doc=draft?{id:draft.documentId,title:draft.title,text:draft.text,category:draft.category,type:draft.type,textKind:draft.textKind,reviewStatus:'draft',sourceUrl:draft.sourceUrl,sourceLabel:draft.sourceLabel,reason:draft.reason,date:draft.date,kind:draft.kind}:library.document(id);if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||''});
     }
     if(p.startsWith('/api/editorial/')){
       if(!localEditor(req))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});

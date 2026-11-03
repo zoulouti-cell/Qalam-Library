@@ -4,5 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24.2.0" },
-  "scripts": { "start": "node server.mjs" }
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "mongodb": "^6.20.0" }
 }
