@@ -203,7 +203,7 @@ const server=http.createServer(async(req,res)=>{
       return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||''});
     }
     if(p.startsWith('/api/editorial/')){
-      if(!localEditor(req))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});
+      if(!localEditor(req)&&!(p==='/api/editorial/ocr/worker'&&req.method==='GET'&&sessionRole(req)==='admin'))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});
       if(p==='/api/editorial/search'&&req.method==='GET'){const q=(url.searchParams.get('q')||'').trim().slice(0,160);if(q.length<2)return send(req,res,200,{results:[]});const result=library.search({q,scope:'all',limit:10});return send(req,res,200,{results:result.results.map(d=>({id:d.id,title:d.title,category:d.category,textKind:d.textKind,reviewStatus:d.reviewStatus,chars:d.chars}))});}
       if(p==='/api/editorial/document'&&req.method==='GET'){const doc=library.document((url.searchParams.get('id')||'').slice(0,120));if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});return send(req,res,200,{id:doc.id,title:doc.title,text:doc.text,sha256:doc.sourceTextSha256,textKind:doc.textKind,reviewStatus:doc.reviewStatus,sourceLabel:doc.sourceLabel,category:doc.category});}
       if(p==='/api/editorial/history'&&req.method==='GET')return send(req,res,200,{history:localCorrectionHistory(file,(url.searchParams.get('id')||'').slice(0,120))});
@@ -230,7 +230,7 @@ const server=http.createServer(async(req,res)=>{
           if(fs.existsSync(dbFile)){let db;try{db=new DatabaseSync(dbFile,{readOnly:true});db.exec('PRAGMA busy_timeout=2000');for(const row of db.prepare('SELECT assessment,length(text) chars FROM pages').iterate()){pages++;let a={};try{a=JSON.parse(row.assessment||'{}');}catch{}const count=Number(a.words)||Number(row.chars)||0;words+=Number(a.words)||0;confidenceWeight+=count;weighted+=count*(Number(a.weightedConfidence)||0);lowWords+=Number(a.lowWords)||0;reviewRegions+=(a.reviewRegions||[]).length;}}catch{}finally{try{db?.close();}catch{}}}
           ocrMetricsCache={at:Date.now(),value:{ocrPages:pages,words,meanConfidence:confidenceWeight?Math.round(weighted/confidenceWeight*100)/100:null,lowConfidenceWords:lowWords,reviewRegions}};
         }
-        return send(req,res,200,{engine:'Tesseract 5.4 C API · ara · tessdata_best',dpi:300,workersActive:!!ingestionChild,running:progress.running===true&&!fs.existsSync(stopFile),pauseRequested:fs.existsSync(stopFile),launchError:ingestionLaunchError,progress,...ocrMetricsCache.value});
+        return send(req,res,200,{engine:'Tesseract 5.4 C API · ara · tessdata_best',localWorkerAvailable:localEditor(req),dpi:300,workersActive:!!ingestionChild,running:progress.running===true&&!fs.existsSync(stopFile),pauseRequested:fs.existsSync(stopFile),launchError:ingestionLaunchError,progress,...ocrMetricsCache.value});
       }
       if(p==='/api/editorial/ocr/worker'&&req.method==='POST'){
         let body;try{body=JSON.parse((await read(req,10000)).toString('utf8'));}catch{return send(req,res,400,{error:'صيغة الطلب غير صالحة.'});}

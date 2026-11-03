@@ -25,9 +25,8 @@
     searchSequence: 0, searchAbort: null, suggestAbort: null, documentAbort: null, searchTimer: null, suggestTimer: null,
     toastTimer: null, marks: [], markIndex: -1, reading: false, paused: false, readingToken: 0, audio: null, audioURL: null,
     mic: null, micTimer: null, recording: false, voices: [], busyAsk: false,
-    ingestionTimer: null, ingestionChecking: false, lastPublished: null, editorialBase: null, editorialPreview: null, editorialOcr: null, editorialOcr2: null, secondaryOcrTimer: null, ocrSettingsTimer: null, ocrSettingsChecking: false
+    ingestionTimer: null, ingestionChecking: false, lastPublished: null
   };
-  const ocrPrefs = { workers: 2, maxPages: 0, ...store.get('ocrSettings', {}) };
   if (resetUnconsentedQueryHistory) store.set('queries', []);
 
   function toast(message) {
@@ -54,7 +53,7 @@
     return Number(bytes) >= 1048576 ? (Number(bytes) / 1048576).toFixed(1) + ' MB' : Math.round(Number(bytes) / 1024) + ' KB';
   }
   function applyStats(stats) {
-    $('statDocuments').textContent = fmt(stats.documents); $('statTexts').textContent = fmt(stats.texts); $('statSummaries').textContent = fmt(stats.summaries); $('libraryCount').textContent = fmt(stats.documents); $('storageSize').textContent = sizeLabel(stats.dbBytes);
+    $('statDocuments').textContent = fmt(stats.documents); $('statTexts').textContent = fmt(stats.texts); $('statSummaries').textContent = fmt(stats.summaries); $('libraryCount').textContent = fmt(stats.documents); if($('storageSize')) $('storageSize').textContent = sizeLabel(stats.dbBytes);
   }
   async function refreshStats() {
     try { applyStats(await api('/api/stats', { signal: AbortSignal.timeout(8000) })); } catch {}
@@ -63,23 +62,6 @@
     if (!Number.isFinite(seconds) || seconds <= 0) return '';
     const minutes = Math.ceil(seconds / 60);
     return 'تقدير المتبقي: ' + (minutes < 60 ? fmt(minutes) + ' دقيقة' : fmt(Math.floor(minutes / 60)) + ' ساعة و' + fmt(minutes % 60) + ' دقيقة');
-  }
-  async function refreshOCRSettings(schedule=true) {
-    clearTimeout(state.ocrSettingsTimer);if(state.ocrSettingsChecking)return;state.ocrSettingsChecking=true;
-    try{
-      const d=await api('/api/editorial/ocr/worker',{signal:AbortSignal.timeout(8000)}),p=d.progress||{},done=Number(p.completedPages)||0,total=Number(p.totalPages)||0,percent=total?Math.max(0,Math.min(100,done*100/total)):0,active=d.running||d.workersActive;
-      $('ocrPagesDone').textContent=fmt(d.ocrPages);$('ocrConfidence').textContent=d.meanConfidence==null?'—':Number(d.meanConfidence).toFixed(1)+'%';$('ocrReviewWords').textContent=fmt(d.lowConfidenceWords);$('ocrSettingsProgressBar').style.width=percent.toFixed(1)+'%';$('ocrSettingsProgress').setAttribute('aria-valuenow',String(Math.round(percent)));
-      const badge=$('ocrWorkerState');badge.classList.toggle('is-running',!!active||!!d.pauseRequested);badge.textContent=d.pauseRequested?(p.running?'جارٍ إيقاف الصفحات الحالية':'متوقف مؤقتاً'):active?'قيد المعالجة':d.launchError?'تعذر التشغيل':p.status==='stalled'?'متوقف — لا تحديث منذ 5 دقائق':p.status==='complete'?'اكتملت الدفعة':p.status==='not_scheduled'?'لم تبدأ المعالجة':'متوقف';
-      $('ocrWorkerDetail').textContent=total?fmt(done)+' من '+fmt(total)+' صفحة · '+fmt(p.completedDocuments)+' وثيقة اكتملت · '+fmt(p.errors)+' حالات تعثر · '+fmt(d.reviewRegions)+' موضعاً معلماً للمراجعة'+(p.stale?' · يبدو أن العامل توقف؛ يمكنك استئنافه من هنا.':'')+(p.estimatedRemainingSeconds&&!p.stale?' · '+remainingLabel(p.estimatedRemainingSeconds):''):d.launchError?'تعذر تشغيل Python: '+d.launchError:'لا توجد دفعة معالجة نشطة. عدد الصفحات المحفوظة في OCR المحلي: '+fmt(d.ocrPages)+'.';
-      $('ocrStartBtn').disabled=!!active&&!d.pauseRequested;$('ocrStartBtn').textContent=d.pauseRequested?'استئناف المعالجة':active?'المعالجة جارية':'بدء المعالجة أو استئنافها';$('ocrPauseBtn').disabled=!active||!!d.pauseRequested;
-      if(schedule&&$('settings').open)state.ocrSettingsTimer=setTimeout(()=>refreshOCRSettings(true),active||d.pauseRequested?4000:20000);
-    }catch(error){$('ocrWorkerState').textContent='تعذر جلب الحالة';$('ocrWorkerDetail').textContent=error.message;}
-    finally{state.ocrSettingsChecking=false;}
-  }
-  async function controlOCR(action){
-    const workers=Number($('ocrWorkers').value)||2,maxPages=Math.max(0,Math.min(10000,Number($('ocrMaxPages').value)||0));$('ocrStartBtn').disabled=true;$('ocrPauseBtn').disabled=true;$('ocrWorkerDetail').textContent=action==='pause'?'جارٍ طلب الإيقاف المؤقت…':'جارٍ تشغيل أداة OCR المحلية…';
-    try{await api('/api/editorial/ocr/worker',{method:'POST',body:JSON.stringify({action,workers,maxPages})});if(action!=='pause')toast('بدأت معالجة OCR محلياً. يمكنك مواصلة استخدام المكتبة.');await refreshOCRSettings();}
-    catch(error){$('ocrWorkerDetail').textContent=error.message;$('ocrStartBtn').disabled=false;$('ocrPauseBtn').disabled=false;}
   }
   async function pollIngestion() {
     clearTimeout(state.ingestionTimer);
@@ -517,51 +499,6 @@
     else{$('voiceSelect').disabled=false;populateVoices();$('voiceTestBtn').disabled=false;}
   }
   function openSettings() { if (state.mic) stopMic(true); refreshSettings();if (!$('settings').open) $('settings').showModal(); }
-  function resetEditorialPreview() {
-    state.editorialPreview = null; $('editorialPreview').hidden = true; $('editorialPreview').innerHTML = ''; $('editorialConfirm').checked = false; $('editorialSaveBtn').disabled = true;
-  }
-  function editorialSnapshot() { return JSON.stringify({ title:$('editorialTitle').value, text:$('editorialText').value, reason:$('editorialReason').value, sourceUrl:$('editorialSourceUrl').value }); }
-  function updateEditorialSave() { $('editorialSaveBtn').disabled = !state.editorialBase || !state.editorialPreview || state.editorialPreview.snapshot !== editorialSnapshot() || !$('editorialConfirm').checked; }
-  async function searchEditorialDocuments() {
-    const q=$('editorialQuery').value.trim();if(q.length<2){$('editorialResults').hidden=true;$('editorialStatus').textContent='أدخل حرفين على الأقل للبحث عن النص.';return;}
-    $('editorialStatus').textContent='جارٍ البحث في النصوص المحلية…';$('editorialResults').hidden=false;$('editorialResults').innerHTML='<p class="setting-note">جارٍ البحث…</p>';
-    try{const data=await api('/api/editorial/search?q='+encodeURIComponent(q));$('editorialResults').innerHTML=data.results.length?data.results.map(d=>'<button type="button" class="editorial-result" data-editorial-id="'+esc(d.id)+'"><strong>'+esc(d.title)+'</strong><small>'+esc(d.category||'غير مصنف')+' · '+esc(kindNames[d.textKind]||'محتوى مفهرس')+' · '+fmt(d.chars)+' حرف</small></button>').join(''):'<p class="setting-note">لم أعثر على نص مطابق في الفهرس المحلي.</p>'; $('editorialStatus').textContent='';}
-    catch(error){$('editorialResults').innerHTML='';$('editorialStatus').textContent=error.message;}
-  }
-  async function openEditorialDocument(id) {
-    $('editorialStatus').textContent='جارٍ تحميل النص المحفوظ…';$('editorialEditor').hidden=true;state.editorialBase=null;resetEditorialPreview();
-    try{const doc=await api('/api/editorial/document?id='+encodeURIComponent(id));if(!doc.text||doc.text.length<40){$('editorialStatus').textContent='لا يوجد نص قابل للتحرير لهذه البطاقة.';return;}state.editorialBase={id:doc.id,sha256:doc.sha256,title:doc.title,text:doc.text};state.editorialOcr=null;$('editorialTitle').value=doc.title;$('editorialText').value=doc.text;$('editorialReason').value='';$('editorialSourceUrl').value='';$('editorialConfirm').checked=false;$('editorialDocumentMeta').textContent=doc.category+' · '+(kindNames[doc.textKind]||'محتوى مفهرس')+' · '+fmt(doc.text.length)+' حرف · '+doc.reviewStatus;$('editorialEditor').hidden=false;$('editorialStatus').textContent='';await Promise.all([loadEditorialHistory(doc.id),loadEditorialOcr(doc.id)]);}
-    catch(error){$('editorialStatus').textContent=error.message;}
-  }
-  async function loadEditorialOcr(id){
-    $('editorialOcrStatus').textContent='جارٍ التحقق من قراءات OCR المحلية…';$('editorialOcrLoadBtn').hidden=true;$('editorialOcr2LoadBtn').hidden=true;$('editorialOcr2RunBtn').hidden=true;
-    try{const data=await api('/api/editorial/ocr?id='+encodeURIComponent(id));state.editorialOcr=data.text?data:null;state.editorialOcr2=data.alternateText?data:null;if(!data.pages){$('editorialOcrStatus').textContent=data.status==='not_queued'?'لا توجد قراءة OCR مسجلة لهذه الوثيقة.':'OCR في الطابور؛ لم تكتمل صفحات قابلة للمقارنة بعد.';return;}const confidence=Number(data.meanEngineConfidence||0).toFixed(1);let note='Tesseract: '+fmt(data.pages)+' من '+fmt(data.totalPages)+' صفحة · متوسط درجة المحرك '+confidence+' · مناطق تحتاج مراجعة '+fmt(data.reviewRegions)+'. '+(data.complete?'النص الكامل متاح.':'القراءة جزئية.');if(data.alternatePages){note+=' PaddleOCR: '+fmt(data.alternatePages)+' صفحة · اتفاق حرفي متوسط '+Number(data.alternateAgreementPercent||0).toFixed(1)+'% · اختلافات أرقام/نفي '+fmt(data.criticalDifferences)+'.';}else note+=' لم تُشغّل المقارنة الثانية بعد.';$('editorialOcrStatus').textContent=note;$('editorialOcrLoadBtn').hidden=!data.text;$('editorialOcr2LoadBtn').hidden=!data.alternateText;$('editorialOcr2RunBtn').hidden=!!data.alternateComplete||!data.pages;$('editorialOcr2RunBtn').disabled=!data.complete;if(!data.complete)$('editorialOcr2RunBtn').title='يمكن المقارنة بعد اكتمال OCR الأساسي لهذه الوثيقة.';else $('editorialOcr2RunBtn').title='يشغّل محركاً محلياً اختيارياً على الصفحات المفهرسة للمقارنة فقط.';}
-    catch{$('editorialOcrStatus').textContent='تعذر قراءة نتيجة OCR المحلية.';}
-  }
-  async function pollSecondaryOcr(id,repeat=true){try{const status=await api('/api/editorial/ocr/secondary/status?id='+encodeURIComponent(id));if(status.running){$('editorialOcr2RunBtn').disabled=true;$('editorialOcrStatus').textContent='المقارنة المحلية تعمل: '+fmt(status.processed||0)+' من '+fmt(status.totalPages||0)+' صفحة.';if(repeat){clearTimeout(state.secondaryOcrTimer);state.secondaryOcrTimer=setTimeout(()=>pollSecondaryOcr(id,true),2500);}return;}if(status.error){$('editorialOcrStatus').textContent=status.error;$('editorialOcr2RunBtn').disabled=false;return;}if(status.finishedAt){$('editorialOcrStatus').textContent='اكتملت المقارنة الثانية ('+fmt(status.processed||0)+' صفحة؛ أخطاء '+fmt(status.errors||0)+'). جارٍ تحديث الفروق…';await loadEditorialOcr(id);}}catch{}}
-  async function startSecondaryOcr(){if(!state.editorialBase)return;const id=state.editorialBase.id;$('editorialOcr2RunBtn').disabled=true;$('editorialOcrStatus').textContent='جارٍ بدء محرك OCR العربي المحلي…';try{await api('/api/editorial/ocr/secondary/start',{method:'POST',body:JSON.stringify({id})});pollSecondaryOcr(id,true);}catch(error){$('editorialOcrStatus').textContent=error.message;$('editorialOcr2RunBtn').disabled=false;}}
-  function useEditorialOcr(engine='tesseract'){const candidate=engine==='paddle'?state.editorialOcr2:state.editorialOcr;if(!candidate?.text||!state.editorialBase)return;if(!confirm('سيُحمّل نص '+(engine==='paddle'?'PaddleOCR':'Tesseract')+' مكان النص في محرر المقارنة. النص المحفوظ لن يتغير إلا بعد معاينة الفروق وتأكيد الحفظ، وقد يحتوي OCR على أخطاء. متابعة؟'))return;$('editorialText').value=engine==='paddle'?candidate.alternateText:candidate.text;$('editorialReason').value='مقارنة قراءتي Tesseract وPaddleOCR بالنص المحفوظ؛ يلزم تدقيق الفروق قبل الاعتماد.';resetEditorialPreview();$('editorialStatus').textContent='حُمّلت قراءة '+(engine==='paddle'?'PaddleOCR':'Tesseract')+' للمقارنة. راجع الفروق ولا تحفظ قبل التحقق.';$('editorialText').focus();}
-  async function loadEditorialHistory(id) {
-    try{const {history}=await api('/api/editorial/history?id='+encodeURIComponent(id));$('editorialHistory').hidden=!history.length;$('editorialHistory').innerHTML=history.length?'<h4>سجل التعديلات المحلية</h4>'+history.map(h=>'<article class="editorial-history-item"><div><strong>'+esc(h.created_at.slice(0,16).replace('T',' '))+'</strong><small>'+esc(h.reason)+' · '+(h.status==='applied'?'مطبق محلياً':'مسترجع')+(h.source_url?' · <a href="'+esc(h.source_url)+'" target="_blank" rel="noopener">المصدر</a>':'')+'</small></div>'+(h.status==='applied'?'<button type="button" class="text-button" data-editorial-revert="'+esc(h.id)+'">استرجاع النسخة السابقة</button>':'')+'</article>').join(''):'';}
-    catch{$('editorialHistory').hidden=true;$('editorialHistory').innerHTML='';}
-  }
-  function previewEditorialChange() {
-    if(!state.editorialBase)return;const snapshot=editorialSnapshot(),title=$('editorialTitle').value.trim(),text=$('editorialText').value.trim(),reason=$('editorialReason').value.trim();if(title.length<3||text.length<40||reason.length<8){$('editorialStatus').textContent='أكمل العنوان والنص وسبب التعديل قبل المعاينة.';return;}
-    let prefix=0;const old=state.editorialBase.text;while(prefix<old.length&&prefix<text.length&&old[prefix]===text[prefix])prefix++;let suffix=0;while(suffix<old.length-prefix&&suffix<text.length-prefix&&old[old.length-1-suffix]===text[text.length-1-suffix])suffix++;const oldEnd=Math.min(old.length,prefix+240),newEnd=Math.min(text.length,prefix+240);
-    $('editorialPreview').innerHTML='<div class="editorial-diff"><div><strong>قبل</strong><pre>'+esc(old.slice(Math.max(0,prefix-80),oldEnd))+'</pre></div><div><strong>بعد</strong><pre>'+esc(text.slice(Math.max(0,prefix-80),newEnd))+'</pre></div></div><p>موضع الاختلاف التقريبي: '+fmt(prefix)+' · المحذوف '+fmt(old.length-prefix-suffix)+' حرفاً · المضاف '+fmt(text.length-prefix-suffix)+' حرفاً.</p><p>العنوان: '+esc(state.editorialBase.title)+' ← '+esc(title)+'</p>';
-    $('editorialPreview').hidden=false;state.editorialPreview={snapshot};$('editorialConfirm').checked=false;$('editorialStatus').textContent='راجع المقارنة، ثم أكد الحفظ المحلي.';updateEditorialSave();
-  }
-  async function saveEditorialCorrection() {
-    if(!state.editorialBase||!state.editorialPreview||state.editorialPreview.snapshot!==editorialSnapshot()||!$('editorialConfirm').checked)return;
-    $('editorialSaveBtn').disabled=true;$('editorialStatus').textContent='جارٍ حفظ النسخة ومؤشر المراجعة…';
-    try{const result=await api('/api/editorial/apply',{method:'POST',body:JSON.stringify({id:state.editorialBase.id,baseSha:state.editorialBase.sha256,title:$('editorialTitle').value,text:$('editorialText').value,reason:$('editorialReason').value,sourceUrl:$('editorialSourceUrl').value})});toast('حُفظ التصحيح محلياً، ووُسم بأنه يحتاج مراجعة بشرية.');await refreshStats();await runSearch();await openEditorialDocument(result.id);}
-    catch(error){$('editorialStatus').textContent=error.message;updateEditorialSave();}
-  }
-  async function revertEditorialCorrection(historyId) {
-    if(!confirm('استرجاع النسخة السابقة؟ سيصبح النص الحالي محفوظاً ضمن سجل التعديلات.'))return;
-    try{const result=await api('/api/editorial/revert',{method:'POST',body:JSON.stringify({historyId})});toast('استُرجعت النسخة السابقة.');await refreshStats();await runSearch();await openEditorialDocument(result.id);}
-    catch(error){$('editorialStatus').textContent=error.message;}
-  }
   function audioStatus(text, settingsLink = false) {
     $('readerAudioStatus').hidden = !text; $('readerAudioStatus').textContent = text;
     if (settingsLink) { const button = document.createElement('button'); button.textContent = 'تفضيلات الصوت'; button.addEventListener('click', openSettings); $('readerAudioStatus').append(button); }
@@ -777,10 +714,8 @@
     $('clearTopQuery').addEventListener('click', clearSearchQuery); $('clearBottomQuery').addEventListener('click', clearSearchQuery);
     $('clearHistory').addEventListener('click', () => { state.history = []; store.set('history', []); renderLocalView(); toast('مُسح سجل القراءة على هذا الجهاز.'); });
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
-    $('settingsClose').addEventListener('click', () => $('settings').close());$('settings').addEventListener('close',()=>clearTimeout(state.ocrSettingsTimer)); $('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
+    $('settingsClose').addEventListener('click', () => $('settings').close());$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
     $('driveSourceClose').addEventListener('click',()=>$('driveSourceDialog').close());$('driveSourceDialog').addEventListener('click',event=>{if(event.target===$('driveSourceDialog'))$('driveSourceDialog').close();});
-    $('ocrStartBtn').addEventListener('click',()=>controlOCR($('ocrWorkerState').textContent==='متوقف مؤقتاً'?'resume':'start'));$('ocrPauseBtn').addEventListener('click',()=>controlOCR('pause'));$('ocrRefreshBtn').addEventListener('click',()=>refreshOCRSettings(false));
-    $('ocrWorkers').addEventListener('change',event=>{ocrPrefs.workers=Number(event.target.value)||2;store.set('ocrSettings',ocrPrefs);});$('ocrMaxPages').addEventListener('change',event=>{ocrPrefs.maxPages=Math.max(0,Math.min(10000,Number(event.target.value)||0));event.target.value=String(ocrPrefs.maxPages);store.set('ocrSettings',ocrPrefs);});
     $('personalize').addEventListener('change', event => { prefs.personalize = event.target.checked; persistPrefs(); toast(prefs.personalize ? 'فُعّل السجل والتخصيص على هذا الجهاز فقط.' : 'توقف حفظ القراءات وعمليات البحث الجديدة.'); });
     $('searchHistoryEnabled').addEventListener('change', event => { prefs.searchHistory = event.target.checked; if (!prefs.searchHistory) { state.queries = []; store.set('queries', []); } persistPrefs(); toast(prefs.searchHistory ? 'فُعّل سجل البحث؛ ستُحفظ عمليات البحث التالية محلياً.' : 'أُوقف سجل البحث وحُذفت العبارات المحفوظة محلياً.'); });
     $('dictationEngine').addEventListener('change', event => { stopMic(true); prefs.dictationEngine = event.target.value; persistPrefs(); refreshSettings(); });
@@ -788,16 +723,6 @@
     $('allowNetworkVoices').addEventListener('change', event => { stopReading(); prefs.allowNetworkVoices = event.target.checked; prefs.voice = ''; persistPrefs(); populateVoices(); refreshSettings(); });
     $('voiceSelect').addEventListener('change', event => { stopReading(); prefs.voice = event.target.value; persistPrefs(); });
     $('voiceTestBtn').addEventListener('click',testReadingVoice);
-    $('editorialSearchBtn').addEventListener('click', searchEditorialDocuments);
-    $('editorialOcrLoadBtn').addEventListener('click', useEditorialOcr);
-    $('editorialOcr2LoadBtn').addEventListener('click', () => useEditorialOcr('paddle'));
-    $('editorialOcr2RunBtn').addEventListener('click', startSecondaryOcr);
-    $('editorialQuery').addEventListener('keydown', event => { if(event.key==='Enter'){event.preventDefault();searchEditorialDocuments();} });
-    $('editorialResults').addEventListener('click', event => { const button=event.target.closest('[data-editorial-id]');if(button)openEditorialDocument(button.dataset.editorialId); });
-    $('editorialHistory').addEventListener('click', event => { const button=event.target.closest('[data-editorial-revert]');if(button)revertEditorialCorrection(button.dataset.editorialRevert); });
-    $('editorialPreviewBtn').addEventListener('click', previewEditorialChange); $('editorialSaveBtn').addEventListener('click', saveEditorialCorrection);
-    ['editorialTitle','editorialText','editorialReason','editorialSourceUrl'].forEach(id => $(id).addEventListener('input', () => { resetEditorialPreview();$('editorialStatus').textContent='تغيرت البيانات؛ أعد معاينة الفروق قبل الحفظ.'; }));
-    $('editorialConfirm').addEventListener('change', updateEditorialSave);
     $('spellReferences').addEventListener('change', event => { prefs.spellReferences = event.target.checked; stopReading(); persistPrefs(); });
     $('readRate').addEventListener('change', event => { prefs.rate = event.target.value; persistPrefs(); if (state.reading) { stopReading(); audioStatus('تغيّرت السرعة. اضغط استمع لبدء القراءة بالسرعة الجديدة.'); } });
     $('menuToggle').addEventListener('click', () => { const open = $('sidebar').classList.toggle('open'); $('sidebarScrim').hidden = !open; $('menuToggle').setAttribute('aria-expanded', String(open)); }); $('sidebarScrim').addEventListener('click', closeSidebar);
