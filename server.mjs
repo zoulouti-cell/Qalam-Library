@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +13,7 @@ import { answerQuestion,aiCapability } from './src/assistant.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
 import { connectAdminStore,sealSecret,openSecret,recordAudit } from './src/admin-store.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -22,10 +25,11 @@ if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موج
 const library=new Library(file),limits=new Map();
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
-let activeAI=0;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
+let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
+let driveMonitorCache={at:0,value:null};
 const headers={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',
-  'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+  'Content-Security-Policy':"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; media-src 'self' blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
   'Permissions-Policy':'microphone=(self), camera=(), geolocation=()',
 };
 function send(req,res,status,value,type='application/json; charset=utf-8'){
@@ -87,6 +91,36 @@ const server=http.createServer(async(req,res)=>{
       const managed=adminStore?await adminStore.content.find({status:'draft'}).sort({updatedAt:-1}).limit(40).project({documentId:1,title:1,category:1,textKind:1,status:1,updatedAt:1}).toArray():[];
       return send(req,res,200,{stats,statuses,reviewQueue:documents,managedDrafts:managed,mongoConnected:!!adminStore});
     }
+    if(p==='/api/admin/drive-monitor'&&req.method==='GET'){
+      if(driveMonitorCache.value&&Date.now()-driveMonitorCache.at<60_000)return send(req,res,200,driveMonitorCache.value);
+      try{const response=await fetch('https://api.github.com/repos/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml/runs?per_page=1',{headers:{accept:'application/vnd.github+json','user-agent':'Qalam-Library'},signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error(response.status===404?'مستودع بيانات المكتبة أو سجل الفحص غير متاح للقراءة.':'تعذر جلب حالة الفحص من GitHub.');const data=await response.json(),run=data.workflow_runs?.[0];const value=run?{available:true,status:run.status||'unknown',conclusion:run.conclusion||'',event:run.event||'',createdAt:run.created_at||'',updatedAt:run.updated_at||'',url:run.html_url||'https://github.com/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml',runNumber:run.run_number||0}:{available:true,status:'not_run',conclusion:'',createdAt:'',url:'https://github.com/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml'};driveMonitorCache={at:Date.now(),value};return send(req,res,200,value);}catch(error){return send(req,res,200,{available:false,error:error.message,url:'https://github.com/zoulouti-cell/Qalam-Library-data/actions/workflows/drive-monitor.yml'});}
+    }
+    if(p==='/api/admin/drive/status'&&req.method==='GET'){
+      try{const d=await listDriveFolder();return send(req,res,200,{connected:true,rootId:libraryDriveRoot(),rootName:d.folder.name||'الأصول',topLevelItems:d.files.length,pdfCount:d.files.filter(f=>f.mimeType==='application/pdf').length,folderCount:d.files.filter(f=>f.mimeType==='application/vnd.google-apps.folder').length,readOnly:true});}catch(error){return send(req,res,503,{connected:false,rootId:libraryDriveRoot(),error:error.message||'تعذر الاتصال بأرشيف Drive.'});}
+    }
+    if(p==='/api/drive/files'&&req.method==='GET'){
+      try{return send(req,res,200,await listDriveFolder((url.searchParams.get('folderId')||'').slice(0,200)||undefined));}catch(error){return send(req,res,503,{error:error.message||'تعذر استعراض مجلد Drive.'});}
+    }
+    if(p==='/api/drive/file'&&req.method==='GET'){
+      const id=(url.searchParams.get('id')||'').slice(0,200),mode=url.searchParams.get('mode')==='download'?'attachment':'inline';if(!id)return send(req,res,400,{error:'معرف ملف Drive مطلوب.'});
+      try{const {item,response}=await openDrivePdf(id);const safeName=encodeURIComponent(String(item.name||'document.pdf').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':'application/pdf','Content-Disposition':`${mode}; filename="document.pdf"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
+    }
+    if(p==='/api/admin/drive/ocr'&&req.method==='POST'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ مسودة OCR.'});
+      let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+      const fileId=String(body.fileId||'').slice(0,200);if(!fileId)return send(req,res,400,{error:'اختر ملف PDF من الأرشيف.'});
+      const saved=await adminStore.settings.findOne({_id:'library'}),ocr=saved?.ocr||{},apiKey=openSecret(ocr.geminiApiKeyEncrypted);
+      if(ocr.engine!=='gemini'||!apiKey)return send(req,res,409,{error:'اختر Gemini السحابي واحفظ مفتاحه من إعدادات OCR أولاً.'});
+      if(activeDriveOcr)return send(req,res,409,{error:'هناك عملية OCR سحابية قيد التنفيذ. انتظر اكتمالها قبل بدء عملية أخرى.'});activeDriveOcr=true;
+      try{
+        const {item,buffer}=await readDrivePdf(fileId,20*1024*1024);const prompt='استخرج النص الظاهر في هذا المستند كاملاً وبأمانة حرفية، باللغة العربية كما كُتب. حافظ على أرقام المواد والفصول والتواريخ وعلامات الترقيم والنفي، وعلى ترتيب الصفحات والفقرات. لا تلخص ولا تشرح ولا تصحح ولا تضف عناوين من عندك. أزل رقم الصفحة المنفصل فقط إذا كان واضحاً أنه ترويسة أو تذييل وليس جزءاً من النص. أعد النص المستخرج وحده. إذا تعذر قراءة موضع فضع [غير مقروء] بدلاً من التخمين.';
+        const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash')}:generateContent`,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':apiKey},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:'application/pdf',data:buffer.toString('base64')}},{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:24000}}),signal:AbortSignal.timeout(180_000)});
+        const result=await response.json().catch(()=>({}));if(!response.ok){const apiError=String(result.error?.message||'').slice(0,220);throw new Error(apiError||`Gemini لم يقبل الطلب (HTTP ${response.status}).`);}
+        const candidate=result.candidates?.[0],text=(candidate?.content?.parts||[]).map(part=>part.text||'').join('\n').trim();if(candidate?.finishReason==='MAX_TOKENS')throw new Error('بلغ OCR حد طول الإجابة ولم يُنشئ مسودة مبتورة؛ استخدم OCR المتصفح على دفعات أصغر.');if(text.length<40)throw new Error('لم يُرجع Gemini نصاً كافياً للمراجعة؛ لم تُنشأ مسودة.');if(text.length>500000)throw new Error('تجاوز النص الناتج حد المسودة الواحدة؛ لم يُحفظ نص مبتور.');
+        const title=String(item.name||'وثيقة من Drive').replace(/\.pdf$/i,'').slice(0,500),documentId='managed_drive_'+randomBytes(12).toString('hex'),sourceUrl=`https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`,record={documentId,title,text,type:'national',category:'غير مصنف — مراجعة التصنيف',subcategory:'',date:'',kind:'law',textKind:'extracted_text',sourceUrl,sourceLabel:'نسخة أصلية في Google Drive · OCR Gemini',reason:'مسودة OCR سحابي؛ راجع النص كاملاً وقارنه بالوثيقة الأصلية قبل النشر.',status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin',ocr:{engine:process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash',createdAt:new Date(),pagesRequested:'all',sourceDriveFileId:fileId}};
+        await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','drive_cloud_ocr_draft_created',documentId,{title,sourceDriveFileId:fileId,sourceBytes:buffer.length,engine:record.ocr.engine});return send(req,res,201,{ok:true,documentId,title,status:'draft',chars:text.length,engine:record.ocr.engine});
+      }catch(error){return send(req,res,502,{error:error.message||'تعذر تشغيل OCR السحابي.'});}finally{activeDriveOcr=false;}
+    }
     if(p==='/api/admin/settings'&&req.method==='GET'){
       const saved=adminStore?await adminStore.settings.findOne({_id:'library'}):null,drive=saved?.drive||{},ocr=saved?.ocr||{};
       return send(req,res,200,{mongoConnected:!!adminStore,drive:{account:drive.account||'',folders:drive.folders||{},autoBackup:drive.autoBackup!==false,connection:drive.connection||'reauthorization_required'},ocr:{engine:ocr.engine||'local',workers:ocr.workers||2,maxPages:ocr.maxPages||0,geminiConfigured:!!openSecret(ocr.geminiApiKeyEncrypted)},permissions:{reader:'اطلاع فقط',administrator:'إدارة ومراجعة ونشر',sharedReaderPassword:true}});
@@ -106,7 +140,7 @@ const server=http.createServer(async(req,res)=>{
       const docs=await adminStore.content.find({status}).sort({updatedAt:-1}).limit(100).project({documentId:1,title:1,category:1,type:1,textKind:1,status:1,sourceUrl:1,reason:1,updatedAt:1,createdAt:1}).toArray();return send(req,res,200,{documents:docs});
     }
     if(p==='/api/admin/content/save'&&req.method==='POST'){
-      let body;try{body=JSON.parse((await read(req,650000)).toString('utf8'));}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      let body;try{body=JSON.parse((await read(req,2200000)).toString('utf8'));}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
       const title=String(body.title||'').trim().slice(0,500),text=String(body.text||'').trim(),reason=String(body.reason||'').trim().slice(0,2000);if(title.length<3||text.length<40||!reason)return send(req,res,400,{error:'أدخل عنواناً ونصاً كاملاً وسبباً موثقاً للتعديل.'});
       const documentId=String(body.documentId||'managed_'+randomBytes(12).toString('hex')).slice(0,120);let base=null;try{base=library.document(documentId);}catch{}if(!base&&!documentId.startsWith('managed_'))return send(req,res,404,{error:'الوثيقة الأصلية غير موجودة في فهرس المكتبة.'});
       const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(base?.type||'national'),category:String(body.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||base?.date||'').slice(0,20),kind:String(body.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:String(body.sourceLabel||base?.sourceLabel||'').slice(0,300),reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin'};
@@ -221,7 +255,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/api/'))return send(req,res,404,{error:'الخدمة غير موجودة.'});
     if(!['GET','HEAD'].includes(req.method))return send(req,res,405,'Method not allowed','text/plain');
-    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/'?'/index.html':p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
+    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/archive'?'/archive.html':p==='/'?'/index.html':p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
     if(!target.startsWith(PUBLIC+path.sep)||relative.includes('\0'))return send(req,res,403,'Forbidden','text/plain');
     const type=MIME[path.extname(target).toLowerCase()];if(!type||!fs.existsSync(target)||!fs.statSync(target).isFile())return send(req,res,404,'Not found','text/plain');
     const bytes=fs.readFileSync(target),etag='"'+createHash('sha1').update(bytes).digest('hex')+'"';

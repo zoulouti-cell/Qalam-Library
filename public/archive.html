@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#143e34"><title>الأصول الرقمية | قلم</title><link rel="stylesheet" href="/archive.css"><script src="/archive.js" defer></script></head>
+<body>
+  <header class="bar"><a href="/" class="brand"><span>ق</span><strong>المكتبة القانونية</strong></a><nav><a href="/">العودة إلى المكتبة</a><a href="/admin">إدارة المكتبة</a></nav></header>
+  <main class="wrap">
+    <section class="hero"><div><p class="eyebrow">الأصول محفوظة في Google Drive</p><h1>الوثائق الأصلية</h1><p>تصفّح المجلدات، واعرض ملفات PDF أو حمّلها عند الحاجة. المعاينة لا تحفظ نسخة على خادم المكتبة.</p></div><button id="reload" class="button primary">تحديث</button></section>
+    <p id="status" class="status" role="status" aria-live="polite">جارٍ الاتصال بـDrive…</p>
+    <p id="draftNotice" class="status ok" hidden><a id="reviewDraft" href="/admin">فتح مسودة OCR في لوحة الإدارة لمراجعتها</a></p>
+    <div class="toolbar"><nav id="breadcrumbs" aria-label="مسار المجلد"></nav><label><span class="sr-only">بحث في هذا المجلد</span><input id="filter" type="search" placeholder="ابحث في أسماء الملفات…" autocomplete="off"></label></div>
+    <section id="files" class="files" aria-live="polite"></section>
+    <p class="privacy">تُجلب ملفات PDF وقت العرض أو التحميل فقط. لا يحتفظ خادم المكتبة بنسخة منها. محتوى الملفات لا يرسل إلى Gemini إلا عند اختيار OCR السحابي يدوياً من حساب المدير.</p>
+  </main>
+  <dialog id="preview"><header><strong id="previewTitle"></strong><button id="closePreview" class="close" aria-label="إغلاق">×</button></header><iframe id="previewFrame" title="معاينة الوثيقة الأصلية" referrerpolicy="no-referrer"></iframe></dialog>
+</body></html>
