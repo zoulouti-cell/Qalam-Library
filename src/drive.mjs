@@ -111,7 +111,7 @@ async function allLibraryPdfs(force=false) {
   pdfIndexCache.promise=(async()=>{
     const files=[],queue=[{id:DRIVE_ROOT_FOLDER_ID,depth:0,path:''}],seen=new Set();
     async function children(folder){const found=[];let token='';do{const query=new URLSearchParams({q:`'${folder.id}' in parents and trashed = false`,pageSize:'1000',fields:`nextPageToken,files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});if(token)query.set('pageToken',token);const response=await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`),data=await response.json();found.push(...(data.files||[]));token=data.nextPageToken||'';}while(token);return found;}
-    while(queue.length&&files.length<30000){const batch=queue.splice(0,4).filter(folder=>!seen.has(folder.id)&&folder.depth<=8);if(!batch.length)continue;batch.forEach(folder=>seen.add(folder.id));const pages=await Promise.all(batch.map(async folder=>({folder,items:await children(folder)})));for(const {folder,items} of pages)for(const item of items){if(item.mimeType==='application/pdf')files.push({id:item.id,name:item.name||'',size:Number(item.size)||0,modifiedTime:item.modifiedTime||'',path:folder.path||''});else if(item.mimeType==='application/vnd.google-apps.folder')queue.push({id:item.id,depth:folder.depth+1,path:[folder.path,item.name||''].filter(Boolean).join(' / ')});}}
+    while(queue.length&&files.length<30000){const batch=queue.splice(0,4).filter(folder=>!seen.has(folder.id)&&folder.depth<=8);if(!batch.length)continue;batch.forEach(folder=>seen.add(folder.id));const pages=await Promise.all(batch.map(async folder=>({folder,items:await children(folder)})));for(const {folder,items} of pages)for(const item of items){if(item.mimeType==='application/pdf')files.push({id:item.id,name:item.name||'',size:Number(item.size)||0,modifiedTime:item.modifiedTime||'',path:folder.path||'',webViewLink:item.webViewLink||'',officialUrl:officialSourceFromDescription(item.description)});else if(item.mimeType==='application/vnd.google-apps.folder')queue.push({id:item.id,depth:folder.depth+1,path:[folder.path,item.name||''].filter(Boolean).join(' / ')});}}
     pdfIndexCache={at:Date.now(),promise:null,files};return files;
   })().catch(error=>{pdfIndexCache.promise=null;throw error;});
   return pdfIndexCache.promise;
@@ -128,20 +128,13 @@ export async function searchDrivePdfs(query,limit=12) {
 export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   if (Date.now() - agreementIndexCache.at >= 15 * 60_000) {
     if (!agreementIndexCache.promise) agreementIndexCache.promise = (async () => {
-      const root = await listDriveFolder();
-      const rootFolder = root.files.find(item => item.mimeType === 'application/vnd.google-apps.folder' && normalizeDriveName(item.name).includes('اتفاق'));
-      if (!rootFolder) throw new Error('لم يُعثر على مجلد الاتفاقيات والمعاهدات في مجلد أصول المكتبة.');
-      const files = [], queue = [{ id: rootFolder.id, path: rootFolder.name, depth: 0 }], seen = new Set();
-      while (queue.length && files.length < 10000) {
-        const folder = queue.shift();
-        if (seen.has(folder.id) || folder.depth > 8) continue;
-        seen.add(folder.id);
-        const listed = await listDriveFolder(folder.id, true);
-        for (const item of listed.files) {
-          if (item.mimeType === 'application/vnd.google-apps.folder') queue.push({ id: item.id, path: `${folder.path} / ${item.name}`, depth: folder.depth + 1 });
-          else if (item.mimeType === 'application/pdf') files.push({ id: item.id, name: item.name, size: item.size, modifiedTime: item.modifiedTime, path: folder.path, webViewLink: item.webViewLink || '', officialUrl: officialSourceFromDescription(item.description) });
-        }
-      }
+      // Discover the treaty branch wherever it sits in the user's folder tree;
+      // do not assume that it is a direct child of the Drive root.
+      const libraryFiles = await allLibraryPdfs();
+      const marker = value => /(?:اتفاق|معاهد|معاهدات|معاهدة)/u.test(normalizeDriveName(value));
+      let files = libraryFiles.filter(file => file.path.split(' / ').some(marker));
+      if (!files.length) files = libraryFiles.filter(file => marker(file.name));
+      files = files.map(file => ({ ...file, webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || '' }));
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };
       return files;
