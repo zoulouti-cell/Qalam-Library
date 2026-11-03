@@ -1,0 +1,13 @@
+.reader-body{white-space:normal;text-align:start;word-spacing:normal;letter-spacing:normal;line-height:1.95}
+.reader-body p{white-space:normal;margin:0 0 .85em;text-align:start;line-height:1.95;word-spacing:normal}
+.reader-body h3{white-space:normal;line-height:1.7;margin:1.35em 0 .65em}
+.result-open,.reader-header h2{unicode-bidi:plaintext}
+.reader-dialog{width:min(98vw,1760px);height:95dvh;max-height:95dvh}
+.reader-header,.reader-toolbar,.reader-foot{padding-inline:clamp(18px,3vw,48px)}
+.reader-header h2{font-weight:750;color:#050505}
+.reader-layout{grid-template-columns:200px minmax(0,1fr)}
+.reader-scroll{padding:28px clamp(22px,4vw,64px)}
+.reader-body{max-width:none;color:#080808;font-weight:500;line-height:1.82}
+.reader-body p{line-height:1.82}
+@media(max-width:720px){.reader-dialog{width:100%;height:100dvh;max-height:100dvh}.reader-layout{grid-template-columns:minmax(0,1fr)}.reader-scroll{padding:18px 16px}.reader-body{font-weight:500}}
+
