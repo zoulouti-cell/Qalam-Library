@@ -506,7 +506,7 @@
     if (prefs.readingEngine === 'local'){$('voiceSelect').innerHTML='<option value="piper-local">كريم · العربية الأردنية · Piper محلي</option>';$('voiceSelect').value='piper-local';$('voiceSelect').disabled=true;$('voiceAvailability').textContent=state.capabilities.speech?.piperAvailable?'محرك Piper المحلي جاهز. جودة الصوت متوسطة، وليس بلهجة مغربية.':'محرك القراءة المحلي غير متاح حالياً.';$('voiceTestBtn').disabled=!state.capabilities.speech?.piperAvailable;}
     else{$('voiceSelect').disabled=false;populateVoices();$('voiceTestBtn').disabled=false;}
   }
-  function openSettings() { if (state.mic) stopMic(true); refreshSettings();if (!$('settings').open) $('settings').showModal();$('ocrWorkers').value=String(ocrPrefs.workers);$('ocrMaxPages').value=String(ocrPrefs.maxPages);refreshOCRSettings(); }
+  function openSettings() { if (state.mic) stopMic(true); refreshSettings();if (!$('settings').open) $('settings').showModal(); }
   function resetEditorialPreview() {
     state.editorialPreview = null; $('editorialPreview').hidden = true; $('editorialPreview').innerHTML = ''; $('editorialConfirm').checked = false; $('editorialSaveBtn').disabled = true;
   }
