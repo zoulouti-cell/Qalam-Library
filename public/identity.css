@@ -424,4 +424,8 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] .result-card .source-action,
 :root[data-theme="dark"] .result-card .document-type,
 :root[data-theme="dark"] .result-card .status-badge{background:#303b2b;border-color:#59634a;color:#e8e4c9}
+:root[data-theme="dark"] .stat-card .stat-icon{background:#214537;border:1px solid #806a38;color:#e4ca7c}
+:root[data-theme="dark"] #readerBody{background:#151d18!important;color:#e0e8df!important}
+:root[data-theme="dark"] #readerBody h3{color:#e0c774}
+:root[data-theme="dark"] #readerBody .reading-current{background:#344330;box-shadow:0 0 0 5px #344330}
 
