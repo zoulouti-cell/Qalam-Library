@@ -37,6 +37,7 @@ const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
 let driveScanPromise=null;
+function driveScanRetryMs(state){return state?.status==='error'&&String(state?.error||'').includes('تجاوز الفحص حد 60,000 ملف')?24*60*60_000:(state?.status==='error'?15*60_000:24*60*60_000);}
 async function runDriveMetadataScan(actor='system'){
   if(!adminStore)throw new Error('قاعدة إدارة المكتبة غير متاحة؛ تعذر حفظ نتيجة الفحص.');
   if(driveScanPromise)return driveScanPromise;
@@ -45,7 +46,7 @@ async function runDriveMetadataScan(actor='system'){
     await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{status:'running',startedAt:now,error:''}},{upsert:true});
     try{
       const files=await scanLibraryPdfs();
-      if(files.length>=30000)throw new Error('تجاوز الفحص حد 30,000 ملف؛ لم تُعتمد نتيجة جزئية.');
+      if(files.length>=60000)throw new Error('تجاوز الفحص حد 60,000 ملف؛ لم تُعتمد نتيجة جزئية.');
       const previous=await adminStore.driveMonitorFiles.find({present:true}).project({_id:1,name:1,folder:1,modifiedTime:1,size:1}).toArray(),old=new Map(previous.map(x=>[x._id,x]));
       const added=[],changed=[],operations=[];
       for(const f of files){const next={name:String(f.name||'').slice(0,500),folder:String(f.path||'').slice(0,1000),modifiedTime:f.modifiedTime||'',size:Number(f.size)||0,present:true,checkedAt:now};const before=old.get(f.id);if(!before&&!baseline)added.push({name:next.name,folder:next.folder,status:'جديد'});else if(before&&(before.name!==next.name||before.folder!==next.folder||before.modifiedTime!==next.modifiedTime||before.size!==next.size))changed.push({name:next.name,folder:next.folder,status:'معدّل'});old.delete(f.id);operations.push({updateOne:{filter:{_id:f.id},update:{$set:next},upsert:true}});}
@@ -62,7 +63,7 @@ async function runDriveMetadataScan(actor='system'){
 }
 const driveMonitorTimer=setInterval(async()=>{
   if(!adminStore||driveScanPromise)return;
-  try{const state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;if(!last||Date.now()-last>=due)await runDriveMetadataScan('scheduled');}
+  try{const state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=driveScanRetryMs(state);if(!last||Date.now()-last>=due)await runDriveMetadataScan('scheduled');}
   catch(error){console.error('Scheduled Drive metadata scan failed:',error?.message||'unknown error');}
 },60*60_000);
 driveMonitorTimer.unref();
@@ -158,7 +159,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/admin/drive-monitor'&&req.method==='GET'){
       if(!adminStore)return send(req,res,503,{available:false,status:'error',error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ خط أساس الفحص.'});
-      let state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;
+      let state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=driveScanRetryMs(state);
       if(!driveScanPromise&&(!last||Date.now()-last>=due))runDriveMetadataScan('scheduled').catch(()=>{});
       if(driveScanPromise)return send(req,res,200,{...(state||{}),status:'running',available:true});
       return send(req,res,200,{...(state||{status:'not_run'}),available:true});
