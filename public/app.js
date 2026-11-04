@@ -156,13 +156,16 @@
     const needle = normalize(filter);
     const categories = state.categories.filter(c => normalize(c.name).includes(needle));
     let group = '', tier = '';
-    $('categoryList').innerHTML = categories.length ? categories.map(c => {
+    const rows = [];
+    categories.forEach((c, index) => {
       let heading = '';
       if (c.group && c.group !== group) { group = c.group; tier = ''; heading += '<h3 class="category-group">' + esc(c.groupLabel) + '</h3>'; }
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
-      return heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>';
-    }).join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
+      rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
+      if (!needle && c.group === 'materials' && categories[index + 1]?.group !== 'materials') rows.push('<h3 class="category-group agreement-sidebar-heading">اتفاقيات دولية</h3><button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' ? ' selected' : '') + '" data-scope="agreements" aria-pressed="' + (state.scope === 'agreements') + '"><span>الاتفاقيات والمعاهدات</span><span class="agreement-sidebar-mark" aria-hidden="true">↗</span></button>');
+    });
+    $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
   }
   function renderBrowseGroup(group) {
     state.browseGroup = state.browseGroup === group ? '' : group;
