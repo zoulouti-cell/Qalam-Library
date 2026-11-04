@@ -469,16 +469,45 @@
   }
   const translationIcon='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18M8 8h4M10 6v6m3 0 2-4 2 4m-3.5-1h3"/></svg>';
   function setTranslationButton(button,label){button.innerHTML=translationIcon+' '+esc(label);}
+  async function translateWithDevice(text,source='ar',target='fr',onProgress=()=>{}){
+    const root=globalThis;
+    const native=root.Translator;
+    const legacy=root.ai?.translator;
+    const api=native?.create?native:legacy?.create?{availability:async()=> 'downloadable',create:legacy.create.bind(legacy)}:null;
+    if(!api)throw new Error('local_unsupported');
+    const availability=await api.availability({sourceLanguage:source,targetLanguage:target});
+    if(availability==='unavailable')throw new Error('local_pair_unsupported');
+    const translator=await api.create({sourceLanguage:source,targetLanguage:target,monitor(monitor){
+      monitor.addEventListener?.('downloadprogress',event=>{const ratio=event.total?event.loaded/event.total:0;onProgress(Math.max(0,Math.min(100,Math.round(ratio*100))));});
+    }});
+    try{
+      const chunks=[];let rest=String(text||'');
+      while(rest.length>1800){let at=Math.max(rest.lastIndexOf('\n',1800),rest.lastIndexOf(' ',1800));if(at<900)at=1800;else at++;
+        chunks.push(rest.slice(0,at));rest=rest.slice(at);}
+      if(rest)chunks.push(rest);
+      const output=[];
+      for(let i=0;i<chunks.length;i++){output.push(await translator.translate(chunks[i]));onProgress(null,i+1,chunks.length);}
+      return output.join('');
+    }finally{translator.destroy?.();}
+  }
   function renderAssistantAnswer(element,result) {
     const modes={extractive:'استرجاع من المصادر · دون توليد بنموذج',local_model:'تحليل بمساعد محلي',remote_model:'تحليل بمساعد متصل',gemini_model:'تحليل Gemini · مرتبط بمصادر المكتبة',groq_model:'تحليل Groq · مرتبط بمصادر المكتبة'};
     const sources=result.sources||[];
-    element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(state.capabilities.translation?.available?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة آلية عبر DeepL إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
+    element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة آلية إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
   }
   async function translateAssistantAnswer(button){
     const message=button.closest('.chat-message'),answer=message?.querySelector('.chat-answer'),panel=message?.querySelector('.chat-translation');
-    if(!answer||!panel)return;button.disabled=true;setTranslationButton(button,'جارٍ إعداد ترجمة DeepL…');panel.hidden=false;panel.textContent='ترجمة آلية قيد الإعداد للمراجعة.';
-    try{const result=await api('/api/translate',{method:'POST',body:JSON.stringify({text:answer.innerText,language:'français'})});panel.textContent=result.translation||'لم تصل ترجمة.';setTranslationButton(button,'إعادة الترجمة');}
-    catch(error){panel.textContent=error.message;setTranslationButton(button,'إعادة المحاولة');}
+    if(!answer||!panel)return;button.disabled=true;setTranslationButton(button,'جارٍ إعداد الترجمة…');panel.hidden=false;panel.textContent='تُجرّب الترجمة المهنية أولاً؛ وعند تعذرها يُستخدم نموذج الجهاز إذا كان مدعوماً.';
+    try{
+      const text=answer.innerText;
+      try{const result=await api('/api/translate',{method:'POST',body:JSON.stringify({text,language:'français'}),signal:AbortSignal.timeout(45000)});panel.textContent=result.translation||'لم تصل ترجمة.';panel.dataset.engine='deepl';setTranslationButton(button,'ترجمة عبر DeepL');}
+      catch(cloudError){
+        panel.textContent='تعذر استخدام DeepL؛ جارٍ فحص الترجمة المحلية.';
+        const translated=await translateWithDevice(text,'ar','fr',(progress,done,total)=>{panel.textContent=progress!==null&&progress<100?'جارٍ تنزيل نموذج الترجمة إلى هذا الجهاز: '+progress+'٪':done!==undefined?'جارٍ ترجمة الجزء '+done+' من '+total+'…':'جارٍ تجهيز نموذج الترجمة المحلي…';});
+        panel.textContent=translated||'لم يُنتج المترجم المحلي نصاً.';panel.dataset.engine='device';setTranslationButton(button,'ترجمة محلية');
+      }
+    }
+    catch(error){panel.textContent=error?.message==='local_unsupported'||error?.message==='local_pair_unsupported'?'تعذر استخدام الترجمة المحلية في هذا المتصفح أو لهذا الزوج اللغوي. جرّب Chrome أو Edge حديثاً مع اتصال إنترنت لتنزيل النموذج أول مرة.':'تعذرت الترجمة المحلية. تحقق من دعم المتصفح واتصال الإنترنت لتنزيل النموذج عند الحاجة.';setTranslationButton(button,'إعادة المحاولة');}
     finally{button.disabled=false;}
   }
   async function askQuestion() {
@@ -812,3 +841,4 @@
     refreshSettings(); pollIngestion(); await runSearch();  }
   initialize();
 })();
+
