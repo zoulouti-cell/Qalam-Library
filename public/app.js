@@ -788,18 +788,16 @@
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
     wireEvents(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
-    const responses = await Promise.allSettled([api('/api/stats'), api('/api/categories'), api('/api/capabilities'), api('/api/session')]);
-    if (responses[0].status === 'fulfilled') {
-      applyStats(responses[0].value);
-    } else { $('connectionPill').textContent = 'الخدمة غير متاحة'; }
-    if (responses[1].status === 'fulfilled') { state.categories = responses[1].value.categories || []; renderCategories(); } else $('categoryList').innerHTML = '<div class="sidebar-loading">تعذّر تحميل المجالات.</div>';
-    if (responses[2].status === 'fulfilled') state.capabilities = responses[2].value;
-    if (!state.voices.some(voice => voice.localService) && state.capabilities.speech?.piperAvailable && prefs.readingEngine === 'browser') { prefs.readingEngine = 'local'; persistPrefs(); }
-    const ai = state.capabilities.ai || {}; $('assistantMode').textContent = ai.available ? (ai.mode === 'remote_model' ? 'نموذج متصل · إجابات مرتبطة بالمصادر' : 'نموذج محلي · إجابات مرتبطة بالمصادر') : 'استرجاع من المصادر · لا يوجد نموذج متصل';
-    if (ai.available && ai.mode === 'remote_model') {
-      const remoteNotice = document.createElement('p'); remoteNotice.className = 'privacy-callout'; remoteNotice.textContent = 'الوضع المتصل يرسل السؤال ومقتطفات المصادر إلى خدمة النموذج المهيّأة. تحقّق من مزود الخدمة قبل إدخال وقائع أو بيانات شخصية.'; $('askForm').prepend(remoteNotice);
-    }
-    refreshSettings(); pollIngestion(); await runSearch();
+    const requestSignal=()=>AbortSignal.timeout(15000);
+    api('/api/stats',{signal:requestSignal()}).then(applyStats).catch(()=>{ $('connectionPill').textContent='الخدمة غير متاحة'; });
+    api('/api/categories',{signal:requestSignal()}).then(data=>{state.categories=data.categories||[];renderCategories();}).catch(()=>{ $('categoryList').innerHTML='<div class="sidebar-loading" role="status">تعذّر تحميل المجالات. حدّث الصفحة للمحاولة مجدداً.</div>'; });
+    api('/api/capabilities',{signal:requestSignal()}).then(data=>{
+      state.capabilities=data;
+      if(!state.voices.some(voice=>voice.localService)&&state.capabilities.speech?.piperAvailable&&prefs.readingEngine==='browser'){prefs.readingEngine='local';persistPrefs();}
+      const ai=state.capabilities.ai||{};$('assistantMode').textContent=ai.available?(ai.mode==='remote_model'?'نموذج متصل · إجابات مرتبطة بالمصادر':'نموذج محلي · إجابات مرتبطة بالمصادر'):'استرجاع من المصادر · لا يوجد نموذج متصل';
+      if(ai.available&&ai.mode==='remote_model'){const remoteNotice=document.createElement('p');remoteNotice.className='privacy-callout';remoteNotice.textContent='الوضع المتصل يرسل السؤال ومقتطفات المصادر إلى خدمة النموذج المهيّأة. تحقّق من مزود الخدمة قبل إدخال وقائع أو بيانات شخصية.';$('askForm').prepend(remoteNotice);}
+    }).catch(()=>{});
+    refreshSettings(); pollIngestion(); runSearch();
   }
   initialize();
 })();
