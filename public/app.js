@@ -181,9 +181,13 @@
     const fadeAnchor = document.querySelector('#browseToggle');
     const stickyTop = window.innerWidth <= 720 ? 57 : 65;
     const fadeAnchorTop = fadeAnchor?.getBoundingClientRect().top ?? Infinity;
-    // Give touchpad and mouse-wheel scrolling enough distance to fade smoothly.
-    const fadeDistance = 180;
-    const rawFadeProgress = pinned ? Math.max(0, Math.min(1, (stickyTop - fadeAnchorTop) / fadeDistance)) : 0;
+    // Fade the pinned search only while the browse card passes in front of it.
+    // The card overlays the bar; when its bottom clears the bar, the bar is fully gone.
+    const cardHeight = fadeAnchor?.getBoundingClientRect().height ?? 0;
+    const panelHeight = panel.getBoundingClientRect().height || 58;
+    const fadeDistance = Math.max(1, panelHeight + cardHeight);
+    const fadeStart = stickyTop + panelHeight;
+    const rawFadeProgress = pinned ? Math.max(0, Math.min(1, (fadeStart - fadeAnchorTop) / fadeDistance)) : 0;
     const fadeProgress = rawFadeProgress * rawFadeProgress * (3 - 2 * rawFadeProgress);
     panel.style.setProperty('--search-pin-opacity', String(1 - fadeProgress));
     panel.classList.toggle('search-handoff-complete', pinned && fadeProgress >= 0.999);

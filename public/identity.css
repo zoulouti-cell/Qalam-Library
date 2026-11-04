@@ -394,3 +394,11 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 @media(max-width:720px){.identity-showcase{height:auto}}
 @media(prefers-reduced-motion:reduce){.identity-header .search-panel{transition:none}}
 :root .agreement-sidebar-link,:root .agreement-sidebar-link span,:root .agreement-sidebar-link b{color:#fff!important}
+
+/* The browse launch card passes in front of the pinned search while the latter fades away. */
+.identity-header .overview{z-index:45}
+.identity-header .search-panel.is-pinned{z-index:35}
+@media(max-width:720px){.identity-header .search-panel.is-pinned{z-index:35}}
+:root[data-theme="dark"] .bottom-search-wrap input{background:transparent!important;border-color:transparent!important;color:#f2e8c9}
+:root[data-theme="dark"] .bottom-search-wrap input::placeholder{color:#aab5a7}
+:root[data-theme="dark"] .read-rate select,:root[data-theme="dark"] .reader-find input,:root[data-theme="dark"] .reader-toolbar select{background:#202a24;border-color:#435348;color:#e4ebdf}
