@@ -171,7 +171,10 @@
     if (!panel) return;
     if (remeasure || searchPinThreshold === null) {
       panel.classList.remove('is-pinned');
-      searchPinThreshold = panel.getBoundingClientRect().top + window.scrollY - (window.innerWidth <= 720 ? 57 : 65);
+      const bounds = panel.getBoundingClientRect();
+      panel.style.setProperty('--search-pin-left', `${bounds.left}px`);
+      panel.style.setProperty('--search-pin-width', `${bounds.width}px`);
+      searchPinThreshold = bounds.top + window.scrollY - (window.innerWidth <= 720 ? 57 : 65);
     }
     const pinned = state.view === 'library' && window.scrollY >= Math.max(0, searchPinThreshold);
     panel.classList.toggle('is-pinned', pinned);
