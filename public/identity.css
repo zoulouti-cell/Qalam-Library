@@ -5,7 +5,7 @@
 .main-content{padding-inline:var(--page-gutter)}
 .identity-header{position:relative;isolation:isolate;margin-inline:calc(-1 * var(--page-gutter));padding:0 var(--page-gutter) 12px;background:var(--paper);min-height:0}
 .identity-header:before,.identity-header:after{content:none}
-.identity-header .topbar{position:relative;z-index:3;min-height:57px;margin-inline:calc(-1 * var(--page-gutter));padding:0 var(--page-gutter);gap:16px;background:var(--green);border-bottom:1px solid #d9c38c40;color:#fff9e8}
+.identity-header .topbar{position:sticky;top:0;z-index:80;isolation:isolate;min-height:57px;margin-inline:calc(-1 * var(--page-gutter));padding:0 var(--page-gutter);gap:16px;background:var(--green);border-bottom:1px solid #d9c38c40;color:#fff9e8}
 .identity-header .breadcrumb{font-size:13px;color:#ccdac7;min-width:0;max-width:25%;flex:0 1 auto;white-space:nowrap}
 .identity-header .breadcrumb strong{color:#fff5d9;overflow:hidden;text-overflow:ellipsis}
 .identity-header .breadcrumb span{color:#a7bea5}
@@ -16,10 +16,10 @@
 .identity-header .icon-button{color:#f9edc5}
 .identity-header .icon-button:hover{background:#ffffff12}
 .identity-header .search-intro{position:relative;padding:0}
-.identity-showcase{position:relative;display:block;aspect-ratio:1280/689;width:calc(100% + 2 * var(--page-gutter));margin-inline:calc(-1 * var(--page-gutter));overflow:hidden}
-.identity-art{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 48%;opacity:1;z-index:0;mix-blend-mode:normal;mask-image:none}
+.identity-showcase{position:relative;display:block;aspect-ratio:1280/720;width:calc(100% + 2 * var(--page-gutter));margin-inline:calc(-1 * var(--page-gutter));overflow:hidden}
+.identity-art{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center 50%;opacity:1;z-index:0;mix-blend-mode:normal;mask-image:none}
 .identity-showcase:after{content:"";position:absolute;inset:auto 0 0;height:20%;z-index:1;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--paper))}
-.search-panel{position:relative;z-index:4;width:min(100%,840px);margin:0 auto}
+.search-panel{position:sticky;top:calc(57px + 8px);z-index:25;width:min(100%,840px);margin:0 auto}
 .identity-header .search-panel{margin:-10mm auto 0}
 .section-bar{align-items:center;flex-wrap:nowrap;gap:12px}
 .section-bar>div:first-child{flex-shrink:0;max-width:31%;min-width:0}
@@ -150,10 +150,43 @@
 @media(max-width:720px){:root{--page-gutter:20px}.main-content{margin-right:0;width:100%}.sidebar{width:min(310px,89vw);padding-top:22px}.category-heading h2{font-size:25px}.category-button{font-size:17px;padding-block:9px}.nav-item{font-size:15px}.identity-header{padding-bottom:11px}.identity-header .topbar{min-height:49px;gap:10px}.identity-header .breadcrumb{display:none}.identity-header .topbar-actions{margin-right:auto}.topbar-description{inset-inline:45px;font-size:8px;line-height:1.5}.identity-header .search-intro{padding:0}.section-bar{gap:7px}.section-bar h2{font-size:18px}.section-bar>div:first-child{max-width:30%}.section-bar p{font-size:10px}.section-bar #clearFilters{font-size:0;min-width:22px;padding:4px}.section-bar #clearFilters span{font-size:19px}.search-controls{gap:5px;margin:0;align-items:center}.search-scopes{gap:3px}.scope-button{font-size:12px;padding:5px 7px;line-height:1.6;border-radius:8px}.advanced-search summary{padding:7px;font-size:12px}.advanced-search summary span{display:none}.advanced-search-fields{width:285px;inset-inline-end:0}.identity-header .search-form{padding:4px 5px;gap:3px;border-radius:11px}.identity-header .search-input-wrap{padding-inline:8px;gap:7px}.identity-header .search-input-wrap input{height:48px;font-size:15px}.identity-header .search-mic{padding-inline-start:7px;min-width:31px}.identity-header .search-submit{min-width:72px;padding:8px 12px;font-size:16px;gap:6px;border-radius:8px}.overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.overview .stat-card{min-height:86px;padding:9px 12px}.overview .stat-card strong{font-size:24px}.overview .stat-card div>span{font-size:11px}.overview .stat-card>small{font-size:9px;margin-top:6px}.overview .browse-launch{grid-template-columns:54px minmax(0,1fr);padding:7px 10px;gap:0 6px}.browse-launch .browse-animation{width:54px}.overview .browse-launch strong{font-size:17px}.overview .browse-launch div>span{font-size:10px}.overview .browse-launch>small{font-size:9px}.browse-panel{padding:10px}.browse-groups{grid-template-columns:repeat(5,minmax(160px,1fr));overflow-x:auto;gap:7px;padding-bottom:4px}.browse-group{font-size:13px;padding:7px 9px;min-height:40px}.browse-branch-toggle{font-size:15px;padding:9px 11px}.browse-leaf-button{font-size:14px;padding:8px 10px}}
 @media(max-width:370px){:root{--page-gutter:15px}.topbar-description{font-size:7.3px;inset-inline:42px}.scope-button{font-size:11px;padding-inline:6px}.search-scopes{gap:2px}.overview .stat-card{padding-inline:9px}.overview .browse-launch{grid-template-columns:44px minmax(0,1fr)}.browse-launch .browse-animation{width:44px}.browse-launch .browse-scene{width:65px;height:48px}.overview .browse-launch strong{font-size:16px}.overview .browse-launch div>span{font-size:9px}.overview .browse-launch>small{font-size:8px}.browse-group{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.assistant-nav-icon,.scope-button,.browse-group,.browse-branch-toggle,.browse-leaf-button,.browse-chevron{transition:none}.browse-panel,.browse-branch-content,.browse-shelves,.browse-closed-book,.browse-open-book,.browse-leaf{animation:none!important}.browse-shelves{opacity:.18}.browse-closed-book{opacity:0}.browse-open-book{opacity:1;transform:none}.browse-leaf{opacity:1;transform:none}}
+
+/* Keep the result heading on its own row; place scope/category controls below it. */
+.library-area>.section-bar{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:10px;margin-bottom:15px}
+.library-area>.section-bar>div:first-child{grid-column:1;grid-row:1;max-width:none;min-width:0}
+.library-area>.section-bar>div:first-child h2{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.6}
+.library-area>.section-bar>#clearHistory{grid-column:1;grid-row:1;justify-self:end}
+.library-area>.section-bar>.results-scope-row{grid-column:1;grid-row:2;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap;overflow:visible;margin:0;padding:9px 11px;border:1px solid #dce3d5;border-radius:10px;background:#f8f8f2}
+.library-area>.section-bar>.results-scope-row .search-scopes{flex:1 1 auto;flex-wrap:wrap;overflow:visible;justify-content:flex-start}
+.library-area>.section-bar>.results-scope-row .active-category{max-width:min(42%,360px);height:auto;min-height:38px;white-space:normal}
+.category-group.agreement-sidebar-heading{margin-top:13px;padding-top:9px;border-top:1px solid #ffffff24}
+.agreement-sidebar-link{color:#f0dfb4!important}
+.agreement-sidebar-mark{font:15px Arial,sans-serif;color:#d7bd7c;flex:none}
+.category-button[title="التنظيم الهيكلي لوزارة العدل"] span{white-space:normal;overflow-wrap:anywhere;line-height:1.55}
+.browse-leaf-button{white-space:normal;overflow-wrap:anywhere;text-align:right;line-height:1.6}
+.browse-group[data-browse-group="agreements"] span{white-space:normal;line-height:1.4}
+@media(max-width:720px){.library-area>.section-bar{gap:7px}.library-area>.section-bar>.results-scope-row{padding:7px;gap:5px}.library-area>.section-bar>.results-scope-row .active-category{max-width:100%}.library-area>.section-bar>div:first-child{max-width:none}.browse-groups{grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}.browse-group{white-space:normal;min-width:0}.browse-group span{white-space:normal;overflow-wrap:anywhere}}
 .overview .browse-launch{grid-column:1;grid-row:1}
 .identity-header .search-input-wrap input:focus-visible,.bottom-search-wrap input:focus-visible{outline:none}
 .browse-back{display:block;margin:0 0 8px;padding:5px 8px;border-radius:7px;color:#6d795f;font-size:12px}
 .browse-back:hover{background:#e9efdf;color:#254d2d}
+.identity-header{margin-inline:calc(-1 * var(--page-gutter));padding-inline:var(--page-gutter);background:var(--paper)}
+.identity-header .topbar{box-shadow:0 2px 10px #082c2418}
+.identity-header .search-intro,.overview,.browse-panel,.library-area,.main-footer{scroll-margin-top:78px}
+.agreement-sidebar-link{justify-content:space-between;border-inline-start:2px solid #d9ba70;padding-inline-start:10px}
+.agreement-sidebar-link b,.browse-group[data-browse-group="agreements"] b{flex:none;color:#e3c979;font-size:.82em;font-variant-numeric:tabular-nums}
+.browse-group[data-browse-group="agreements"]{white-space:nowrap}
+.browse-group[data-browse-group="agreements"] span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-source-row{display:flex;align-items:stretch;gap:5px}
+.chat-source-row .chat-source{flex:1;min-width:0}
+.chat-source-official{display:inline-flex;align-items:center;justify-content:center;flex:none;width:34px;border:1px solid #dce4d6;border-radius:8px;color:#52725a;background:#fbfbf7;font:20px Arial,sans-serif;text-decoration:none}
+.chat-source-official:hover{background:#edf2e9;border-color:#b6c9b1}
+.chat-translation-actions{margin-top:9px}
+.chat-translation-actions>button{min-height:34px;padding:6px 10px;font-size:12px}
+.chat-translation-actions>button{display:inline-flex;align-items:center;gap:7px}
+.chat-translation-actions>button svg{color:#94722e}
+.chat-translation{margin-top:8px;padding:10px 12px;border:1px solid #d8e2d5;border-radius:9px;background:#f7f8f2;color:#25372e;white-space:pre-wrap;line-height:1.9;direction:ltr;text-align:left}
+#resultsTitle,#agreementCountryResults,.agreement-document-section,.category-group{scroll-margin-top:78px}
 .results-tools{display:grid;gap:9px;margin:0 0 15px}
 .results-scope-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
 .results-scope-row .search-scopes{justify-content:center;overflow:visible}
@@ -275,4 +308,4 @@
 /* Keep the green navigation bar fixed above the artwork and page content. */
 .identity-header{padding-top:57px}
 .identity-header .topbar{position:fixed;top:0;right:var(--sidebar-width);left:0;z-index:30;min-height:57px;margin:0;background:var(--green)}
-@media(max-width:720px){.identity-header{padding-top:49px}.identity-header .topbar{right:0;left:0;min-height:49px}}
+@media(max-width:720px){.identity-header{padding-top:49px}.identity-header .topbar{right:0;left:0;min-height:49px}.search-panel{top:57px}}

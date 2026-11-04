@@ -1,4 +1,9 @@
 import { createSign } from 'node:crypto';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const treatyTitleIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/treaty-titles.json', import.meta.url)), 'utf8')).documents || {};
+const sourceDocumentIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/drive-source-map.json', import.meta.url)), 'utf8')).files || {};
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K';
 let tokenCache = { value: '', expiresAt: 0 };
@@ -111,8 +116,7 @@ async function allLibraryPdfs(force=false) {
   pdfIndexCache.promise=(async()=>{
     const files=[],queue=[{id:DRIVE_ROOT_FOLDER_ID,depth:0,path:''}],seen=new Set();
     async function children(folder){const found=[];let token='';do{const query=new URLSearchParams({q:`'${folder.id}' in parents and trashed = false`,pageSize:'1000',fields:`nextPageToken,files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});if(token)query.set('pageToken',token);const response=await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`),data=await response.json();found.push(...(data.files||[]));token=data.nextPageToken||'';}while(token);return found;}
-    while(queue.length&&files.length<60000){const batch=queue.splice(0,4).filter(folder=>!seen.has(folder.id)&&folder.depth<=8);if(!batch.length)continue;batch.forEach(folder=>seen.add(folder.id));const pages=await Promise.all(batch.map(async folder=>({folder,items:await children(folder)})));for(const {folder,items} of pages)for(const item of items){if(item.mimeType==='application/pdf')files.push({id:item.id,name:item.name||'',size:Number(item.size)||0,modifiedTime:item.modifiedTime||'',path:folder.path||'',webViewLink:item.webViewLink||'',officialUrl:officialSourceFromDescription(item.description)});else if(item.mimeType==='application/vnd.google-apps.folder')queue.push({id:item.id,depth:folder.depth+1,path:[folder.path,item.name||''].filter(Boolean).join(' / ')});}}
-    pdfIndexCache={at:Date.now(),promise:null,files};return files;
+    while(queue.length&&files.length<60000){const batch=queue.splice(0,4).filter(folder=>!seen.has(folder.id)&&folder.depth<=8);if(!batch.length)continue;batch.forEach(folder=>seen.add(folder.id));const pages=await Promise.all(batch.map(async folder=>({folder,items:await children(folder)})));for(const {folder,items} of pages)for(const item of items){if(item.mimeType==='application/pdf')files.push({id:item.id,name:item.name||'',size:Number(item.size)||0,md5Checksum:item.md5Checksum||'',modifiedTime:item.modifiedTime||'',path:folder.path||'',webViewLink:item.webViewLink||'',officialUrl:officialSourceFromDescription(item.description)});else if(item.mimeType==='application/vnd.google-apps.folder')queue.push({id:item.id,depth:folder.depth+1,path:[folder.path,item.name||''].filter(Boolean).join(' / ')});}}    pdfIndexCache={at:Date.now(),promise:null,files};return files;
   })().catch(error=>{pdfIndexCache.promise=null;throw error;});
   return pdfIndexCache.promise;
 }
@@ -123,10 +127,18 @@ export async function searchDrivePdfs(query,limit=12) {
   const original=String(query||'').trim().slice(0,240),normalized=normalizeDriveName(original),tokens=normalized.split(/\s+/).filter(token=>token.length>1);if(!tokens.length)return {files:[],total:0};const files=await allLibraryPdfs(),scored=[];for(const file of files){const name=normalizeDriveName(file.name),matched=tokens.filter(token=>name.includes(token)),score=matched.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0)/tokens.reduce((sum,token)=>sum+(token.length>=5?1.4:1),0);if(score>=0.34)scored.push({...file,score:Number(score.toFixed(3))});}scored.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ar'));return {files:scored.slice(0,Math.max(1,Math.min(20,limit))),total:scored.length,indexedFiles:files.length};
 }
 
-export async function matchDrivePdf(query = '', sourceUrl = '') {
+export async function matchDrivePdf(query = '', sourceUrl = '', exactName = '', exactPath = '') {
   const title = String(query || '').trim().slice(0, 500);
   const source = String(sourceUrl || '').trim().slice(0, 2000);
   const files = await allLibraryPdfs();
+  if (exactName) {
+    const exactKey = normalizeDriveName(exactName), pathKey = normalizeDriveName(exactPath);
+    const exactMatches = files.filter(file => normalizeDriveName(file.name) === exactKey && (!pathKey || normalizeDriveName(file.path) === pathKey));
+    if (exactMatches.length === 1) return { match: { ...exactMatches[0], score: 1, sourceExact: true, titleExact: true }, candidates: [], indexedFiles: files.length, exact: true };
+    if (exactMatches.length > 1 && exactMatches.every(file => file.md5Checksum && file.md5Checksum === exactMatches[0].md5Checksum && file.size === exactMatches[0].size)) return { match: { ...exactMatches[0], score: 1, sourceExact: true, titleExact: true, equivalentCopies: exactMatches.length }, candidates: [], indexedFiles: files.length, exact: true };
+    if (exactMatches.length > 1) return { match: null, candidates: exactMatches.slice(0, 8).map(file => ({ ...file, score: 1, sourceExact: true, titleExact: true })), indexedFiles: files.length, exact: true };
+    return { match: null, candidates: [], indexedFiles: files.length, exact: true };
+  }
   let sourceName = '';
   try { sourceName = decodeURIComponent(new URL(source).pathname.split('/').filter(Boolean).at(-1) || '').replace(/\.pdf$/i, ''); } catch {}
   const sourceKey = normalizeDriveName(sourceName), titleKey = normalizeDriveName(title);
@@ -160,7 +172,12 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
       const marker = value => /(?:اتفاق|معاهد|معاهدات|معاهدة)/u.test(normalizeDriveName(value));
       let files = libraryFiles.filter(file => file.path.split(' / ').some(marker));
       if (!files.length) files = libraryFiles.filter(file => marker(file.name));
-      files = files.map(file => ({ ...file, webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || '' }));
+      files = files.map(file => {
+        const id = String(file.name || '').match(/^(\d+)[_-]/)?.[1] || '';
+        const title = treatyTitleIndex[id];
+        const officialUrl = title?.sourceUrl ? title.sourceUrl.replace(/^http:\/\//i, 'https://') : '';
+        return { ...file, ...(title ? { title: title.title, fullTitle: title.fullTitle, treatyId: id, country: title.country } : {}), webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || officialUrl };
+      });
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };
       return files;
@@ -172,6 +189,8 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 20)), safePage = Math.max(1, Number(page) || 1);
   return { files: matched.slice((safePage - 1) * safeLimit, safePage * safeLimit), total: matched.length, page: safePage, limit: safeLimit, indexedFiles: files.length };
 }
+
+export function driveSourceForDocument(id) { return sourceDocumentIndex[String(id || '')] || null; }
 
 export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {
   const { item, response } = await openDrivePdf(id);

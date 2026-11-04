@@ -1,12 +1,12 @@
 services:
   - type: web
     name: qalam-library
-    runtime: docker
+    runtime: image
     plan: free
     region: frankfurt
-    dockerfilePath: ./Dockerfile
+    image:
+      url: ghcr.io/zoulouti-cell/qalam-library:latest
     healthCheckPath: /api/health
-    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,3 +22,21 @@ services:
         sync: false
       - key: DRIVE_ROOT_FOLDER_ID
         value: 1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_OCR_API_KEY
+        sync: false
+      - key: GEMINI_OCR_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_OCR_ENABLED
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: DEEPL_AUTH_KEY
+        sync: false
+      - key: DEEPL_API_URL
+        value: https://api-free.deepl.com

@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   docker-build:
@@ -25,4 +26,91 @@ jobs:
           node --check public/app.js
           node --check public/admin-ocr.js
       - name: Build the production container
+        if: github.event_name == 'pull_request'
         run: docker build --tag qalam-library-ci .
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish the production container
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/qalam-library:latest
+            ghcr.io/${{ github.repository_owner }}/qalam-library:${{ github.sha }}
+      - name: Deploy the published image to Render
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Image published. Add the Render deploy hook as the RENDER_DEPLOY_HOOK repository secret to enable automatic deployment."
+            exit 0
+          fi
+          curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK"
+
+  offline-windows-package:
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: zoulouti-cell/Qalam-Library-data
+          ref: main
+          path: .offline-data
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install runtime dependencies
+        run: npm install --omit=dev
+      - name: Assemble the USB-ready offline copy
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          $out = Join-Path $root 'release\qalam-library-offline'
+          New-Item -ItemType Directory -Force -Path $out, "$out\public", "$out\src", "$out\tools", "$out\data" | Out-Null
+          Copy-Item server.mjs, package.json, README.md, API_CONTRACT.md -Destination $out
+          Copy-Item public\* -Destination "$out\public" -Recurse
+          Copy-Item src\* -Destination "$out\src" -Recurse
+          Copy-Item tools\* -Destination "$out\tools" -Recurse
+          Copy-Item .offline-data\library.sqlite "$out\data\library.sqlite"
+          Copy-Item data\drive-source-map.json, data\treaty-titles.json -Destination "$out\data"
+          Copy-Item node_modules -Destination $out -Recurse
+          Copy-Item (Get-Command node).Source "$out\node.exe"
+          @'
+          @echo off
+          setlocal
+          cd /d "%~dp0"
+          set NODE_ENV=development
+          set HOST=127.0.0.1
+          set PORT=4188
+          start "Qalam Library" /min cmd /c "timeout /t 2 >nul & start http://127.0.0.1:4188"
+          node.exe server.mjs
+          pause
+          '@ | Set-Content -Encoding ascii "$out\ابدأ-المكتبة.bat"
+          @'
+          مكتبة قلم — نسخة محلية للعمل دون اتصال
+
+          1. فك ضغط الحزمة على الحاسوب أو USB.
+          2. شغّل «ابدأ-المكتبة.bat».
+          3. تعمل النصوص المفهرسة والبحث والقراءة محلياً دون اتصال.
+          4. أصول Drive وGemini وDeepL والمساعد المتصل تحتاج إلى الإنترنت؛ لم تُضمّن أي مفاتيح أو أسرار.
+          5. لإيقاف الخادم أغلق نافذة التشغيل.
+          '@ | Set-Content -Encoding utf8 "$out\اقرأني.txt"
+          Compress-Archive -Path "$out\*" -DestinationPath (Join-Path $root 'release\qalam-library-offline-windows.zip') -CompressionLevel Optimal -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qalam-library-offline-windows
+          path: release/qalam-library-offline-windows.zip
+          if-no-files-found: error
+          retention-days: 30

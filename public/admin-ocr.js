@@ -13,8 +13,8 @@
     $('ocrSettingsStatus').textContent='جارٍ تحميل إعدادات OCR…';
     try{
       const data=await api('/api/admin/settings'),ocr=data.ocr||{};
-      $('ocrEngine').value=ocr.engine||'local';$('ocrWorkers').value=String(ocr.workers||2);$('ocrMaxPages').value=String(ocr.maxPages||0);$('geminiKey').value='';
-      $('geminiStatus').textContent=ocr.geminiConfigured?'مفتاح Gemini محفوظ ومشفّر للمكتبة المستقلة.':'لم يُسجّل مفتاح Gemini للمكتبة بعد.';
+      $('ocrEngine').value=ocr.engine||'local';$('ocrEngine').disabled=!!ocr.engineControlledByEnvironment;$('ocrWorkers').value=String(ocr.workers||2);$('ocrMaxPages').value=String(ocr.maxPages||0);$('geminiKey').value='';
+      $('geminiStatus').textContent=ocr.geminiConfigured?(ocr.geminiConfiguredByEnvironment?'مفتاح Gemini متصل من متغيرات بيئة Render.': 'مفتاح Gemini محفوظ ومشفّر للمكتبة المستقلة.'):'لم يُسجّل مفتاح Gemini للمكتبة بعد.'+(ocr.engineControlledByEnvironment?' ويتحكم Render في تفعيل المحرك.':'');
       $('ocrSettingsStatus').textContent='';
     }catch(error){$('ocrSettingsStatus').textContent=error.message;}
   }
@@ -22,7 +22,7 @@
     event.preventDefault();$('saveOcrSettings').disabled=true;$('ocrSettingsStatus').textContent='جارٍ حفظ الإعدادات…';
     try{
       const data=await api('/api/admin/settings',{method:'POST',body:JSON.stringify({ocr:{engine:$('ocrEngine').value,workers:Number($('ocrWorkers').value)||2,maxPages:Number($('ocrMaxPages').value)||0,geminiApiKey:$('geminiKey').value}})});
-      $('geminiKey').value='';$('geminiStatus').textContent=data.settings?.ocr?.geminiConfigured?'مفتاح Gemini محفوظ ومشفّر للمكتبة المستقلة.':'لم يُسجّل مفتاح Gemini للمكتبة بعد.';
+      $('geminiKey').value='';const savedOcr=data.settings?.ocr||{};$('ocrEngine').disabled=!!savedOcr.engineControlledByEnvironment;$('geminiStatus').textContent=savedOcr.geminiConfigured?(savedOcr.geminiConfiguredByEnvironment?'مفتاح Gemini متصل من متغيرات بيئة Render.':'مفتاح Gemini محفوظ ومشفّر للمكتبة المستقلة.'):'لم يُسجّل مفتاح Gemini للمكتبة بعد.'+(savedOcr.engineControlledByEnvironment?' ويتحكم Render في تفعيل المحرك.':'');
       $('ocrSettingsStatus').textContent='حُفظت إعدادات OCR في قاعدة المكتبة المستقلة.';
     }catch(error){$('ocrSettingsStatus').textContent=error.message;}
     finally{$('saveOcrSettings').disabled=false;}
