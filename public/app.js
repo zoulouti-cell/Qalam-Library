@@ -178,19 +178,19 @@
     }
     const pinned = state.view === 'library' && window.scrollY >= Math.max(0, searchPinThreshold);
     panel.classList.toggle('is-pinned', pinned);
-    const fadeAnchor = document.querySelector('#browseToggle');
+    const fadeAnchor = document.querySelector('#overview');
     const stickyTop = window.innerWidth <= 720 ? 57 : 65;
-    const fadeAnchorTop = fadeAnchor?.getBoundingClientRect().top ?? Infinity;
-    // Fade the pinned search only while the browse card passes in front of it.
-    // The card overlays the bar; when its bottom clears the bar, the bar is fully gone.
-    const cardHeight = fadeAnchor?.getBoundingClientRect().height ?? 0;
+    const fadeAnchorRect = fadeAnchor?.getBoundingClientRect();
+    // Fade as the hero's full statistics/browse row passes over the pinned bar.
+    // The bar is fully transparent as the row's lower edge clears the sticky header.
+    const fadeAnchorTop = fadeAnchorRect?.top ?? Infinity;
+    const cardHeight = fadeAnchorRect?.height ?? 0;
     const panelHeight = panel.getBoundingClientRect().height || 58;
     const fadeDistance = Math.max(1, panelHeight + cardHeight);
     const fadeStart = stickyTop + panelHeight;
     const rawFadeProgress = pinned ? Math.max(0, Math.min(1, (fadeStart - fadeAnchorTop) / fadeDistance)) : 0;
-    const fadeProgress = rawFadeProgress * rawFadeProgress * (3 - 2 * rawFadeProgress);
-    panel.style.setProperty('--search-pin-opacity', String(1 - fadeProgress));
-    panel.classList.toggle('search-handoff-complete', pinned && fadeProgress >= 0.999);
+    panel.style.setProperty('--search-pin-opacity', String(1 - rawFadeProgress));
+    panel.classList.toggle('search-handoff-complete', pinned && rawFadeProgress >= 1);
   }
   function categoryLabel() { return state.topic || state.category || (state.view === 'saved' ? 'المحفوظات' : state.view === 'history' ? 'سجل القراءة' : 'جميع المجالات'); }
   function renderCategories(filter = '') {
@@ -229,7 +229,7 @@
     const shell=(files=[])=>{
       const bilateral=files.filter(file=>agreementKind(file)==='ثنائية').length;
       const multilateral=files.filter(file=>agreementKind(file)==='متعددة').length;
-      return '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>'+agreementSectionHeading('الاتفاقيات الدولية',files.length||state.agreementCount||0)+'<div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral||state.agreementBranchCounts.bilateral||0)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral||state.agreementBranchCounts.multilateral||0)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>';
+      return agreementSectionHeading('الاتفاقيات الدولية',files.length||state.agreementCount||0)+'<div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral||state.agreementBranchCounts.bilateral||0)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral||state.agreementBranchCounts.multilateral||0)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>';
     };
     // Show the two branch cards immediately; Drive indexing can take longer on a cold start.
     pane.innerHTML=shell(state.agreementFiles);
@@ -908,3 +908,4 @@
     refreshSettings(); pollIngestion(); await runSearch();  }
   initialize();
 })();
+
