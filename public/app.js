@@ -178,11 +178,11 @@
     }
     const pinned = state.view === 'library' && window.scrollY >= Math.max(0, searchPinThreshold);
     panel.classList.toggle('is-pinned', pinned);
-    const secondary = document.querySelector('.bottom-search-form');
+    const fadeAnchor = document.querySelector('#browseToggle');
     const stickyTop = window.innerWidth <= 720 ? 57 : 65;
-    const secondaryTop = secondary?.getBoundingClientRect().top ?? Infinity;
+    const fadeAnchorTop = fadeAnchor?.getBoundingClientRect().top ?? Infinity;
     const fadeDistance = 70;
-    const fadeProgress = pinned ? Math.max(0, Math.min(1, (stickyTop + fadeDistance - secondaryTop) / fadeDistance)) : 0;
+    const fadeProgress = pinned ? Math.max(0, Math.min(1, (stickyTop + fadeDistance - fadeAnchorTop) / fadeDistance)) : 0;
     panel.style.setProperty('--search-pin-opacity', String(1 - fadeProgress));
     panel.classList.toggle('search-handoff-complete', pinned && fadeProgress >= 0.99);
   }
