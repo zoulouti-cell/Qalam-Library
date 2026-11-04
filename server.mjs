@@ -34,7 +34,16 @@ async function generateGeminiPdf(model,apiKey,bytes,prompt){
 async function extractGeminiPdf(model,apiKey,sourceBytes,prompt){
   let source;
   try{source=await PDFDocument.load(sourceBytes,{updateMetadata:false});}
-  catch{throw new Error('تعذر تقسيم ملف PDF آلياً؛ قد يكون محمياً أو معطوباً. لم تُنشأ مسودة.');}
+  catch(error){
+    console.warn('PDF page splitting unavailable; trying one-pass cloud OCR:',String(error?.message||'PDF parser error').slice(0,200));
+    const response=await generateGeminiPdf(model,apiKey,sourceBytes,prompt),result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(String(result.error?.message||`Gemini لم يقبل ملف PDF (HTTP ${response.status}).`).slice(0,220));
+    const candidate=result.candidates?.[0],text=(candidate?.content?.parts||[]).map(part=>part.text||'').join('\n').trim();
+    if(candidate?.finishReason==='MAX_TOKENS')throw new Error('تعذر تقسيم بنية ملف PDF، كما تجاوز النص المستخرج حد الإجابة. لم تُنشأ مسودة ناقصة؛ جرّب نسخة PDF قابلة للقراءة أو OCR المتصفح.');
+    if(text.length<20)throw new Error('تعذر تحليل بنية PDF ولم يُرجع Gemini نصاً كافياً؛ لم تُنشأ مسودة.');
+    if(text.length>500000)throw new Error('تجاوز النص الناتج حد المسودة الواحدة؛ لم تُحفظ مسودة مبتورة.');
+    return {text,pageCount:null,chunks:1};
+  }
   const pageCount=source.getPageCount();if(!pageCount)throw new Error('ملف PDF لا يحتوي صفحات قابلة للقراءة.');
   const maxPages=12,textParts=[];let chunks=0;
   async function makeRangePdf(first,last){
