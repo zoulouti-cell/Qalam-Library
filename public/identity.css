@@ -402,3 +402,26 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] .bottom-search-wrap input{background:transparent!important;border-color:transparent!important;color:#f2e8c9}
 :root[data-theme="dark"] .bottom-search-wrap input::placeholder{color:#aab5a7}
 :root[data-theme="dark"] .read-rate select,:root[data-theme="dark"] .reader-find input,:root[data-theme="dark"] .reader-toolbar select{background:#202a24;border-color:#435348;color:#e4ebdf}
+
+/* Finish the pinned-search handoff cleanly at the hero/overview lower edge. */
+.identity-header .search-panel.is-pinned{transition:opacity .18s linear,filter .2s ease,transform .2s ease,visibility 0s linear}
+.identity-header .search-panel.is-pinned.search-handoff-complete{visibility:hidden;pointer-events:none;transition:opacity .18s linear,filter .2s ease,transform .2s ease,visibility 0s linear .18s}
+
+/* Agreement browse has exactly two branch cards, with each count at the far edge. */
+.agreement-branches .browse-branch-toggle{flex-direction:row;align-items:center;justify-content:space-between;text-align:right}
+.agreement-branches .browse-branch-toggle strong{display:block;min-width:0}
+.agreement-branches .browse-branch-toggle span{display:block;flex:0 0 auto;margin-inline-start:auto;white-space:nowrap}
+
+/* Dark mode: eliminate the remaining pale controls and chips in reading/results. */
+:root[data-theme="dark"] .result-card{background:#182820;border-color:#465346;color:#e8ebd8}
+:root[data-theme="dark"] .result-card .category-tag,
+:root[data-theme="dark"] .filter-chip:not(.active),
+:root[data-theme="dark"] .secondary-button,
+:root[data-theme="dark"] .reader-dialog .read-rate select,
+:root[data-theme="dark"] .reader-dialog .reader-find input,
+:root[data-theme="dark"] .reader-dialog .reader-toolbar select{background:#263329;border-color:#59634a;color:#e8e4c9}
+:root[data-theme="dark"] .filter-chip:not(.active):hover{background:#36432e;color:#fff0c5}
+:root[data-theme="dark"] .result-card .source-action,
+:root[data-theme="dark"] .result-card .document-type,
+:root[data-theme="dark"] .result-card .status-badge{background:#303b2b;border-color:#59634a;color:#e8e4c9}
+
