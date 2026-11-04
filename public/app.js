@@ -157,12 +157,24 @@
 
   function setView(view) {
     state.view = view; state.page = 1;
+    updatePinnedSearch();
     document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     $('filterBar').hidden = view !== 'library'; $('overview').hidden = view !== 'library';
     $('clearHistory').hidden = view !== 'history' || !state.history.length;
     $('pageTitle').innerHTML = view === 'saved' ? 'المحفوظات.<br><em>مراجع تعود إليها.</em>' : view === 'history' ? 'سجل القراءة.<br><em>مسارك داخل المكتبة.</em>' : 'اعثر على النص.<br><em>وابنِ بحثك على مصدر واضح.</em>';
     $('pageDescription').textContent = view === 'saved' ? 'وثائقك المحفوظة وملاحظاتك الخاصة على هذا الجهاز.' : view === 'history' ? 'حفظ السجل اختياري، ولا يغادر هذا المتصفح.' : 'مساحة موحّدة للبحث والقراءة في القانون المغربي، مع بيان حالة كل نص.';
     closeSidebar(); runSearch();
+  }
+  let searchPinThreshold = null;
+  function updatePinnedSearch(remeasure = false) {
+    const panel = document.querySelector('.identity-header .search-panel');
+    if (!panel) return;
+    if (remeasure || searchPinThreshold === null) {
+      panel.classList.remove('is-pinned');
+      searchPinThreshold = panel.getBoundingClientRect().top + window.scrollY - (window.innerWidth <= 720 ? 57 : 65);
+    }
+    const pinned = state.view === 'library' && window.scrollY >= Math.max(0, searchPinThreshold);
+    panel.classList.toggle('is-pinned', pinned);
   }
   function categoryLabel() { return state.topic || state.category || (state.view === 'saved' ? 'المحفوظات' : state.view === 'history' ? 'سجل القراءة' : 'جميع المجالات'); }
   function renderCategories(filter = '') {
@@ -192,7 +204,7 @@
   }
   async function browseAgreements(agreementBranch = '') {
     const pane=$('browseContent');pane.innerHTML='<p class="sidebar-loading">جارٍ فهرسة الاتفاقيات والمعاهدات…</p>';
-    try{const data=await api('/api/drive/agreements?limit=2000'),files=data.files||[];state.agreementFiles=files;state.agreementCount=Number(data.total)||0;$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();state.agreementBranch='';state.agreementCountry='';const bilateral=files.filter(f=>normalize(f.path).includes('ثنائية')),multilateral=files.filter(f=>normalize(f.path).includes('متعددة'));pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral.length)+' وثيقة</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات المتعددة الأطراف</strong><span>'+fmt(multilateral.length)+' وثيقة</span></button></div><div id="agreementBrowseList"></div>'+(files.length?'':'<p class="sidebar-loading">لم تُعثر على ملفات PDF في مجلد الاتفاقيات الدولية.</p>');}catch(error){pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><p class="sidebar-loading">'+esc(error.message||'تعذر فهرسة الاتفاقيات الدولية في Drive.')+'</p>';}  }
+    try{const data=await api('/api/drive/agreements?limit=2000'),files=data.files||[];state.agreementFiles=files;state.agreementCount=Number(data.total)||0;$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();state.agreementBranch='';state.agreementCountry='';const bilateral=files.filter(f=>normalize(f.path).includes('ثنائية')),multilateral=files.filter(f=>normalize(f.path).includes('متعددة'));pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button>'+agreementSectionHeading('الاتفاقيات الدولية',files.length)+'<div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral.length)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral.length)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>'+(files.length?'':'<p class="sidebar-loading">لم تُعثر على ملفات PDF في مجلد الاتفاقيات الدولية.</p>');}catch(error){pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><p class="sidebar-loading">'+esc(error.message||'تعذر فهرسة الاتفاقيات الدولية في Drive.')+'</p>';}  }
   const countryCodes={'اسبانيا':'ES','جمهورية الكوت ديفوار':'CI','ساحل العاج':'CI','فرنسا':'FR','المملكة العربية السعودية':'SA','السعودية':'SA','بلجيكا':'BE','رواندا':'RW','البرتغال':'PT','بوركينا فاسو':'BF','اثيوبيا':'ET','البرازيل':'BR','السنغال':'SN','بريطانيا':'GB','المملكة المتحدة':'GB','تونس':'TN','البحرين':'BH','الصين الشعبية':'CN','الصين':'CN','قطر':'QA','ايطاليا':'IT','الهند':'IN','مصر':'EG','اذربيجان':'AZ','اوكرانيا':'UA','هولندا':'NL','بنين':'BJ','تركيا':'TR','روسيا الاتحادية':'RU','روسيا':'RU','الراس الاخضر':'CV','زامبيا':'ZM','مالي':'ML','الامارات العربية المتحدة':'AE','الاردن':'JO','اليمن':'YE','بولندة':'PL','بولندا':'PL','اليابان':'JP','المجر':'HU','غينيا':'GN','غامبيا':'GM','سيراليون':'SL','البوسنة والهرسك':'BA','السودان':'SD','الولايات المتحدة الامريكية':'US','الغابون':'GA','بلغاريا':'BG','مدغشقر':'MG','رومانيا':'RO','عمان':'OM','دولة الكويت':'KW','الكويت':'KW','موريتانيا':'MR','الجزائر':'DZ','ليبيريا':'LR','مالاوي':'MW','التشيك':'CZ','جيبوتي':'DJ','سوريا':'SY','ليبيا':'LY','الكونغو':'CG','بنغلاديش':'BD','الكاميرون':'CM','غانا':'GH','سلوفينيا':'SI','صربيا':'RS','غينيا بيساو':'GW','تشاد':'TD','نيجيريا':'NG','المانيا الاتحادية':'DE','المانيا':'DE','باكستان':'PK','النمسا':'AT','النيجر':'NE','اندورة':'AD','سنغافورة':'SG','سويسرا':'CH','كندا':'CA','المكسيك':'MX','بيرو':'PE','فيتنام':'VN','الفلبين':'PH','جمهورية الدومينيكان':'DO','بوليفيا':'BO','كرواتيا':'HR','كمبوديا':'KH','انغولا':'AO','تنزانيا':'TZ','ليتوانيا':'LT','تركمانستان':'TM','بوروندي':'BI'};
   function countryFlag(country){const code=countryCodes[normalize(country)]||'';return code?String.fromCodePoint(...[...code].map(c=>0x1f1e6+c.charCodeAt(0)-65)):'🌐';}
   function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
@@ -841,6 +853,9 @@
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
     wireEvents(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
+    updatePinnedSearch(true);
+    window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
+    window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });
     const responses = await Promise.allSettled([api('/api/stats'), api('/api/categories'), api('/api/capabilities'), api('/api/session'), api('/api/drive/agreements?limit=1')]);
     if (responses[0].status === 'fulfilled') {
       applyStats(responses[0].value);
