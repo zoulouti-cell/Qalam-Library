@@ -310,19 +310,29 @@
 .identity-header .topbar{position:fixed;top:0;right:var(--sidebar-width);left:0;z-index:30;min-height:57px;margin:0;background:var(--green)}
 @media(max-width:720px){.identity-header{padding-top:49px}.identity-header .topbar{right:0;left:0;min-height:49px}.search-panel{top:57px}}
 
-/* Search is layered over the supplied calligraphy, just above the word قلم;
-   balanced margins keep the browse cards below the artwork. */
-.identity-header .search-panel{top:65px;margin:calc(-1 * clamp(180px,28vw,460px)) auto clamp(180px,28vw,460px);}
+/* Keep the full home composition inside the artwork's measured box. */
+.identity-header{z-index:20}
+.identity-header .search-intro{padding:0}
+.identity-showcase{min-height:480px;max-height:680px;isolation:isolate}
+.identity-art{object-fit:cover;object-position:center 50%}
+.identity-showcase:after{height:24%;background:linear-gradient(to bottom,transparent 5%,var(--paper) 100%)}
+.identity-header .search-panel{position:absolute;inset-block-start:9%;inset-inline:var(--page-gutter);z-index:4;width:min(840px,calc(100% - 2 * var(--page-gutter)));margin:0 auto}
 .identity-header .search-form{box-shadow:0 12px 34px #0a28234a,0 2px 8px #071a1545}
+.identity-header .overview{position:absolute;inset-inline:var(--page-gutter);inset-block-end:6%;z-index:4;width:auto;margin:0;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.identity-header .overview .stat-card{background:#fbfaf1e8;border-color:#c8b678a6;box-shadow:0 8px 22px #122c241c;backdrop-filter:blur(7px)}
+.identity-header .overview .browse-launch{background:linear-gradient(130deg,#143e34f5,#0a3026f5);border-color:#d8b65f;color:#fff2d6}
+.identity-header .overview .browse-launch:hover,.identity-header .overview .browse-launch[aria-expanded="true"]{background:linear-gradient(130deg,#204d3cf7,#0d382bf7)}
 .identity-art{transition:filter .25s ease}
 .theme-toggle{font-family:Arial,sans-serif;font-size:23px!important}
-@media(max-width:720px){.identity-header .search-panel{top:57px;margin:calc(-1 * clamp(110px,31vw,220px)) auto clamp(110px,31vw,220px)}.identity-header .search-form{background:linear-gradient(115deg,#063b30f2,#075045f2 48%,#032e26f2)}}
+@media(max-width:980px) and (min-width:721px){.identity-header .overview{grid-template-columns:repeat(2,minmax(0,1fr));inset-block-end:5%}.identity-showcase{min-height:560px}}
+@media(max-width:720px){.identity-header .search-panel{inset-block-start:8%;inset-inline:16px;width:auto;margin:0}.identity-header .search-form{background:linear-gradient(115deg,#063b30f2,#075045f2 48%,#032e26f2)}.identity-showcase{aspect-ratio:auto;height:clamp(430px,125vw,540px);min-height:0}.identity-art{object-position:60% center}.identity-showcase:after{height:30%}.identity-header .overview{inset-inline:16px;inset-block-end:5%;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.identity-header .overview .stat-card{min-height:82px;padding:8px 10px}.identity-header .overview .stat-card>small{margin-top:5px;padding-top:4px}.identity-header .overview .browse-launch{min-height:82px}}
+@media(max-width:370px){.identity-header .overview{inset-inline:12px;gap:5px}.identity-header .overview .stat-card{padding:7px 8px}.identity-header .overview .stat-card strong{font-size:20px}.identity-header .overview .stat-card>small{font-size:8px}}
 
 :root[data-theme="dark"]{color-scheme:dark;--paper:#111815;--white:#1b2420;--ink:#e5ebe4;--muted:#a1ada4;--line:#354139;--green-soft:#27352d;--gold:#d3b974;--gold-soft:#393526;--shadow:0 15px 55px #0005}
 :root[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
 :root[data-theme="dark"] .identity-header{background:var(--paper)}
 :root[data-theme="dark"] .identity-art{filter:brightness(.69) saturate(.78)}
-:root[data-theme="dark"] .identity-showcase:after{background:linear-gradient(to bottom,transparent 30%,var(--paper))}
+:root[data-theme="dark"] .identity-showcase:after{background:linear-gradient(to bottom,transparent 5%,var(--paper) 100%)}
 :root[data-theme="dark"] .stat-card,:root[data-theme="dark"] .browse-panel,:root[data-theme="dark"] .result-card,:root[data-theme="dark"] .empty-state,:root[data-theme="dark"] .skeleton,:root[data-theme="dark"] .library-area>.section-bar>.results-scope-row{background:var(--white);border-color:var(--line);color:var(--ink)}
 :root[data-theme="dark"] .stat-card>small,:root[data-theme="dark"] .result-card-foot,:root[data-theme="dark"] .result-card-foot time{border-color:var(--line);color:#a8b5aa}
 :root[data-theme="dark"] .stat-card div>span,:root[data-theme="dark"] .result-open,:root[data-theme="dark"] .result-snippet,:root[data-theme="dark"] .category-tag{color:#c2cec3}

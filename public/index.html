@@ -43,7 +43,6 @@
         <div class="identity-showcase">
         <h1 id="pageTitle" class="sr-only">المكتبة القانونية المغربية</h1>
         <img class="identity-art" src="/assets/qalam-calligraphy-banner.jpg?v=20261104" alt="كتب قانونية وشعار قاف عربي مزخرف" width="1280" height="720" fetchpriority="high">
-        </div>
         <div class="search-panel">
         <form id="searchForm" class="search-form" role="search">
           <div class="search-input-wrap"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="query" type="search" autocomplete="off" placeholder="ابحث بكلمة، موضوع، رقم قانون أو قرار…" aria-label="البحث في المكتبة" aria-controls="suggestions" aria-expanded="false"><button class="query-clear query-clear-top" type="button" id="clearTopQuery" aria-label="مسح عبارة البحث" title="مسح عبارة البحث" hidden>×</button><button class="search-mic" type="button" id="searchMic" aria-label="الإملاء الصوتي للبحث" title="إملاء صوتي"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button><kbd>Ctrl K</kbd></div>
@@ -51,13 +50,13 @@
         </form>
         <div class="mic-status" id="micStatus" role="status" aria-live="polite" hidden></div>
         </div>
-      </section>
-
-      <section class="overview" id="overview" aria-label="محتوى المكتبة">
+        <section class="overview" id="overview" aria-label="محتوى المكتبة">
         <div class="stat-card"><span class="stat-icon" aria-hidden="true">▤</span><div><strong id="statDocuments">—</strong><span>بطاقة في المكتبة</span></div><small>التشريع والعمل القضائي</small></div>
         <div class="stat-card"><span class="stat-icon" aria-hidden="true">≡</span><div><strong id="statTexts">—</strong><span>نص مستخرج</span></div><small>متاح للقراءة والبحث</small></div>
         <div class="stat-card"><span class="stat-icon" aria-hidden="true">◈</span><div><strong id="statSummaries">—</strong><span>ملخص من المصدر</span></div><small>موسوم بوضوح داخل المكتبة</small></div>
         <button type="button" class="stat-card browse-launch" id="browseToggle" aria-controls="browsePanel" aria-expanded="false"><span class="browse-animation"><svg class="browse-scene" viewBox="0 0 160 110" width="80" height="55" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g class="browse-shelves"><path d="M14 13v82h132V13M14 40h132M14 69h132"/><path d="M25 20h10v20H25zM39 17h8v23h-8zM51 22h11v18H51zM104 18h9v22h-9zM118 23l8-3 7 20h-9zM24 49h12v20H24zM40 46h8v23h-8zM53 50h10v19H53zM104 45h12v24h-12zM121 50h9v19h-9zM26 78h12v17H26zM43 75h9v20h-9zM111 76h9v19h-9zM125 80h8v15h-8z"/></g><g class="browse-closed-book"><path d="M73 21h21v48H73zM78 21v48M82 29h7M82 34h7M82 58h7"/></g><g class="browse-open-book"><path d="M80 49c-15-10-31-11-48-6v40c18-5 34-4 48 5 14-9 30-10 48-5V43c-17-5-33-4-48 6ZM80 49v39M28 48v39c19-4 35-2 52 6 17-8 33-10 52-6V48"/><path class="browse-leaf leaf-left-one" d="M80 82C68 69 54 62 38 61V29c18 2 32 12 42 27Z"/><path class="browse-leaf leaf-left-two" d="M80 82C69 65 60 58 47 55V23c15 6 26 18 33 35Z"/><path class="browse-leaf leaf-right-one" d="M80 82c12-13 26-20 42-21V29c-18 2-32 12-42 27Z"/><path class="browse-leaf leaf-right-two" d="M80 82c11-17 20-24 33-27V23c-15 6-26 18-33 35Z"/></g></svg></span><div><strong>ابدأ التصفح</strong><span>أقسام المكتبة بين يديك</span></div><small>المواد والمحاكم والمؤسسات والدراسات <span aria-hidden="true">←</span></small></button>
+        </section>
+        </div>
       </section>
 
       <section id="browsePanel" class="browse-panel" aria-labelledby="browseGroupsTitle" hidden>
