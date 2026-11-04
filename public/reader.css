@@ -1,5 +1,16 @@
 .reader-body{white-space:normal;text-align:start;word-spacing:normal;letter-spacing:normal;line-height:1.95}
 .reader-body p{white-space:normal;margin:0 0 .85em;text-align:start;line-height:1.95;word-spacing:normal}
+
+:root[data-theme="dark"] .reader-dialog,:root[data-theme="dark"] .assistant-dialog,:root[data-theme="dark"] .settings-dialog,:root[data-theme="dark"] .trust-dialog{background:#18211c;color:#e5ebe4;border-color:#3b4940}
+:root[data-theme="dark"] .reader-header,:root[data-theme="dark"] .reader-toolbar,:root[data-theme="dark"] .reader-foot,:root[data-theme="dark"] .assistant-header,:root[data-theme="dark"] .ask-form,:root[data-theme="dark"] .simple-dialog-header{background:#202a24;color:#e5ebe4;border-color:#3b4940}
+:root[data-theme="dark"] .reader-scroll,:root[data-theme="dark"] .chat-messages,:root[data-theme="dark"] .settings-content{background:#151d18;color:#e1e8df}
+:root[data-theme="dark"] .reader-body,:root[data-theme="dark"] .chat-answer,:root[data-theme="dark"] .chat-message,:root[data-theme="dark"] .setting-note,:root[data-theme="dark"] .reader-meta{color:#e0e8df}
+:root[data-theme="dark"] .reader-toolbar .tool-button,:root[data-theme="dark"] .tool-button,:root[data-theme="dark"] .secondary-button{background:#28362d;border-color:#435348;color:#e4ebdf}
+:root[data-theme="dark"] .reader-outline,:root[data-theme="dark"] .find-controls,:root[data-theme="dark"] .reader-original-actions{background:#202a24;border-color:#3b4940;color:#dbe4da}
+:root[data-theme="dark"] .reader-outline button,:root[data-theme="dark"] .find-controls button{color:#dce6d9}
+:root[data-theme="dark"] .chat-source,:root[data-theme="dark"] .ask-input,:root[data-theme="dark"] .settings-content input,:root[data-theme="dark"] .settings-content select,:root[data-theme="dark"] .settings-content textarea{background:#1d2821;border-color:#405047;color:#e4ebe2}
+:root[data-theme="dark"] .chat-source-official{background:#26342b;border-color:#435348;color:#dfca8c}
+:root[data-theme="dark"] .status-badge,:root[data-theme="dark"] .chat-limitations,:root[data-theme="dark"] .reader-status{color:#c7d2c5}
 .reader-body h3{white-space:normal;line-height:1.7;margin:1.35em 0 .65em}
 .result-open,.reader-header h2{unicode-bidi:plaintext}
 .reader-dialog{width:min(98vw,1760px);height:95dvh;max-height:95dvh}

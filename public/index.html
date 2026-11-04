@@ -8,6 +8,7 @@
   <title>قلم — المكتبة القانونية المغربية</title>
   <link rel="icon" href="/assets/qaf-favicon.svg" type="image/svg+xml">
   <link rel="preload" as="image" href="/assets/qalam-calligraphy-banner.jpg?v=20261104">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('qalam.theme')==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme='light'}</script>
   <link rel="stylesheet" href="/app.css">
   <link rel="stylesheet" href="/identity.css">
   <link rel="stylesheet" href="/reader.css">
@@ -35,7 +36,7 @@
         <button class="icon-button mobile-menu" id="menuToggle" aria-label="فتح القائمة" aria-expanded="false">☰</button>
         <div class="breadcrumb">المكتبة <span>/</span> <strong id="breadcrumbCurrent">جميع المجالات</strong></div>
         <p id="pageDescription" class="topbar-description">مساحة موحّدة للبحث والقراءة في القانون المغربي، مع بيان حالة كل نص.</p>
-        <div class="topbar-actions"><span class="connection-pill" id="connectionPill"><i></i> بيانات محلية</span><button class="icon-button" id="settingsBtn" title="التفضيلات" aria-label="فتح التفضيلات">⚙</button></div>
+        <div class="topbar-actions"><span class="connection-pill" id="connectionPill"><i></i> بيانات محلية</span><button class="icon-button theme-toggle" id="themeToggle" type="button" title="تفعيل الألوان الداكنة" aria-label="تفعيل الألوان الداكنة" aria-pressed="false">☾</button><button class="icon-button" id="settingsBtn" title="التفضيلات" aria-label="فتح التفضيلات">⚙</button></div>
       </header>
 
       <section class="search-intro" aria-labelledby="pageTitle">

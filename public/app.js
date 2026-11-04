@@ -14,6 +14,19 @@
     get(key, fallback) { try { return JSON.parse(localStorage.getItem('qalam.' + key)) ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem('qalam.' + key, JSON.stringify(value)); return true; } catch { toast('تعذّر الحفظ المحلي. تحقق من مساحة التخزين وإعدادات المتصفح.'); return false; } }
   };
+  function applyTheme(theme) {
+    const dark = theme === 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    try { localStorage.setItem('qalam.theme', dark ? 'dark' : 'light'); } catch {}
+    const button = $('themeToggle');
+    if (button) {
+      button.textContent = dark ? '☀' : '☾';
+      button.title = dark ? 'تفعيل الألوان الفاتحة' : 'تفعيل الألوان الداكنة';
+      button.setAttribute('aria-label', button.title);
+      button.setAttribute('aria-pressed', String(dark));
+    }
+  }
+  applyTheme(document.documentElement.dataset.theme);
   const storedPreferences = store.get('preferences', {});
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, ...storedPreferences };
@@ -784,6 +797,7 @@
     $('clearTopQuery').addEventListener('click', clearSearchQuery); $('clearBottomQuery').addEventListener('click', clearSearchQuery);
     $('clearHistory').addEventListener('click', () => { state.history = []; store.set('history', []); renderLocalView(); toast('مُسح سجل القراءة على هذا الجهاز.'); });
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
+    $('themeToggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
     $('settingsClose').addEventListener('click', () => $('settings').close());$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
     $('driveSourceClose').addEventListener('click',()=>$('driveSourceDialog').close());$('driveSourceDialog').addEventListener('click',event=>{if(event.target===$('driveSourceDialog'))$('driveSourceDialog').close();});
     $('personalize').addEventListener('change', event => { prefs.personalize = event.target.checked; persistPrefs(); toast(prefs.personalize ? 'فُعّل السجل والتخصيص على هذا الجهاز فقط.' : 'توقف حفظ القراءات وعمليات البحث الجديدة.'); });

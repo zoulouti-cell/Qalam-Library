@@ -309,3 +309,35 @@
 .identity-header{padding-top:57px}
 .identity-header .topbar{position:fixed;top:0;right:var(--sidebar-width);left:0;z-index:30;min-height:57px;margin:0;background:var(--green)}
 @media(max-width:720px){.identity-header{padding-top:49px}.identity-header .topbar{right:0;left:0;min-height:49px}.search-panel{top:57px}}
+
+/* Search is layered over the supplied calligraphy, just above the word قلم;
+   balanced margins keep the browse cards below the artwork. */
+.identity-header .search-panel{top:65px;margin:calc(-1 * clamp(180px,28vw,460px)) auto clamp(180px,28vw,460px);}
+.identity-header .search-form{box-shadow:0 12px 34px #0a28234a,0 2px 8px #071a1545}
+.identity-art{transition:filter .25s ease}
+.theme-toggle{font-family:Arial,sans-serif;font-size:23px!important}
+@media(max-width:720px){.identity-header .search-panel{top:57px;margin:calc(-1 * clamp(110px,31vw,220px)) auto clamp(110px,31vw,220px)}.identity-header .search-form{background:linear-gradient(115deg,#063b30f2,#075045f2 48%,#032e26f2)}}
+
+:root[data-theme="dark"]{color-scheme:dark;--paper:#111815;--white:#1b2420;--ink:#e5ebe4;--muted:#a1ada4;--line:#354139;--green-soft:#27352d;--gold:#d3b974;--gold-soft:#393526;--shadow:0 15px 55px #0005}
+:root[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
+:root[data-theme="dark"] .identity-header{background:var(--paper)}
+:root[data-theme="dark"] .identity-art{filter:brightness(.69) saturate(.78)}
+:root[data-theme="dark"] .identity-showcase:after{background:linear-gradient(to bottom,transparent 30%,var(--paper))}
+:root[data-theme="dark"] .stat-card,:root[data-theme="dark"] .browse-panel,:root[data-theme="dark"] .result-card,:root[data-theme="dark"] .empty-state,:root[data-theme="dark"] .skeleton,:root[data-theme="dark"] .library-area>.section-bar>.results-scope-row{background:var(--white);border-color:var(--line);color:var(--ink)}
+:root[data-theme="dark"] .stat-card>small,:root[data-theme="dark"] .result-card-foot,:root[data-theme="dark"] .result-card-foot time{border-color:var(--line);color:#a8b5aa}
+:root[data-theme="dark"] .stat-card div>span,:root[data-theme="dark"] .result-open,:root[data-theme="dark"] .result-snippet,:root[data-theme="dark"] .category-tag{color:#c2cec3}
+:root[data-theme="dark"] .browse-group,:root[data-theme="dark"] .scope-button,:root[data-theme="dark"] .advanced-search summary,:root[data-theme="dark"] .advanced-search-fields,:root[data-theme="dark"] .active-category{background:#202b25;border-color:var(--line);color:#d8e1d5}
+:root[data-theme="dark"] .browse-group:hover,:root[data-theme="dark"] .scope-button:hover,:root[data-theme="dark"] .suggestion-button:hover,:root[data-theme="dark"] .suggestion-button.active{background:#2c3a31}
+:root[data-theme="dark"] .scope-button.active,:root[data-theme="dark"] .scope-button[aria-pressed="true"]{background:var(--green);border-color:#567b65;color:#fff2d4}
+:root[data-theme="dark"] .advanced-search-fields label,:root[data-theme="dark"] .advanced-search-fields small,:root[data-theme="dark"] .suggestion-button small{color:#b4c1b3}
+:root[data-theme="dark"] .advanced-search-fields select,:root[data-theme="dark"] .advanced-search-fields input,:root[data-theme="dark"] .search-hints button,:root[data-theme="dark"] .bottom-search-wrap,:root[data-theme="dark"] .bottom-search-wrap input{background:#17211c;border-color:#435148;color:var(--ink)}
+:root[data-theme="dark"] .query-corrections,:root[data-theme="dark"] .chat-translation,:root[data-theme="dark"] .trust-note,:root[data-theme="dark"] .main-footer{color:#aab7ac;border-color:var(--line)}
+:root[data-theme="dark"] .agreement-section-heading{background:#202b25;border-color:var(--line);color:#e8eddf}
+:root[data-theme="dark"] .agreement-section-heading>span{color:#c3d0bd}
+:root[data-theme="dark"] .search-hints button{border-color:var(--line)}
+:root[data-theme="dark"] .chat-source-official,:root[data-theme="dark"] .browse-agreement-icons a{background:#202b25;border-color:var(--line);color:#dfca8c}
+:root[data-theme="dark"] .toast{background:#26342c;color:#edf1e8;border-color:#526456}
+body{background-color:var(--paper);background-image:radial-gradient(circle at 20px 20px,#b493580d 1px,transparent 1.7px),radial-gradient(circle at 0 0,transparent 12px,#143e3406 12.5px,transparent 13.5px);background-size:40px 40px}
+:root[data-theme="dark"] body{background-image:radial-gradient(circle at 20px 20px,#d3b9740b 1px,transparent 1.7px),radial-gradient(circle at 0 0,transparent 12px,#d3b97408 12.5px,transparent 13.5px)}
+.identity-header{background-color:var(--paper);background-image:radial-gradient(circle at 20px 20px,#b493580d 1px,transparent 1.7px),radial-gradient(circle at 0 0,transparent 12px,#143e3406 12.5px,transparent 13.5px);background-size:40px 40px}
+:root[data-theme="dark"] .identity-header{background-color:var(--paper);background-image:radial-gradient(circle at 20px 20px,#d3b9740b 1px,transparent 1.7px),radial-gradient(circle at 0 0,transparent 12px,#d3b97408 12.5px,transparent 13.5px)}
