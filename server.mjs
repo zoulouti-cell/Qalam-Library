@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { brotliCompressSync,gzipSync,constants } from 'node:zlib';
 import { createHash,randomBytes,createHmac,timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { PDFDocument } from 'pdf-lib';
 import { Library } from './src/library.mjs';
 import { answerQuestion,aiCapability } from './src/assistant.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
@@ -30,6 +31,34 @@ async function generateGeminiPdf(model,apiKey,bytes,prompt){
     await new Promise(resolve=>setTimeout(resolve,delay));
   }
 }
+async function extractGeminiPdf(model,apiKey,sourceBytes,prompt){
+  let source;
+  try{source=await PDFDocument.load(sourceBytes,{updateMetadata:false});}
+  catch{throw new Error('تعذر تقسيم ملف PDF آلياً؛ قد يكون محمياً أو معطوباً. لم تُنشأ مسودة.');}
+  const pageCount=source.getPageCount();if(!pageCount)throw new Error('ملف PDF لا يحتوي صفحات قابلة للقراءة.');
+  const maxPages=12,textParts=[];let chunks=0;
+  async function makeRangePdf(first,last){
+    if(first===0&&last===pageCount)return sourceBytes;
+    const part=await PDFDocument.create(),pages=await part.copyPages(source,Array.from({length:last-first},(_,i)=>first+i));
+    for(const page of pages)part.addPage(page);
+    return Buffer.from(await part.save({useObjectStreams:true}));
+  }
+  async function readRange(first,last){
+    const bytes=await makeRangePdf(first,last),rangePrompt=`${prompt}\nهذا مقطع الصفحات ${first+1} إلى ${last} من أصل ${pageCount}. استخرج هذا المقطع وحده وبالترتيب، ولا تكرر نصاً من مقاطع أخرى.`;
+    const response=await generateGeminiPdf(model,apiKey,bytes,rangePrompt),result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(String(result.error?.message||`Gemini لم يقبل المقطع (HTTP ${response.status}).`).slice(0,220));
+    const candidate=result.candidates?.[0],text=(candidate?.content?.parts||[]).map(part=>part.text||'').join('\n').trim();
+    if(candidate?.finishReason==='MAX_TOKENS'){
+      if(last-first<=1)throw new Error(`تجاوزت إجابة الصفحة ${first+1} حد الطول حتى بعد التقسيم؛ لم تُنشأ مسودة ناقصة.`);
+      const middle=first+Math.floor((last-first)/2);await readRange(first,middle);await readRange(middle,last);return;
+    }
+    if(text.length<20)throw new Error(`لم يُرجع OCR نصاً كافياً للصفحات ${first+1}–${last}؛ لم تُنشأ مسودة.`);
+    textParts.push(text);chunks++;
+    if(textParts.reduce((sum,part)=>sum+part.length,0)>500000)throw new Error('تجاوز النص الناتج حد المسودة الواحدة؛ لم تُحفظ مسودة مبتورة.');
+  }
+  for(let first=0;first<pageCount;first+=maxPages)await readRange(first,Math.min(first+maxPages,pageCount));
+  return {text:textParts.join('\n\n').trim(),pageCount,chunks};
+}
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
@@ -37,7 +66,6 @@ const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
 let driveScanPromise=null;
-function driveScanRetryMs(state){return state?.status==='error'&&String(state?.error||'').includes('تجاوز الفحص حد 60,000 ملف')?24*60*60_000:(state?.status==='error'?15*60_000:24*60*60_000);}
 async function runDriveMetadataScan(actor='system'){
   if(!adminStore)throw new Error('قاعدة إدارة المكتبة غير متاحة؛ تعذر حفظ نتيجة الفحص.');
   if(driveScanPromise)return driveScanPromise;
@@ -46,7 +74,7 @@ async function runDriveMetadataScan(actor='system'){
     await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{status:'running',startedAt:now,error:''}},{upsert:true});
     try{
       const files=await scanLibraryPdfs();
-      if(files.length>=60000)throw new Error('تجاوز الفحص حد 60,000 ملف؛ لم تُعتمد نتيجة جزئية.');
+      if(files.length>=30000)throw new Error('تجاوز الفحص حد 30,000 ملف؛ لم تُعتمد نتيجة جزئية.');
       const previous=await adminStore.driveMonitorFiles.find({present:true}).project({_id:1,name:1,folder:1,modifiedTime:1,size:1}).toArray(),old=new Map(previous.map(x=>[x._id,x]));
       const added=[],changed=[],operations=[];
       for(const f of files){const next={name:String(f.name||'').slice(0,500),folder:String(f.path||'').slice(0,1000),modifiedTime:f.modifiedTime||'',size:Number(f.size)||0,present:true,checkedAt:now};const before=old.get(f.id);if(!before&&!baseline)added.push({name:next.name,folder:next.folder,status:'جديد'});else if(before&&(before.name!==next.name||before.folder!==next.folder||before.modifiedTime!==next.modifiedTime||before.size!==next.size))changed.push({name:next.name,folder:next.folder,status:'معدّل'});old.delete(f.id);operations.push({updateOne:{filter:{_id:f.id},update:{$set:next},upsert:true}});}
@@ -63,7 +91,7 @@ async function runDriveMetadataScan(actor='system'){
 }
 const driveMonitorTimer=setInterval(async()=>{
   if(!adminStore||driveScanPromise)return;
-  try{const state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=driveScanRetryMs(state);if(!last||Date.now()-last>=due)await runDriveMetadataScan('scheduled');}
+  try{const state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;if(!last||Date.now()-last>=due)await runDriveMetadataScan('scheduled');}
   catch(error){console.error('Scheduled Drive metadata scan failed:',error?.message||'unknown error');}
 },60*60_000);
 driveMonitorTimer.unref();
@@ -159,7 +187,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/admin/drive-monitor'&&req.method==='GET'){
       if(!adminStore)return send(req,res,503,{available:false,status:'error',error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ خط أساس الفحص.'});
-      let state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=driveScanRetryMs(state);
+      let state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;
       if(!driveScanPromise&&(!last||Date.now()-last>=due))runDriveMetadataScan('scheduled').catch(()=>{});
       if(driveScanPromise)return send(req,res,200,{...(state||{}),status:'running',available:true});
       return send(req,res,200,{...(state||{status:'not_run'}),available:true});
@@ -196,11 +224,9 @@ const server=http.createServer(async(req,res)=>{
       if(activeDriveOcr)return send(req,res,409,{error:'هناك عملية OCR سحابية قيد التنفيذ. انتظر اكتمالها قبل بدء عملية أخرى.'});activeDriveOcr=true;
       try{
         const {item,buffer}=await readDrivePdf(fileId,20*1024*1024);const prompt='استخرج النص الظاهر في هذا المستند كاملاً وبأمانة حرفية، باللغة العربية كما كُتب. حافظ على أرقام المواد والفصول والتواريخ وعلامات الترقيم والنفي، وعلى ترتيب الصفحات والفقرات. لا تلخص ولا تشرح ولا تصحح ولا تضف عناوين من عندك. أزل رقم الصفحة المنفصل فقط إذا كان واضحاً أنه ترويسة أو تذييل وليس جزءاً من النص. أعد النص المستخرج وحده. إذا تعذر قراءة موضع فضع [غير مقروء] بدلاً من التخمين.';
-        const response=await generateGeminiPdf(process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash',apiKey,buffer,prompt);
-        const result=await response.json().catch(()=>({}));if(!response.ok){const apiError=String(result.error?.message||'').slice(0,220);throw new Error(apiError||`Gemini لم يقبل الطلب (HTTP ${response.status}).`);}
-        const candidate=result.candidates?.[0],text=(candidate?.content?.parts||[]).map(part=>part.text||'').join('\n').trim();if(candidate?.finishReason==='MAX_TOKENS')throw new Error('بلغ OCR حد طول الإجابة ولم يُنشئ مسودة مبتورة؛ استخدم OCR المتصفح على دفعات أصغر.');if(text.length<40)throw new Error('لم يُرجع Gemini نصاً كافياً للمراجعة؛ لم تُنشأ مسودة.');if(text.length>500000)throw new Error('تجاوز النص الناتج حد المسودة الواحدة؛ لم يُحفظ نص مبتور.');
-        const title=String(item.name||'وثيقة من Drive').replace(/\.pdf$/i,'').slice(0,500),documentId='managed_drive_'+randomBytes(12).toString('hex'),sourceUrl=`https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`,record={documentId,title,text,type:'national',category:'غير مصنف — مراجعة التصنيف',subcategory:'',date:'',kind:'law',textKind:'extracted_text',sourceUrl,sourceLabel:'نسخة أصلية في Google Drive · OCR Gemini',reason:'مسودة OCR سحابي؛ راجع النص كاملاً وقارنه بالوثيقة الأصلية قبل النشر.',status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin',ocr:{engine:process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash',createdAt:new Date(),pagesRequested:'all',sourceDriveFileId:fileId}};
-        await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','drive_cloud_ocr_draft_created',documentId,{title,sourceDriveFileId:fileId,sourceBytes:buffer.length,engine:record.ocr.engine});return send(req,res,201,{ok:true,documentId,title,status:'draft',chars:text.length,engine:record.ocr.engine});
+        const model=process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash',{text,pageCount,chunks}=await extractGeminiPdf(model,apiKey,buffer,prompt);
+        const title=String(item.name||'وثيقة من Drive').replace(/\.pdf$/i,'').slice(0,500),documentId='managed_drive_'+randomBytes(12).toString('hex'),sourceUrl=`https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`,record={documentId,title,text,type:'national',category:'غير مصنف — مراجعة التصنيف',subcategory:'',date:'',kind:'law',textKind:'extracted_text',sourceUrl,sourceLabel:'نسخة أصلية في Google Drive · OCR Gemini',reason:'مسودة OCR سحابي مجزأة تلقائياً؛ راجع النص كاملاً وقارنه بالوثيقة الأصلية قبل النشر.',status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin',ocr:{engine:model,createdAt:new Date(),pagesRequested:'all',pageCount,chunks,sourceDriveFileId:fileId}};
+        await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','drive_cloud_ocr_draft_created',documentId,{title,sourceDriveFileId:fileId,sourceBytes:buffer.length,engine:model,pageCount,chunks});return send(req,res,201,{ok:true,documentId,title,status:'draft',chars:text.length,pages:pageCount,chunks,engine:model});
       }catch(error){return send(req,res,502,{error:error.message||'تعذر تشغيل OCR السحابي.'});}finally{activeDriveOcr=false;}
     }
     if(p==='/api/admin/source-pdf'&&req.method==='GET'){
@@ -208,7 +234,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/admin/url/ocr'&&req.method==='POST'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ مسودة OCR.'});let body;try{body=await jsonBody(req,12000);}catch(error){return send(req,res,error.status||400,{error:error.message});}const sourceUrl=String(body.url||'').trim();if(!isAllowedPdfUrl(sourceUrl))return send(req,res,400,{error:'أدخل رابط PDF مباشر من مصدر HTTPS رسمي مدعوم.'});const saved=await adminStore.settings.findOne({_id:'library'}),ocr=saved?.ocr||{},apiKey=openSecret(ocr.geminiApiKeyEncrypted);if(ocr.engine!=='gemini'||!apiKey)return send(req,res,409,{error:'اختر Gemini السحابي واحفظ مفتاحه من إعدادات OCR أولاً.'});if(activeDriveOcr)return send(req,res,409,{error:'هناك عملية OCR سحابية قيد التنفيذ. انتظر اكتمالها قبل بدء أخرى.'});activeDriveOcr=true;
-      try{const {bytes,url:finalUrl}=await fetchOfficialPdf(sourceUrl),prompt='استخرج النص الظاهر في هذا المستند كاملاً وبأمانة حرفية، باللغة العربية كما كُتب. حافظ على أرقام المواد والفصول والتواريخ وعلامات الترقيم والنفي، وعلى ترتيب الصفحات والفقرات. لا تلخص ولا تشرح ولا تصحح ولا تضف عناوين من عندك. أزل رقم الصفحة المنفصل فقط إذا كان واضحاً أنه ترويسة أو تذييل وليس جزءاً من النص. أعد النص المستخرج وحده. إذا تعذر قراءة موضع فضع [غير مقروء] بدلاً من التخمين.';const model=process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash',response=await generateGeminiPdf(model,apiKey,bytes,prompt);const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(String(result.error?.message||`Gemini لم يقبل الطلب (HTTP ${response.status}).`).slice(0,220));const candidate=result.candidates?.[0],text=(candidate?.content?.parts||[]).map(part=>part.text||'').join('\n').trim();if(candidate?.finishReason==='MAX_TOKENS')throw new Error('بلغ OCR حد طول الإجابة ولم يُنشئ مسودة مبتورة.');if(text.length<40||text.length>500000)throw new Error('لم ينتج OCR نصاً صالحاً ضمن حدود المسودة.');const fileName=decodeURIComponent(new URL(finalUrl).pathname.split('/').filter(Boolean).at(-1)||'وثيقة من الرابط الرسمي').replace(/\.pdf$/i,'').slice(0,500),documentId='managed_url_'+randomBytes(12).toString('hex'),record={documentId,title:String(body.title||fileName).slice(0,500),text,type:'national',category:'غير مصنف — مراجعة التصنيف',subcategory:'',date:'',kind:'law',textKind:'extracted_text',sourceUrl:finalUrl,sourceLabel:'رابط PDF رسمي مباشر · OCR Gemini',reason:'مسودة OCR سحابي؛ راجع النص كاملاً وقارنه بالوثيقة الأصلية قبل النشر.',status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:auditActor(req),ocr:{engine:model,createdAt:new Date(),sourceUrl:finalUrl,sourceBytes:bytes.length}};await adminStore.content.insertOne(record);await recordAudit(adminStore,auditActor(req),'official_url_ocr_draft_created',documentId,{title:record.title,sourceHost:new URL(finalUrl).hostname,sourceBytes:bytes.length,engine:model});return send(req,res,201,{ok:true,documentId,title:record.title,status:'draft',chars:text.length,engine:model});}catch(error){return send(req,res,502,{error:error.message||'تعذر OCR السحابي للرابط.'});}finally{activeDriveOcr=false;}
+      try{const {bytes,url:finalUrl}=await fetchOfficialPdf(sourceUrl),prompt='استخرج النص الظاهر في هذا المستند كاملاً وبأمانة حرفية، باللغة العربية كما كُتب. حافظ على أرقام المواد والفصول والتواريخ وعلامات الترقيم والنفي، وعلى ترتيب الصفحات والفقرات. لا تلخص ولا تشرح ولا تصحح ولا تضف عناوين من عندك. أزل رقم الصفحة المنفصل فقط إذا كان واضحاً أنه ترويسة أو تذييل وليس جزءاً من النص. أعد النص المستخرج وحده. إذا تعذر قراءة موضع فضع [غير مقروء] بدلاً من التخمين.';const model=process.env.GEMINI_OCR_MODEL||'gemini-3.8-flash',{text,pageCount,chunks}=await extractGeminiPdf(model,apiKey,bytes,prompt);const fileName=decodeURIComponent(new URL(finalUrl).pathname.split('/').filter(Boolean).at(-1)||'وثيقة من الرابط الرسمي').replace(/\.pdf$/i,'').slice(0,500),documentId='managed_url_'+randomBytes(12).toString('hex'),record={documentId,title:String(body.title||fileName).slice(0,500),text,type:'national',category:'غير مصنف — مراجعة التصنيف',subcategory:'',date:'',kind:'law',textKind:'extracted_text',sourceUrl:finalUrl,sourceLabel:'رابط PDF رسمي مباشر · OCR Gemini',reason:'مسودة OCR سحابي مجزأة تلقائياً؛ راجع النص كاملاً وقارنه بالوثيقة الأصلية قبل النشر.',status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:auditActor(req),ocr:{engine:model,createdAt:new Date(),sourceUrl:finalUrl,sourceBytes:bytes.length,pageCount,chunks}};await adminStore.content.insertOne(record);await recordAudit(adminStore,auditActor(req),'official_url_ocr_draft_created',documentId,{title:record.title,sourceHost:new URL(finalUrl).hostname,sourceBytes:bytes.length,engine:model,pageCount,chunks});return send(req,res,201,{ok:true,documentId,title:record.title,status:'draft',chars:text.length,pages:pageCount,chunks,engine:model});}catch(error){return send(req,res,502,{error:error.message||'تعذر OCR السحابي للرابط.'});}finally{activeDriveOcr=false;}
     }
     if(p==='/api/admin/settings'&&req.method==='GET'){
       const saved=adminStore?await adminStore.settings.findOne({_id:'library'}):null,drive=saved?.drive||{},ocr=saved?.ocr||{};
