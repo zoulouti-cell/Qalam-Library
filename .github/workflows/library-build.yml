@@ -25,6 +25,7 @@ jobs:
           for file in src/*.mjs; do node --check "$file"; done
           node --check public/app.js
           node --check public/admin-ocr.js
+          node --check public/admin-scanner.js
       - name: Build the production container
         if: github.event_name == 'pull_request'
         run: docker build --tag qalam-library-ci .

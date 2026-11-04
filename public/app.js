@@ -185,6 +185,7 @@
   function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id)+'/view',officialUrl:file.officialUrl||''},true);}
   function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle;return '<article class="result-card agreement-search-card"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">الأصل محفوظ في Drive</span></div><h3 class="result-open" title="'+esc(file.fullTitle||rawTitle)+'">'+markText(title,$('query').value)+'</h3><p class="result-snippet">'+esc(file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><span class="category-tag">'+esc(relation)+'</span><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
+  function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;
     document.querySelectorAll('[data-agreement-group]').forEach(button=>{const active=button.dataset.agreementGroup===group;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
@@ -193,12 +194,12 @@
       const countries=new Map();for(const file of filtered){const name=bilateralCountry(file);if(!countries.has(name))countries.set(name,[]);countries.get(name).push(file);}
       const countryCards=[...countries.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar')).map(([name,items])=>'<button type="button" class="agreement-country-card" data-agreement-country="'+esc(name)+'" aria-pressed="'+(country===name)+'"><span class="agreement-country-flag" aria-hidden="true">'+countryFlag(name)+'</span><span class="agreement-country-info"><strong>'+esc(name)+'</strong><small>'+fmt(items.length)+' اتفاقية</small></span></button>').join('');
       const selected=(country?countries.get(country)||[]:[]).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
-      host.innerHTML='<div class="agreement-country-grid">'+(countryCards||'<p class="sidebar-loading">لا توجد دول مفهرسة في هذا الفرع.</p>')+'</div>'+(country?'<section id="agreementCountryResults" class="agreement-document-section"><h3>اتفاقيات مع '+esc(country)+'</h3><div class="agreement-document-grid">'+selected.map(file=>agreementDocumentCard(file,'اتفاقية ثنائية')).join('')+'</div></section>':'');
+      host.innerHTML='<div class="agreement-country-grid">'+(countryCards||'<p class="sidebar-loading">لا توجد دول مفهرسة في هذا الفرع.</p>')+'</div>'+(country?'<section id="agreementCountryResults" class="agreement-document-section">'+agreementSectionHeading('اتفاقيات مع '+country,selected.length)+'<div class="agreement-document-grid">'+selected.map(file=>agreementDocumentCard(file,'اتفاقية ثنائية')).join('')+'</div></section>':'');
       if(country)requestAnimationFrame(()=>$('agreementCountryResults')?.scrollIntoView({behavior:'smooth',block:'start'}));
       return;
     }
     filtered.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
-    host.innerHTML='<section class="agreement-document-section"><h3>الاتفاقيات متعددة الأطراف</h3><div class="agreement-document-grid">'+filtered.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>'+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
+    host.innerHTML='<section class="agreement-document-section">'+agreementSectionHeading('الاتفاقيات متعددة الأطراف',filtered.length)+'<div class="agreement-document-grid">'+filtered.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>'+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
   }
   async function browseDriveFolder(id,name,reset=false){
     const pane=$('browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';
@@ -493,18 +494,18 @@
   function renderAssistantAnswer(element,result) {
     const modes={extractive:'استرجاع من المصادر · دون توليد بنموذج',local_model:'تحليل بمساعد محلي',remote_model:'تحليل بمساعد متصل',gemini_model:'تحليل Gemini · مرتبط بمصادر المكتبة',groq_model:'تحليل Groq · مرتبط بمصادر المكتبة'};
     const sources=result.sources||[];
-    element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة آلية إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
+    element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة مهنية إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
   }
   async function translateAssistantAnswer(button){
     const message=button.closest('.chat-message'),answer=message?.querySelector('.chat-answer'),panel=message?.querySelector('.chat-translation');
     if(!answer||!panel)return;button.disabled=true;setTranslationButton(button,'جارٍ إعداد الترجمة…');panel.hidden=false;panel.textContent='تُجرّب الترجمة المهنية أولاً؛ وعند تعذرها يُستخدم نموذج الجهاز إذا كان مدعوماً.';
     try{
       const text=answer.innerText;
-      try{const result=await api('/api/translate',{method:'POST',body:JSON.stringify({text,language:'français'}),signal:AbortSignal.timeout(45000)});panel.textContent=result.translation||'لم تصل ترجمة.';panel.dataset.engine='deepl';setTranslationButton(button,'ترجمة عبر DeepL');}
+      try{const result=await api('/api/translate',{method:'POST',body:JSON.stringify({text,language:'français'}),signal:AbortSignal.timeout(45000)});panel.textContent=result.translation||'لم تصل ترجمة.';panel.dataset.engine='deepl';setTranslationButton(button,'ترجمة DeepL المهنية');}
       catch(cloudError){
         panel.textContent='تعذر استخدام DeepL؛ جارٍ فحص الترجمة المحلية.';
         const translated=await translateWithDevice(text,'ar','fr',(progress,done,total)=>{panel.textContent=progress!==null&&progress<100?'جارٍ تنزيل نموذج الترجمة إلى هذا الجهاز: '+progress+'٪':done!==undefined?'جارٍ ترجمة الجزء '+done+' من '+total+'…':'جارٍ تجهيز نموذج الترجمة المحلي…';});
-        panel.textContent=translated||'لم يُنتج المترجم المحلي نصاً.';panel.dataset.engine='device';setTranslationButton(button,'ترجمة محلية');
+        panel.textContent=translated||'لم يُنتج المترجم المحلي نصاً.';panel.dataset.engine='device';setTranslationButton(button,'ترجمة على الجهاز');
       }
     }
     catch(error){panel.textContent=error?.message==='local_unsupported'||error?.message==='local_pair_unsupported'?'تعذر استخدام الترجمة المحلية في هذا المتصفح أو لهذا الزوج اللغوي. جرّب Chrome أو Edge حديثاً مع اتصال إنترنت لتنزيل النموذج أول مرة.':'تعذرت الترجمة المحلية. تحقق من دعم المتصفح واتصال الإنترنت لتنزيل النموذج عند الحاجة.';setTranslationButton(button,'إعادة المحاولة');}
@@ -841,4 +842,3 @@
     refreshSettings(); pollIngestion(); await runSearch();  }
   initialize();
 })();
-

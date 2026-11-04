@@ -20,14 +20,16 @@ const INSTITUTION_SOURCES = [
   [/البرلمان/, 'https://www.maroc.ma/ar/le-maroc/parlement'],
   [/المجلس الأعلى للسلطة القضائية|المجلس الأعلى للقضاء/, 'https://www.cspj.ma/'],
   [/رئاسة النيابة العامة|النيابة العامة/, 'https://www.pmp.ma/'],
-  [/محكمة النقض|المجلس الأعلى/, 'https://justice.gov.ma/cour-de-cassation/'],
+  [/محكمة النقض|المجلس الأعلى/, 'https://justice.gov.ma/محكمة-النقض/'],
   [/المحكمة الدستورية/, 'https://www.cour-constitutionnelle.ma/'],
   [/المجلس الاقتصادي والاجتماعي والبيئي/, 'https://www.cese.ma/'],
   [/المجلس الوطني لحقوق الإنسان/, 'https://www.cndh.ma/'],
   [/مجلس المنافسة/, 'https://www.conseil-concurrence.ma/'],
   [/المجلس الأعلى للحسابات|المحاكم المالية/, 'https://www.ccomptes.ma/'],
   [/المحافظة العقارية|التحفيظ العقاري/, 'https://www.ancfcc.gov.ma/'],
-  [/وزارة العدل|التنظيم الهيكلي|محكمة الاستئناف|المحكمة الابتدائية|المحكمة التجارية|المحكمة الإدارية/, 'https://mahakim.ma/'],
+  [/التنظيم الهيكلي لوزارة العدل|التنظيم الهيكلي/, 'https://adala.justice.gov.ma/resources/10'],
+  [/وزارة العدل/, 'https://justice.gov.ma/'],
+  [/محكمة الاستئناف|المحكمة الابتدائية|المحكمة التجارية|المحكمة الإدارية|المحاكم الابتدائية|محاكم الاستئناف/, 'https://www.mahakim.ma/'],
   [/الحكومة|رئيس الحكومة|رئاسة الحكومة|السلطة التنفيذية|الوزارة الأولى/, 'https://www.cg.gov.ma/ar'],
   [/الأمانة العامة للحكومة|الجريدة الرسمية|القوانين الوطنية|اتفاقية|اتفاقيات|معاهدة|المادة/, 'https://www.sgg.gov.ma/Bulletinofficiel.aspx'],
 ];
@@ -39,9 +41,9 @@ export function officialSourceForDocument(doc = {}) {
     if (trusted) return trusted;
   }
   const description = `${doc.title || ''} ${doc.category || ''} ${doc.subcategory || ''}`;
-  if (doc.type === 'juriscassation') return 'https://justice.gov.ma/cour-de-cassation/';
-  if (doc.type === 'judicial') return 'https://mahakim.ma/';
+  if (doc.type === 'juriscassation') return 'https://justice.gov.ma/محكمة-النقض/';
+  if (doc.type === 'judicial') return 'https://www.mahakim.ma/';
   for (const [pattern, url] of INSTITUTION_SOURCES) if (pattern.test(description)) return url;
-  if (doc.type === 'national' || doc.kind === 'law' || doc.category === 'اتفاقيات ومعاهدات') return 'https://www.sgg.gov.ma/Bulletinofficiel.aspx';
+  if (doc.type === 'national' || doc.kind === 'law' || /اتفاقي|معاهد/.test(`${doc.category || ''} ${doc.kind || ''} ${doc.type || ''}`)) return 'https://www.sgg.gov.ma/Bulletinofficiel.aspx';
   return '';
 }
