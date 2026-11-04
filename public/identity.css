@@ -272,8 +272,7 @@
 .browse-group[data-browse-group="agreements"] span{white-space:normal;line-height:1.4}
 @media(max-width:720px){.library-area>.section-bar{gap:7px}.library-area>.section-bar>.results-scope-row{padding:7px;gap:5px}.library-area>.section-bar>.results-scope-row .active-category{max-width:100%}.library-area>.section-bar>div:first-child{max-width:none}.browse-groups{grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}.browse-group{white-space:normal;min-width:0}.browse-group span{white-space:normal;overflow-wrap:anywhere}}
 
-/* Keep the green navigation bar fixed; soften it only below the page top. */
+/* Keep the green navigation bar fixed above the artwork and page content. */
 .identity-header{padding-top:57px}
-.identity-header .topbar{position:fixed;top:0;right:var(--sidebar-width);left:0;z-index:30;min-height:57px;margin:0;background:var(--green);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;transition:background .18s ease,backdrop-filter .18s ease,box-shadow .18s ease}
-.identity-header .topbar.is-scrolled{background:rgba(20,62,52,.88);-webkit-backdrop-filter:saturate(125%) blur(10px);backdrop-filter:saturate(125%) blur(10px);box-shadow:0 3px 16px #0e30282b}
+.identity-header .topbar{position:fixed;top:0;right:var(--sidebar-width);left:0;z-index:30;min-height:57px;margin:0;background:var(--green)}
 @media(max-width:720px){.identity-header{padding-top:49px}.identity-header .topbar{right:0;left:0;min-height:49px}}
