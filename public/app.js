@@ -178,15 +178,13 @@
     }
     const pinned = state.view === 'library' && window.scrollY >= Math.max(0, searchPinThreshold);
     panel.classList.toggle('is-pinned', pinned);
-    const fadeAnchor = document.querySelector('#overview');
+    const fadeAnchor = document.querySelector('#browseToggle');
     const stickyTop = window.innerWidth <= 720 ? 57 : 65;
     const fadeAnchorRect = fadeAnchor?.getBoundingClientRect();
-    // Fade as the hero's full statistics/browse row passes over the pinned bar.
-    // The bar is fully transparent as the row's lower edge clears the sticky header.
+    // Fade during the pinned bar's overlap with the browse card; finish at its top edge.
     const fadeAnchorTop = fadeAnchorRect?.top ?? Infinity;
-    const cardHeight = fadeAnchorRect?.height ?? 0;
     const panelHeight = panel.getBoundingClientRect().height || 58;
-    const fadeDistance = Math.max(1, panelHeight + cardHeight);
+    const fadeDistance = Math.max(1, panelHeight);
     const fadeStart = stickyTop + panelHeight;
     const rawFadeProgress = pinned ? Math.max(0, Math.min(1, (fadeStart - fadeAnchorTop) / fadeDistance)) : 0;
     panel.style.setProperty('--search-pin-opacity', String(1 - rawFadeProgress));
@@ -229,7 +227,7 @@
     const shell=(files=[])=>{
       const bilateral=files.filter(file=>agreementKind(file)==='ثنائية').length;
       const multilateral=files.filter(file=>agreementKind(file)==='متعددة').length;
-      return agreementSectionHeading('الاتفاقيات الدولية',files.length||state.agreementCount||0)+'<div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral||state.agreementBranchCounts.bilateral||0)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral||state.agreementBranchCounts.multilateral||0)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>';
+      return '<button type="button" class="browse-back" data-browse-back>← الأقسام</button><div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral||state.agreementBranchCounts.bilateral||0)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral||state.agreementBranchCounts.multilateral||0)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>';
     };
     // Show the two branch cards immediately; Drive indexing can take longer on a cold start.
     pane.innerHTML=shell(state.agreementFiles);
