@@ -1,7 +1,7 @@
 // The original library's navigation and reference priorities, kept separately
 // from full-text relevance. Removing unavailable records never renumbers titles.
 const MAJOR = ['المادة الدستورية','المادة المدنية','المادة الجنائية','المادة التجارية','المادة الاجتماعية','المادة الإدارية','المادة الأسرية','المادة العقارية','المادة المالية','المادة الانتخابية','المادة البيئية'];
-const GROUPS = [['materials','المواد القانونية'],['authorities','السلطات'],['councils','المجالس'],['judicial','الاجتهادات القضائية'],['studies','الدراسات'],['org','التنظيم الهيكلي لوزارة العدل']];
+const GROUPS = [['materials','القوانين الوطنية'],['authorities','السلطات'],['councils','المجالس'],['judicial','الاجتهادات القضائية'],['studies','الدراسات'],['org','التنظيم الهيكلي لوزارة العدل']];
 const REFERENCES = {
   'المادة الدستورية':['دستور المملكة المغربية لسنة 2011','دستور المملكة'],
   'المادة المدنية':['المسطرة المدنية','الالتزامات والعقود','الحقوق العينية','التحفيظ العقاري'],
@@ -12,6 +12,11 @@ const REFERENCES = {
   'المادة الإدارية':['03.01','55.19','54.19','54.05','1.75.168','10.03'], 'المادة العقارية':['التحفيظ العقاري','الحقوق العينية'],
   'المادة الانتخابية':['الانتخابات'], 'مادة النقل':['مدونة السير'],
 };
+export function catalogCategory(row) {
+  if (/الأجزاء التابعة.*الملك العمومي|الملك العمومي.*الأجزاء التابعة/i.test(row.title || '')) return 'المادة البيئية';
+  if (row.category === 'قوانين وتشريعات وطنية') return 'مادة الفلاحة';
+  return row.category;
+}
 const GENERAL = ['دستور المملكة المغربية لسنة 2011','المسطرة المدنية','المسطرة الجنائية','الالتزامات والعقود','مجموعة القانون الجنائي','القانون الجنائي','مدونة التجارة','مدونة الأسرة','مدونة الشغل','التحفيظ العقاري','الحقوق العينية','مدونة السير','تعليل قراراتها الإدارية','تبسيط المساطر والإجراءات الإدارية','ميثاق المرافق العمومية','التدبير المفوض للمرافق العامة','الدستور'];
 function categoryRank(name) {
   const i=MAJOR.indexOf(name); if(i>=0)return i;
@@ -42,7 +47,7 @@ export function compareOriginalDocuments(a,b){
 export function installCatalogOrder(db,original={},originalIds=[]) {
   db.exec('CREATE TABLE IF NOT EXISTS original_sequence(doc_id TEXT PRIMARY KEY,position INTEGER NOT NULL)');
   if(originalIds.length){const put=db.prepare('INSERT OR REPLACE INTO original_sequence VALUES(?,?)');for(const [i,id] of originalIds.entries())put.run(id,i);}
-  const rows=db.prepare('SELECT d.rowid,d.id,d.title,d.type,d.category,d.kind,d.law_number,d.abrogated,s.position source_position FROM documents d LEFT JOIN original_sequence s ON s.doc_id=d.id ORDER BY d.rowid').all();
+  const rows=db.prepare('SELECT d.rowid,d.id,d.title,d.type,d.category,d.kind,d.law_number,d.abrogated,s.position source_position FROM documents d LEFT JOIN original_sequence s ON s.doc_id=d.id ORDER BY d.rowid').all().map(d=>({...d,category:catalogCategory(d)}));
   const categories=orderedCategories([...new Set(rows.map(d=>d.category))].map(name=>({name,count:rows.filter(d=>d.category===name).length})),original);
   const groups=new Map(categories.map(c=>[c.name,[]]));for(const d of rows)groups.get(d.category).push(d);
   db.exec('CREATE TABLE IF NOT EXISTS catalog_order(doc_rowid INTEGER PRIMARY KEY,position INTEGER NOT NULL);DELETE FROM catalog_order;');
