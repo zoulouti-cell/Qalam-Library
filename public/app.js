@@ -783,6 +783,9 @@
     [$('settings'), $('trustDialog')].forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } }));
   }
   async function initialize() {
+    const updateHeaderScrollState=()=>document.querySelector('.identity-header .topbar')?.classList.toggle('is-scrolled',window.scrollY>8);
+    window.addEventListener('scroll',updateHeaderScrollState,{passive:true});
+    updateHeaderScrollState();
     const readingSection = $('voiceAvailability').closest('section');
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
