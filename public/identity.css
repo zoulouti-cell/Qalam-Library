@@ -255,3 +255,19 @@
 .editorial-history-item button{flex:none}
 @media(max-width:720px){.bottom-search-form{gap:5px;flex-wrap:wrap}.bottom-search-wrap{padding-inline:8px;gap:6px;flex:1 1 calc(100% - 75px)}.bottom-search-wrap input{height:42px;font-size:14px}.bottom-search-options{order:2}.bottom-search-options summary{padding:6px 8px}.bottom-search-options summary span{font-size:11px}.bottom-search-submit{order:3;min-width:65px;padding-inline:9px;font-size:13px}.bottom-search-form .suggestions{left:70px}.overview .browse-launch{grid-column:1;grid-row:1}.section-bar{gap:5px}.section-bar>div:first-child{max-width:26%}.section-bar>.results-scope-row{gap:4px}.section-bar>.results-scope-row .search-scopes{gap:3px}.section-bar .scope-button{font-size:11px;padding:4px 6px}.section-bar>.results-scope-row .active-category{max-width:100%;white-space:normal}.section-bar>.results-scope-row #clearFilters{font-size:10px;min-width:0;padding:4px 6px}.section-bar>.results-scope-row #clearFilters span{font-size:14px}.editorial-diff{grid-template-columns:1fr}.editorial-history-item{align-items:flex-start;flex-direction:column}.editorial-history-item button{align-self:flex-start}}
 
+
+/* Keep the results heading clear; place scopes and the active domain below it. */
+.library-area>.section-bar{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:10px;margin-bottom:15px}
+.library-area>.section-bar>div:first-child{grid-column:1;grid-row:1;max-width:none;min-width:0}
+.library-area>.section-bar>div:first-child h2{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.6}
+.library-area>.section-bar>#clearHistory{grid-column:1;grid-row:1;justify-self:end}
+.library-area>.section-bar>.results-scope-row{grid-column:1;grid-row:2;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap;overflow:visible;margin:0;padding:9px 11px;border:1px solid #dce3d5;border-radius:10px;background:#f8f8f2}
+.library-area>.section-bar>.results-scope-row .search-scopes{flex:1 1 auto;flex-wrap:wrap;overflow:visible;justify-content:flex-start}
+.library-area>.section-bar>.results-scope-row .active-category{max-width:min(42%,360px);height:auto;min-height:38px;white-space:normal}
+.category-group.agreement-sidebar-heading{margin-top:13px;padding-top:9px;border-top:1px solid #ffffff24}
+.agreement-sidebar-link{color:#f0dfb4!important}
+.agreement-sidebar-mark{font:15px Arial,sans-serif;color:#d7bd7c;flex:none}
+.category-button[title="التنظيم الهيكلي لوزارة العدل"] span{white-space:normal;overflow-wrap:anywhere;line-height:1.55}
+.browse-leaf-button{white-space:normal;overflow-wrap:anywhere;text-align:right;line-height:1.6}
+.browse-group[data-browse-group="agreements"] span{white-space:normal;line-height:1.4}
+@media(max-width:720px){.library-area>.section-bar{gap:7px}.library-area>.section-bar>.results-scope-row{padding:7px;gap:5px}.library-area>.section-bar>.results-scope-row .active-category{max-width:100%}.library-area>.section-bar>div:first-child{max-width:none}.browse-groups{grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}.browse-group{white-space:normal;min-width:0}.browse-group span{white-space:normal;overflow-wrap:anywhere}}
