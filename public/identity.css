@@ -160,6 +160,7 @@
 .library-area>.section-bar>.results-scope-row .search-scopes{flex:1 1 auto;flex-wrap:wrap;overflow:visible;justify-content:flex-start}
 .library-area>.section-bar>.results-scope-row .active-category{max-width:min(42%,360px);height:auto;min-height:38px;white-space:normal}
 .category-group.agreement-sidebar-heading{margin-top:13px;padding-top:9px;border-top:1px solid #ffffff24}
+.category-group.agreement-sidebar-heading{color:#fff}
 .agreement-sidebar-link{color:#e4ecdf!important}
 .agreement-sidebar-mark{font:15px Arial,sans-serif;color:#d7bd7c;flex:none}
 .category-button[title="التنظيم الهيكلي لوزارة العدل"] span{white-space:normal;overflow-wrap:anywhere;line-height:1.55}
@@ -357,10 +358,11 @@ body{background-color:var(--paper);background-image:radial-gradient(circle at 20
 .identity-art{object-fit:contain;object-position:center top}
 .identity-header .search-panel{inset-block-start:2.5%;z-index:40;transition:filter .2s ease,transform .2s ease}
 .identity-header .search-panel.is-pinned{position:fixed;inset-block-start:65px;inset-inline:auto;left:var(--search-pin-left);right:auto;width:var(--search-pin-width);max-width:calc(100vw - 20px);margin:0;z-index:90;opacity:var(--search-pin-opacity,1);transition:opacity .12s linear,filter .2s ease,transform .2s ease}
+.identity-header .search-panel.is-pinned.search-under-browse{z-index:3}
 .identity-header .search-panel.is-pinned.search-handoff-complete{pointer-events:none;visibility:hidden}
 .identity-showcase:has(.search-panel.is-pinned){overflow:visible}
 .bottom-search-form{position:sticky;top:65px;z-index:28;box-sizing:border-box;padding:5px 0;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px);border-radius:10px}
-.identity-header .overview{inset-block-end:0;gap:8px}
+.identity-header .overview{inset-block-end:0;gap:8px;transform:translateY(-2mm)}
 .identity-header .overview .stat-card{min-height:76px;padding:8px 11px}
 .identity-header .overview .stat-card>small{margin-top:7px;padding-top:5px}
 .identity-header .overview .browse-launch{min-height:88px}
@@ -382,9 +384,14 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] .advanced-search-fields select,:root[data-theme="dark"] .advanced-search-fields input,:root[data-theme="dark"] .bottom-search-wrap input,:root[data-theme="dark"] .editorial-search input,:root[data-theme="dark"] .editorial-editor>input,:root[data-theme="dark"] .editorial-editor textarea,:root[data-theme="dark"] .ocr-controls select,:root[data-theme="dark"] .ocr-controls input{background:#211d13;border-color:#806a38;color:#f2e8c9}
 :root[data-theme="dark"] .stat-card:not(.browse-launch),:root[data-theme="dark"] .browse-panel,:root[data-theme="dark"] .result-card,:root[data-theme="dark"] .empty-state,:root[data-theme="dark"] .skeleton,:root[data-theme="dark"] .library-area>.section-bar>.results-scope-row{background:#303723;border-color:#586044;color:#f0edce}
 :root[data-theme="dark"] .scope-button,:root[data-theme="dark"] .advanced-search summary,:root[data-theme="dark"] .advanced-search-fields,:root[data-theme="dark"] .active-category,:root[data-theme="dark"] .browse-group,:root[data-theme="dark"] .browse-branch-toggle,:root[data-theme="dark"] .browse-leaf-button,:root[data-theme="dark"] .agreement-country-card,:root[data-theme="dark"] .search-hints button,:root[data-theme="dark"] .bottom-search-options summary,:root[data-theme="dark"] .reader-toolbar .tool-button,:root[data-theme="dark"] .card-expand,:root[data-theme="dark"] .bottom-search-wrap{background:#343a25;border-color:#66704a;color:#ecebc9}
-:root[data-theme="dark"] .identity-header .overview .stat-card:not(.browse-launch),:root[data-theme="dark"] .secondary-button,:root[data-theme="dark"] .pagination>button,:root[data-theme="dark"] .filter-chip:not(.active),:root[data-theme="dark"] .date-filter summary,:root[data-theme="dark"] .date-filter>div,:root[data-theme="dark"] .suggestion-button,:root[data-theme="dark"] .drive-browse-item{background:#343a25;border-color:#66704a;color:#ecebc9}
-:root[data-theme="dark"] .reader-find,:root[data-theme="dark"] .reader-find input,:root[data-theme="dark"] .search-input-wrap{background:#343a25;border-color:#66704a;color:#ecebc9}
 :root[data-theme="dark"] .scope-button:hover,:root[data-theme="dark"] .advanced-search summary:hover,:root[data-theme="dark"] .browse-group:hover,:root[data-theme="dark"] .browse-branch-toggle:hover,:root[data-theme="dark"] .browse-leaf-button:hover,:root[data-theme="dark"] .agreement-country-card:hover,:root[data-theme="dark"] .search-hints button:hover,:root[data-theme="dark"] .bottom-search-options summary:hover,:root[data-theme="dark"] .reader-toolbar .tool-button:hover,:root[data-theme="dark"] .card-expand:hover{background:#42492c;border-color:#a39756;color:#fff4ce}
 :root[data-theme="dark"] .browse-group.active,:root[data-theme="dark"] .browse-group.selected,:root[data-theme="dark"] .browse-branch-toggle.active,:root[data-theme="dark"] .browse-branch-toggle[aria-pressed="true"],:root[data-theme="dark"] .scope-button.active,:root[data-theme="dark"] .scope-button[aria-pressed="true"]{background:#174234;border-color:#8f9b58;color:#fff0bd}
+:root[data-theme="dark"] .category-group.agreement-sidebar-heading{color:#fff}
+:root[data-theme="dark"] .result-open{color:#e0c774}
+.agreement-branches{grid-template-columns:repeat(2,minmax(0,1fr))}
+.agreement-branches .browse-branch-toggle{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:right}
+.agreement-branches .browse-branch-toggle strong,.agreement-branches .browse-branch-toggle span{display:block}
+@media(max-width:720px){.identity-header .overview{transform:translateY(-2mm)}}
 @media(max-width:720px){.identity-showcase{height:auto}}
 @media(prefers-reduced-motion:reduce){.identity-header .search-panel{transition:none}}
+:root .agreement-sidebar-link,:root .agreement-sidebar-link span,:root .agreement-sidebar-link b{color:#fff!important}
