@@ -181,11 +181,12 @@
     const fadeAnchor = document.querySelector('#browseToggle');
     const stickyTop = window.innerWidth <= 720 ? 57 : 65;
     const fadeAnchorTop = fadeAnchor?.getBoundingClientRect().top ?? Infinity;
-    const fadeDistance = 70;
-    const fadeProgress = pinned ? Math.max(0, Math.min(1, (stickyTop - fadeAnchorTop) / fadeDistance)) : 0;
+    // Give touchpad and mouse-wheel scrolling enough distance to fade smoothly.
+    const fadeDistance = 180;
+    const rawFadeProgress = pinned ? Math.max(0, Math.min(1, (stickyTop - fadeAnchorTop) / fadeDistance)) : 0;
+    const fadeProgress = rawFadeProgress * rawFadeProgress * (3 - 2 * rawFadeProgress);
     panel.style.setProperty('--search-pin-opacity', String(1 - fadeProgress));
-    panel.classList.toggle('search-handoff-complete', pinned && fadeProgress >= 0.99);
-    panel.classList.toggle('search-under-browse', pinned && fadeProgress > 0);
+    panel.classList.toggle('search-handoff-complete', pinned && fadeProgress >= 0.999);
   }
   function categoryLabel() { return state.topic || state.category || (state.view === 'saved' ? 'المحفوظات' : state.view === 'history' ? 'سجل القراءة' : 'جميع المجالات'); }
   function renderCategories(filter = '') {
@@ -212,24 +213,41 @@
     const pane = $('browseContent'); pane.hidden = !state.browseGroup;
     if (!state.browseGroup) { pane.innerHTML = ''; $('browseGroups').hidden = false; return; }
     $('browseGroups').hidden = true;
-    if (state.browseGroup === 'agreements') { state.driveBrowseStack = []; browseAgreements(agreementBranch); return; }
+    if (state.browseGroup === 'agreements') { state.driveBrowseStack = []; browseAgreements(state.agreementBranch || ''); return; }
     const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
     const rows = state.categories.filter(c => groups[state.browseGroup].includes(c.group));
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>');
   }
   async function browseAgreements(agreementBranch = '') {
-    const pane=$('browseContent');pane.innerHTML='<p class="sidebar-loading">جارٍ فهرسة الاتفاقيات والمعاهدات…</p>';
-    try{const data=await api('/api/drive/agreements?limit=2000'),files=data.files||[];state.agreementFiles=files;state.agreementCount=Number(data.total)||0;state.agreementBranchCounts=data.branches||state.agreementBranchCounts;state.agreementBranch=agreementBranch||'';state.agreementCountry='';$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();const bilateral=files.filter(f=>normalize(f.path).includes('ثنائية')),multilateral=files.filter(f=>normalize(f.path).includes('متعددة'));pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button>'+agreementSectionHeading('الاتفاقيات الدولية',files.length)+'<div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral.length)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral.length)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>'+(files.length?'':'<p class="sidebar-loading">لم تُعثر على ملفات PDF في مجلد الاتفاقيات الدولية.</p>');if(agreementBranch)renderAgreementFiles(files,agreementBranch);}catch(error){pane.innerHTML='<button type="button" class="browse-back" data-browse-back>← الأقسام</button><p class="sidebar-loading">'+esc(error.message||'تعذر فهرسة الاتفاقيات الدولية في Drive.')+'</p>';}  }
+    const pane=$('browseContent');
+    state.agreementBranch=agreementBranch||state.agreementBranch||'';
+    state.agreementCountry='';
+    const shell=(files=[])=>{
+      const bilateral=files.filter(file=>agreementKind(file)==='ثنائية').length;
+      const multilateral=files.filter(file=>agreementKind(file)==='متعددة').length;
+      return '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>'+agreementSectionHeading('الاتفاقيات الدولية',files.length||state.agreementCount||0)+'<div class="agreement-branches"><button type="button" class="browse-branch-toggle" data-agreement-group="ثنائية" aria-pressed="false"><strong>الاتفاقيات الثنائية</strong><span>'+fmt(bilateral||state.agreementBranchCounts.bilateral||0)+' اتفاقية</span></button><button type="button" class="browse-branch-toggle" data-agreement-group="متعددة" aria-pressed="false"><strong>الاتفاقيات متعددة الأطراف</strong><span>'+fmt(multilateral||state.agreementBranchCounts.multilateral||0)+' اتفاقية</span></button></div><div id="agreementBrowseList"></div>';
+    };
+    // Show the two branch cards immediately; Drive indexing can take longer on a cold start.
+    pane.innerHTML=shell(state.agreementFiles);
+    try{
+      const data=await api('/api/drive/agreements?limit=2000'),files=data.files||[];
+      state.agreementFiles=files;state.agreementCount=Number(data.total)||0;state.agreementBranchCounts=data.branches||state.agreementBranchCounts;
+      $('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();pane.innerHTML=shell(files);
+      if(state.agreementBranch)renderAgreementFiles(files,state.agreementBranch,state.agreementCountry);
+      if(!files.length)pane.insertAdjacentHTML('beforeend','<p class="sidebar-loading">لم تُعثر على ملفات PDF في مجلد الاتفاقيات الدولية.</p>');
+    }catch(error){if(!pane.querySelector('.agreement-branches'))pane.innerHTML=shell(state.agreementFiles);pane.insertAdjacentHTML('beforeend','<p class="sidebar-loading">'+esc(error.message||'تعذر فهرسة الاتفاقيات الدولية في Drive.')+'</p>');}
+  }
   const countryCodes={'اسبانيا':'ES','جمهورية الكوت ديفوار':'CI','ساحل العاج':'CI','فرنسا':'FR','المملكة العربية السعودية':'SA','السعودية':'SA','بلجيكا':'BE','رواندا':'RW','البرتغال':'PT','بوركينا فاسو':'BF','اثيوبيا':'ET','البرازيل':'BR','السنغال':'SN','بريطانيا':'GB','المملكة المتحدة':'GB','تونس':'TN','البحرين':'BH','الصين الشعبية':'CN','الصين':'CN','قطر':'QA','ايطاليا':'IT','الهند':'IN','مصر':'EG','اذربيجان':'AZ','اوكرانيا':'UA','هولندا':'NL','بنين':'BJ','تركيا':'TR','روسيا الاتحادية':'RU','روسيا':'RU','الراس الاخضر':'CV','زامبيا':'ZM','مالي':'ML','الامارات العربية المتحدة':'AE','الاردن':'JO','اليمن':'YE','بولندة':'PL','بولندا':'PL','اليابان':'JP','المجر':'HU','غينيا':'GN','غامبيا':'GM','سيراليون':'SL','البوسنة والهرسك':'BA','السودان':'SD','الولايات المتحدة الامريكية':'US','الغابون':'GA','بلغاريا':'BG','مدغشقر':'MG','رومانيا':'RO','عمان':'OM','دولة الكويت':'KW','الكويت':'KW','موريتانيا':'MR','الجزائر':'DZ','ليبيريا':'LR','مالاوي':'MW','التشيك':'CZ','جيبوتي':'DJ','سوريا':'SY','ليبيا':'LY','الكونغو':'CG','بنغلاديش':'BD','الكاميرون':'CM','غانا':'GH','سلوفينيا':'SI','صربيا':'RS','غينيا بيساو':'GW','تشاد':'TD','نيجيريا':'NG','المانيا الاتحادية':'DE','المانيا':'DE','باكستان':'PK','النمسا':'AT','النيجر':'NE','اندورة':'AD','سنغافورة':'SG','سويسرا':'CH','كندا':'CA','المكسيك':'MX','بيرو':'PE','فيتنام':'VN','الفلبين':'PH','جمهورية الدومينيكان':'DO','بوليفيا':'BO','كرواتيا':'HR','كمبوديا':'KH','انغولا':'AO','تنزانيا':'TZ','ليتوانيا':'LT','تركمانستان':'TM','بوروندي':'BI'};
   function countryFlag(country){const code=countryCodes[normalize(country)]||'';return code?String.fromCodePoint(...[...code].map(c=>0x1f1e6+c.charCodeAt(0)-65)):'🌐';}
-  function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
+  function agreementKind(file){if(file.agreementKind==='ثنائية'||file.agreementKind==='متعددة')return file.agreementKind;const path=normalize(file.path||'');if(path.includes('متعددة'))return 'متعددة';if(path.includes('ثنائية'))return 'ثنائية';const country=normalize(file.country||'');return country&&/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country)?'متعددة':'ثنائية';}
+  function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];if(file.country&&!/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(normalize(file.country)))return file.country;const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id)+'/view',officialUrl:file.officialUrl||''},true);}
   function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle;return '<article class="result-card agreement-search-card"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">الأصل محفوظ في Drive</span></div><h3 class="result-open" title="'+esc(file.fullTitle||rawTitle)+'">'+markText(title,$('query').value)+'</h3><p class="result-snippet">'+esc(file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><span class="category-tag">'+esc(relation)+'</span><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;
     document.querySelectorAll('[data-agreement-group]').forEach(button=>{const active=button.dataset.agreementGroup===group;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
-    const filtered=files.filter(file=>normalize(file.path).includes(normalize(group)));
+    const filtered=files.filter(file=>agreementKind(file)===group);
     if(group==='ثنائية'){
       const countries=new Map();for(const file of filtered){const name=bilateralCountry(file);if(!countries.has(name))countries.set(name,[]);countries.get(name).push(file);}
       const countryCards=[...countries.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar')).map(([name,items])=>'<button type="button" class="agreement-country-card" data-agreement-country="'+esc(name)+'" aria-pressed="'+(country===name)+'"><span class="agreement-country-flag" aria-hidden="true">'+countryFlag(name)+'</span><span class="agreement-country-info"><strong>'+esc(name)+'</strong><small>'+fmt(items.length)+' اتفاقية</small></span></button>').join('');

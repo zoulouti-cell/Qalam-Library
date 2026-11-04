@@ -3,6 +3,13 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const treatyTitleIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/treaty-titles.json', import.meta.url)), 'utf8')).documents || {};
+const treatyTitleByDriveTimestamp = Object.fromEntries(Object.values(treatyTitleIndex).flatMap(entry => {
+  try {
+    const name = decodeURIComponent(new URL(entry.sourceUrl).pathname.split('/').pop() || '');
+    const timestamp = name.match(/(\d{10,})(?:\.pdf)?$/i)?.[1];
+    return timestamp ? [[timestamp, entry]] : [];
+  } catch { return []; }
+}));
 const sourceDocumentIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/drive-source-map.json', import.meta.url)), 'utf8')).files || {};
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K';
@@ -174,9 +181,14 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
       if (!files.length) files = libraryFiles.filter(file => marker(file.name));
       files = files.map(file => {
         const id = String(file.name || '').match(/^(\d+)[_-]/)?.[1] || '';
-        const title = treatyTitleIndex[id];
+        const timestamp = String(file.name || '').match(/(\d{10,})/)?.[1] || '';
+        const title = treatyTitleIndex[id] || treatyTitleByDriveTimestamp[timestamp];
         const officialUrl = title?.sourceUrl ? title.sourceUrl.replace(/^http:\/\//i, 'https://') : '';
-        return { ...file, ...(title ? { title: title.title, fullTitle: title.fullTitle, treatyId: id, country: title.country } : {}), webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || officialUrl };
+        const path = normalizeDriveName(file.path);
+        const country = normalizeDriveName(title?.country || '');
+        const genericCountry = /(?:اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country);
+        const agreementKind = /متعددة/u.test(path) || genericCountry ? 'متعددة' : /ثنائية/u.test(path) || title?.country ? 'ثنائية' : '';
+        return { ...file, ...(title ? { title: title.title, fullTitle: title.fullTitle, treatyId: id, country: title.country } : {}), ...(agreementKind ? { agreementKind } : {}), webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || officialUrl };
       });
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };
@@ -187,8 +199,8 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   const needle = normalizeDriveName(query), tokens = needle.split(/\s+/).filter(Boolean);
   const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path}`).includes(token))) : files;
   const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 20)), safePage = Math.max(1, Number(page) || 1);
-  const isBilateral = file => /ثنائية/u.test(normalizeDriveName(file.path));
-  const isMultilateral = file => /متعددة/u.test(normalizeDriveName(file.path));
+  const isBilateral = file => file.agreementKind === 'ثنائية';
+  const isMultilateral = file => file.agreementKind === 'متعددة';
   return {
     files: matched.slice((safePage - 1) * safeLimit, safePage * safeLimit),
     total: matched.length,
