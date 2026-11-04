@@ -203,7 +203,7 @@ const server=http.createServer(async(req,res)=>{
       try{return send(req,res,200,await listDriveFolder((url.searchParams.get('folderId')||'').slice(0,200)||undefined));}catch(error){return send(req,res,503,{error:error.message||'تعذر استعراض مجلد Drive.'});}
     }
     if(p==='/api/drive/search'&&req.method==='GET'){
-      try{return send(req,res,200,await searchDrivePdfs(url.searchParams.get('q')||'',12));}catch(error){return send(req,res,503,{error:error.message||'تعذر البحث عن أصل الوثيقة في Drive.'});}
+      try{return send(req,res,200,await searchDrivePdfs(url.searchParams.get('q')||'',20));}catch(error){return send(req,res,503,{error:error.message||'تعذر البحث عن أصل الوثيقة في Drive.'});}
     }
     if(p==='/api/drive/match'&&req.method==='GET'){
       try{return send(req,res,200,await matchDrivePdf(url.searchParams.get('q')||'',url.searchParams.get('source')||'',url.searchParams.get('exactName')||'',url.searchParams.get('exactPath')||''));}catch(error){return send(req,res,503,{error:error.message||'تعذر مطابقة الوثيقة مع أصلها في Drive.'});}
