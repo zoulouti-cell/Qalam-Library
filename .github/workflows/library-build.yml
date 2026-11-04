@@ -51,11 +51,13 @@ jobs:
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
+          set -euo pipefail
           if [ -z "$RENDER_DEPLOY_HOOK" ]; then
-            echo "Image published. Add the Render deploy hook as the RENDER_DEPLOY_HOOK repository secret to enable automatic deployment."
-            exit 0
+            echo "::error title=Missing Render deploy hook::Add the service deploy hook as the RENDER_DEPLOY_HOOK repository secret. The image was built, but Render was not deployed."
+            exit 1
           fi
-          curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK"
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 --request POST "$RENDER_DEPLOY_HOOK"
+          echo "Render accepted the deploy request for image ghcr.io/${{ github.repository_owner }}/qalam-library:${{ github.sha }}."
 
   offline-windows-package:
     if: github.event_name != 'pull_request'
