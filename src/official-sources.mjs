@@ -61,6 +61,6 @@ export function officialSourceForDocument(doc = {}) {
   if (doc.type === 'juriscassation') return 'https://justice.gov.ma/محكمة-النقض/';
   if (doc.type === 'judicial') return 'https://www.mahakim.ma/';
   for (const [pattern, url] of INSTITUTION_SOURCES) if (pattern.test(description)) return url;
-  if (doc.type === 'national' || doc.kind === 'law' || /اتفاقي|معاهد/.test(`${doc.category || ''} ${doc.kind || ''} ${doc.type || ''}`)) return 'https://www.sgg.gov.ma/Bulletinofficiel.aspx';
+  if (doc.type === 'national' || doc.kind === 'law' || /اتفاقي|معاهد/.test(`${doc.category || ''} ${doc.kind || ''} ${doc.type || ''}`)) return 'https://www.sgg.gov.ma/arabe/Accueil.aspx';
   return '';
 }
