@@ -18,7 +18,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveJudicialDrivePdf } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveJudicialDrivePdf } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -407,7 +407,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/drive/file'&&req.method==='GET'){
       const id=(url.searchParams.get('id')||'').slice(0,200),mode=url.searchParams.get('mode')==='download'?'attachment':'inline';if(!id)return send(req,res,400,{error:'معرف ملف Drive مطلوب.'});
-      try{const {item,response}=await openDrivePdf(id);const safeName=encodeURIComponent(String(item.name||'document.pdf').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':'application/pdf','Content-Disposition':`${mode}; filename="document.pdf"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
+      try{const {item,response}=await openDriveSourceFile(id);const safeName=encodeURIComponent(String(item.name||'document').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':item.mimeType||'application/octet-stream','Content-Disposition':`${mode}; filename="document"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
     }
     if(p==='/api/admin/drive/ocr'&&req.method==='POST'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ مسودة OCR.'});

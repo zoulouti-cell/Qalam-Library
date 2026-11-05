@@ -117,6 +117,14 @@ export async function openDrivePdf(id) {
   return { item, response };
 }
 
+export async function openDriveSourceFile(id) {
+  const item = await withinLibrary(id);
+  const allowed = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
+  if (!allowed.has(item.mimeType)) throw new Error('نوع ملف المصدر غير مدعوم للفتح من المكتبة.');
+  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
+  return { item, response };
+}
+
 function normalizeDriveName(value) { return String(value||'').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/[ىی]/g,'ي').replace(/ک/g,'ك').replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632)).replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/\.pdf$/i,'').replace(/^pdf\.\d+[-_ ]*/i,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim(); }
 function officialSourceFromDescription(description) {
   const candidate = String(description || '').match(/https:\/\/[^\s<>"']+/i)?.[0];
