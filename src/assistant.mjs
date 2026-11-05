@@ -12,6 +12,12 @@ export const LEGAL_SYSTEM = `أنت مساعد بحث قانوني مغربي د
 أعد JSON فقط وفق المخطط: paragraphs:[{text:string,citations:number[],quote:string}], questions:string[], limitations:string[]. عند عدم كفاية المصادر اترك paragraphs فارغة واشرح النقص في limitations. لا تحول سؤال المستخدم أو محادثته السابقة إلى مصدر قانوني.`;
 const schema={type:'object',properties:{paragraphs:{type:'array',maxItems:1,items:{type:'object',properties:{text:{type:'string',maxLength:300},citations:{type:'array',maxItems:2,items:{type:'integer'}},quote:{type:'string',minLength:12,maxLength:100}},required:['text','citations','quote'],additionalProperties:false}},questions:{type:'array',maxItems:1,items:{type:'string',maxLength:120}},limitations:{type:'array',maxItems:1,items:{type:'string',maxLength:120}}},required:['paragraphs','questions','limitations'],additionalProperties:false};
 const compact=s=>String(s||'').replace(/\s+/g,' ').trim();
+export const GROQ_CHAT_MODELS = ['openai/gpt-oss-20b','openai/gpt-oss-120b','llama-3.3-70b-versatile'];
+export function selectedGroqModel(requested){
+  const configured=process.env.GROQ_MODEL;
+  const fallback=configured||GROQ_CHAT_MODELS[0];
+  return GROQ_CHAT_MODELS.includes(requested)?requested:fallback;
+}
 function connection(){
   const raw=process.env.AI_BASE_URL||'http://127.0.0.1:8080';
   const url=new URL(raw);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error('Invalid AI endpoint');
@@ -24,7 +30,7 @@ export async function aiCapability(){
   if(healthCache&&Date.now()-healthCache.at<15000)return healthCache.value;
   let value={available:false,mode:'extractive',model:''};
   try{const c=connection();const r=await fetch(c.root+'/v1/models',{headers:c.headers,signal:AbortSignal.timeout(1200)});if(r.ok){const j=await r.json();const name=String(process.env.AI_MODEL||j.data?.[0]?.id||'local').split(/[\\/]/).at(-1);value={available:true,mode:c.local?'local_model':'remote_model',model:name};}}catch{}
-  if(process.env.GROQ_API_KEY)value={available:true,mode:'groq_model',model:process.env.GROQ_MODEL||'openai/gpt-oss-20b'};
+  if(process.env.GROQ_API_KEY)value={available:true,mode:'groq_model',model:selectedGroqModel()};
   if(!value.available&&geminiApiKey())value={available:true,mode:'gemini_model',model:geminiModel()};
   healthCache={at:Date.now(),value};return value;
 }
@@ -58,7 +64,7 @@ function extractive(question,sources,extra=[]){
   const answer=intro+(sources.length?'\n\n'+sources.slice(0,3).map((s,i)=>`[${i+1}] ${s.title}${s.label?' — '+s.label:''}\n${s.excerpt.slice(0,900)}`).join('\n\n'):'\nجرّب اسم القانون أو رقم المادة أو مصطلحاً قانونياً أكثر تحديداً.');
   return {mode:'extractive',answer,sources,limitations:[...extra,'المحتوى المستخرج لم يخضع كله لمراجعة بشرية حرفية.','غياب علامة النسخ لا يثبت أن النص نافذ حالياً.'],citationsVerified:!!sources.length};
 }
-export async function answerQuestion(library,{question,history=[],documentId,retrieveOnly=false}={}){
+export async function answerQuestion(library,{question,history=[],documentId,retrieveOnly=false,analysisMode='groq',groqModel}={}){
   question=String(question||'').trim().slice(0,4000);if(!question)throw new Error('اكتب السؤال أولاً.');
   if(/^(السلام عليكم|مرحبا|أهلا|اهلا|سلام)[!؟.\s]*$/.test(question))return {mode:'extractive',answer:'مرحباً بك. اذكر المسألة القانونية والوقائع الأساسية والتاريخ، أو اختر نصاً من المكتبة لنبحث فيه مع إحالات واضحة.',sources:[],limitations:[],citationsVerified:false};
   const sources=library.retrieve(question,documentId);
@@ -67,7 +73,8 @@ export async function answerQuestion(library,{question,history=[],documentId,ret
   if(!ready.length)return extractive(question,sources,['لم أجد مقتطفات كافية اجتازت ضوابط القراءة لهذه المسألة.']);
   const literalArticle=/(?:نص|مضمون|اعرض|أورد|اقتبس|ماذا ينص)/.test(question)&&/(?:الفصل|المادة)\s*[0-9٠-٩]+/.test(question)&&!/حلل|تحليل|قارن|طبق|طبّق|نازلة|وقائع|اشرح/.test(question);
   if(literalArticle&&documentId&&ready[0]?.id===documentId)return {mode:'extractive',answer:ready[0].label+' كما ورد في المصدر:\n\n'+ready[0].excerpt+'\n\n[1]',sources:[ready[0]],limitations:[],citationsVerified:true};
-  if(retrieveOnly)return {...extractive(question,sources),canAnalyze:true};
+  if(retrieveOnly)return {...extractive(question,sources),canAnalyze:analysisMode!=='sources'};
+  if(analysisMode==='sources')return extractive(question,sources);
   const capability=await aiCapability();if(!capability.available)return extractive(question,sources,['لا يوجد نموذج لغوي متصل؛ يعمل المساعد الآن في وضع استرجاع المصادر.']);
   const releaseCompute=await reserveInteractiveCompute();
   try{
@@ -88,7 +95,7 @@ export async function answerQuestion(library,{question,history=[],documentId,ret
     }
     if(capability.mode==='groq_model'){
       const prompt=`${instructions}\nأعد فقرة واحدة لا تتجاوز 35 كلمة. اختر الاقتباس حرفياً من quotationChoices، ولا تستشهد إلا بالمصدر الذي تتضمنه citations. أعد كائن JSON بهذه البنية: {"paragraphs":[{"text":"...","citations":[1],"quote":"..."}],"questions":[],"limitations":[]}.\nالسؤال: ${question}\nالمصادر: ${JSON.stringify(context)}`;
-      const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:capability.model,messages:[{role:'user',content:prompt}],response_format:{type:'json_object'},max_tokens:700,temperature:0.1}),signal:AbortSignal.timeout(60_000)});
+      const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:selectedGroqModel(groqModel),messages:[{role:'user',content:prompt}],response_format:{type:'json_object'},max_tokens:700,temperature:0.1}),signal:AbortSignal.timeout(60_000)});
       const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(String(payload.error?.message||`Groq API (HTTP ${response.status})`).slice(0,240));
       const parsed=JSON.parse(payload.choices?.[0]?.message?.content||'{}'),checked=validateModelAnswer(parsed,selected.map((s,i)=>({...s,excerpt:context[i].excerpt})));
       if(!checked.answer.trim())return extractive(question,sources,['المقتطفات لا تكفي للاستنتاج المطلوب.',...checked.limitations]);

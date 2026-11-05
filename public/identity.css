@@ -429,3 +429,15 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] #readerBody h3{color:#e0c774}
 :root[data-theme="dark"] #readerBody .reading-current{background:#344330;box-shadow:0 0 0 5px #344330}
 
+/* Assistant actions share the library's green and gold controls. */
+.assistant-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
+.assistant-source-indicator{margin-left:auto;color:#5e7564;font-size:12px;white-space:nowrap}
+.assistant-tool{border:1px solid #c9d9c8;background:#eef4ea;color:#234d38;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;line-height:1.5}
+.assistant-tool:hover,.assistant-tool.active{background:#173f33;color:#f8e7b6;border-color:#a78b50}
+.assistant-tool:disabled{opacity:.6}
+:root[data-theme="dark"] .assistant-source-indicator{color:#c8d4be}
+:root[data-theme="dark"] .assistant-tool{background:#2a382c;color:#e8d89f;border-color:#7b764e}
+:root[data-theme="dark"] .assistant-tool:hover,:root[data-theme="dark"] .assistant-tool.active{background:#d5b871;color:#173626;border-color:#e0c87e}
+:root[data-theme="dark"] .settings-content select{background:#263329;color:#e8e4c9;border-color:#59634a}
+@media(max-width:480px){.assistant-source-indicator{width:100%;margin-left:0}.assistant-tool{flex:1}}
+
