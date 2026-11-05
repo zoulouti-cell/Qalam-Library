@@ -14,6 +14,7 @@ const treatyTitleByDriveTimestamp = Object.fromEntries(Object.values(treatyTitle
 const sourceDocumentIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/drive-source-map.json', import.meta.url)), 'utf8')).files || {};
 const judicialRows=JSON.parse(brotliDecompressSync(fs.readFileSync(fileURLToPath(new URL('../data/judicial-index.json.br',import.meta.url))))).rows;
 const judicialById=new Map(judicialRows.map(row=>['jc:'+row[0],{court:row[1],name:row[6]}]));
+const judicialDriveIds=new Map(Object.entries(JSON.parse(brotliDecompressSync(fs.readFileSync(fileURLToPath(new URL('../data/judicial-drive-map.json.br',import.meta.url))))).ids));
 const JUDICIAL_FOLDERS=new Map([
   ['محكمة النقض','1Xgq4UR8KjiV8IvU5dRCjLcFi_rLe0Fl4'],['المجلس الأعلى','112NkRnyZLyodxy9V65ugdSfB5ObJJEKs'],
   ['محكمة الاستئناف التجارية بمراكش','1ORjSANaCyyCCGDrc_KpHiWS3y-r_5UAF'],['محكمة الاستئناف التجارية بالدار البيضاء','1i922Pcbht3bmzJ4ta9ha0CPz08G-a-Oh'],
@@ -225,7 +226,8 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
 
 export function driveSourceForDocument(id) {
   const judicial=judicialById.get(String(id||''));
-  return judicial?{name:judicial.name,path:'الاجتهادات القضائية/'+judicial.court,judicialIndex:true}:sourceDocumentIndex[String(id||'')]||null;
+  const courtPath=judicial&&/^محكمة الاستئناف/u.test(judicial.court)?'محاكم الاستئناف/'+judicial.court:judicial?.court;
+  return judicial?{name:judicial.name,path:'الاجتهادات القضائية/'+courtPath,judicialIndex:true,status:judicialDriveIds.has(String(id))?'verified':'unverified'}:sourceDocumentIndex[String(id||'')]||null;
 }
 
 export async function resolveJudicialDrivePdf(documentId,court){
@@ -233,6 +235,8 @@ export async function resolveJudicialDrivePdf(documentId,court){
   if(!numeric||!folderId)throw new Error('لم يثبت مجلد أصل هذا القرار في Drive.');
   const cached=judicialFileCache.get(documentId);if(cached&&cached.until>Date.now()&&cached.court===court)return cached.item;
   const expected=judicialById.get(documentId)?.name||sourceDocumentIndex[documentId]?.name||`${numeric}.pdf`;
+  const verifiedId=judicialDriveIds.get(documentId);
+  if(verifiedId){try{const item=await metadata(verifiedId);if(item.mimeType==='application/pdf'&&item.parents?.includes(folderId)){judicialFileCache.set(documentId,{court,item,until:Date.now()+15*60_000});return item;}}catch{}}
   const names=[...new Set([expected,`${numeric}.pdf`])];
   for(const name of names){
     const query=new URLSearchParams({q:`'${folderId}' in parents and name = '${name.replaceAll("'","\\'")}' and trashed = false`,pageSize:'10',fields:`files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});
