@@ -910,7 +910,16 @@
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
     window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });
-    const responses = await Promise.allSettled([api('/api/stats'), api('/api/categories'), api('/api/capabilities'), api('/api/session'), api('/api/drive/agreements?limit=1')]);
+    const capabilitiesLoading=api('/api/capabilities',{signal:AbortSignal.timeout(8000)}).then(value=>{
+      state.capabilities=value;
+      const ai=value.ai||{};
+      $('assistantMode').textContent=ai.available?(['remote_model','gemini_model','groq_model'].includes(ai.mode)?'نموذج متصل · إجابات مرتبطة بالمصادر':'نموذج محلي · إجابات مرتبطة بالمصادر'):'استرجاع من المصادر · لا يوجد نموذج متصل';
+      if(ai.available&&['remote_model','gemini_model','groq_model'].includes(ai.mode)&&!$('askForm').querySelector('.privacy-callout')){
+        const notice=document.createElement('p');notice.className='privacy-callout';notice.textContent='الوضع المتصل يرسل السؤال ومقتطفات المصادر إلى خدمة النموذج المهيّأة. لا تُدخل بيانات شخصية غير لازمة.';$('askForm').prepend(notice);
+      }
+      refreshAssistantTools();refreshSettings();return value;
+    });
+    const responses = await Promise.allSettled([api('/api/stats'), api('/api/categories'), capabilitiesLoading, api('/api/session'), api('/api/drive/agreements?limit=1',{signal:AbortSignal.timeout(8000)})]);
     if (responses[0].status === 'fulfilled') {
       applyStats(responses[0].value);
     } else { $('connectionPill').textContent = 'الخدمة غير متاحة'; }
@@ -918,10 +927,6 @@
     if (responses[2].status === 'fulfilled') state.capabilities = responses[2].value;
     if (responses[4].status === 'fulfilled') {state.agreementCount=Number(responses[4].value.total)||0;state.agreementBranchCounts=responses[4].value.branches||state.agreementBranchCounts;$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();}
     if (!state.voices.some(voice => voice.localService) && state.capabilities.speech?.piperAvailable && prefs.readingEngine === 'browser') { prefs.readingEngine = 'local'; persistPrefs(); }
-    const ai = state.capabilities.ai || {}; $('assistantMode').textContent = ai.available ? (['remote_model','gemini_model','groq_model'].includes(ai.mode) ? 'نموذج متصل · إجابات مرتبطة بالمصادر' : 'نموذج محلي · إجابات مرتبطة بالمصادر') : 'استرجاع من المصادر · لا يوجد نموذج متصل';
-    if (ai.available && ['remote_model','gemini_model','groq_model'].includes(ai.mode)) {
-      const remoteNotice = document.createElement('p'); remoteNotice.className = 'privacy-callout'; remoteNotice.textContent = 'الوضع المتصل يرسل السؤال ومقتطفات المصادر إلى خدمة النموذج المهيّأة. تحقّق من مزود الخدمة قبل إدخال وقائع أو بيانات شخصية.'; $('askForm').prepend(remoteNotice);
-    }
     refreshAssistantTools(); refreshSettings(); pollIngestion(); await runSearch();  }
   initialize();
 })();
