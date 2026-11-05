@@ -22,13 +22,13 @@ function categoryRank(name) {
   const i=MAJOR.indexOf(name); if(i>=0)return i;
   if(/^مادة|^المادة/.test(name))return 100;
   if(name.startsWith('السلطة'))return 110;
-  if(name.includes('محكمة')||name.startsWith('اجتهادات قضائية')||name==='المجلس الأعلى')return 120;
+  if(name.includes('محكمة')||name.startsWith('اجتهادات قضائية')||name==='المجلس الأعلى'||name==='قرارات أخرى')return 120;
   if(name.includes('مجلس'))return 130;
   if(/دراسات|مجلة|أبحاث|ابحاث|بحوث|نشرة/.test(name))return 140;
   if(name.includes('التنظيم الهيكلي'))return 150;
   return 100;
 }
-function judicialRank(name){return name==='المجلس الأعلى'?0:name.includes('محكمة النقض')?1:name.includes('محكمة الاستئناف')?2:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?3:name.startsWith('اجتهادات قضائية')?4:5;}
+function judicialRank(name){return name==='المجلس الأعلى'?0:name.includes('محكمة النقض')?1:name.includes('محكمة الاستئناف')?2:name==='قرارات أخرى'?3:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?4:name.startsWith('اجتهادات قضائية')?5:6;}
 function groupOf(name){return ({110:'authorities',120:'judicial',130:'councils',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
 export function orderedCategories(categories, original={}) {
   const sorted=[...categories].sort((a,b)=>categoryRank(a.name)-categoryRank(b.name)||(original[b.name]?.count??b.count)-(original[a.name]?.count??a.count));

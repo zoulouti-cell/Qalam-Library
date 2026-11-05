@@ -30,6 +30,7 @@ jobs:
           node --check public/password-toggle.js
           node --check public/admin.js
           node --check tools/apply-judicial-index.mjs
+          node --check tools/curate-unlinked-appeals.mjs
           node --test tests/google-login.test.mjs
           node --check public/admin-ocr.js
           node --check public/admin-scanner.js
@@ -94,7 +95,7 @@ jobs:
           Copy-Item src\* -Destination "$out\src" -Recurse
           Copy-Item tools\* -Destination "$out\tools" -Recurse
           Copy-Item .offline-data\library.sqlite "$out\data\library.sqlite"
-          Copy-Item data\drive-source-map.json, data\treaty-titles.json, data\judicial-index.json.br -Destination "$out\data"
+          Copy-Item data\drive-source-map.json, data\treaty-titles.json, data\judicial-index.json.br, data\judicial-drive-map.json.br, data\judicial-curation.json -Destination "$out\data"
           node tools/apply-judicial-index.mjs "$out\data\library.sqlite"
           Copy-Item node_modules -Destination $out -Recurse
           Copy-Item (Get-Command node).Source "$out\node.exe"
