@@ -17,6 +17,7 @@ import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
+import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
 import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -158,6 +159,36 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
     if(p.startsWith('/api/')&&!['GET','POST','HEAD'].includes(req.method))return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
     if(p==='/api/health')return send(req,res,200,{ok:true});
+    if(p==='/api/auth/google/status'&&req.method==='GET')return send(req,res,200,{available:googleLoginConfig().available&&!!adminStore});
+    if(p==='/api/auth/google/start'&&req.method==='GET'){
+      const config=googleLoginConfig();
+      if(!config.available||!adminStore)return send(req,res,503,{error:'دخول Google غير مهيأ للمكتبة بعد.'});
+      const flow=beginGoogleLogin(config,url.searchParams.get('destination'));
+      res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':flow.cookie,Location:flow.url});return res.end();
+    }
+    if(p==='/api/auth/google/callback'&&req.method==='GET'){
+      const config=googleLoginConfig(),flow=finishGoogleFlow(req.headers.cookie,url.searchParams.get('state'),config.sessionSecret);
+      res.setHeader('Set-Cookie',clearGoogleFlowCookie);
+      const fail=(reason='failed')=>{res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:`${flow?.destination==='admin'?'/admin':'/login'}?google_error=${reason}`});res.end();};
+      if(!config.available||!adminStore||!flow||url.searchParams.has('error')||!url.searchParams.get('code'))return fail('failed');
+      try{
+        const identity=await exchangeGoogleCode(url.searchParams.get('code'),flow,config);
+        const user=await adminStore.users.findOne({googleSub:identity.sub})||await adminStore.users.findOne({email:identity.email});
+        if(!user||!user.active||user.accountStatus==='permanent'||user.accountStatus==='pending')return fail('account');
+        if(user.googleSub&&user.googleSub!==identity.sub)return fail('account');
+        if(!user.googleSub){
+          const authoritativeEmail=/@(gmail|googlemail)\.com$/i.test(identity.email)||!!identity.hostedDomain;
+          if(!authoritativeEmail||user.email!==identity.email)return fail('link');
+          await adminStore.users.updateOne({_id:user._id,googleSub:{$exists:false}},{$set:{googleSub:identity.sub,googleLinkedAt:new Date()}});
+        }
+        if(flow.destination==='admin'&&user.role!=='admin')return fail('admin');
+        const now=new Date();await adminStore.users.updateOne({_id:user._id},{$set:{lastLoginAt:now,lastSeenAt:now},$inc:{loginCount:1}});
+        await recordAudit(adminStore,user.email,'google_login',user.email);
+        issueSession(res,user.role,Buffer.from(user.email).toString('base64url'));
+        const sessionCookie=res.getHeader('Set-Cookie');res.setHeader('Set-Cookie',[clearGoogleFlowCookie,sessionCookie]);
+        res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:user.mustChangePassword?'/change-password':flow.destination==='admin'?'/admin':'/'});return res.end();
+      }catch(error){console.error('Google login failed:',error?.message||'unknown error');return fail('failed');}
+    }
     if(p==='/api/registration'&&req.method==='GET')return send(req,res,200,{available:!!adminStore&&emailReady()&&validEmail(await configuredOwnerEmail())});
     if(p==='/api/register'&&req.method==='POST'){
       const recipient=await configuredOwnerEmail();
@@ -210,7 +241,7 @@ const server=http.createServer(async(req,res)=>{
       const body=await jsonBody(req),email=Buffer.from(session.account,'base64url').toString('utf8'),password=String(body.password||'');if(password.length<12)return send(req,res,400,{error:'اختر كلمة مرور من 12 حرفاً على الأقل.'});const saved=hashPassword(password),result=await adminStore.users.updateOne({email,active:true},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,mustChangePassword:false,updatedAt:new Date()}});if(!result.matchedCount)return send(req,res,401,{error:'الحساب غير موجود أو معطل.'});await recordAudit(adminStore,email,'password_changed',email);return send(req,res,200,{ok:true});
     }
     if(p==='/api/logout'&&req.method==='POST'){const current=sessionInfo(req);if(adminStore&&current?.account&&!['legacy','env'].includes(current.account)){const email=Buffer.from(current.account,'base64url').toString('utf8');await adminStore.users.updateOne({email},{$set:{lastSeenAt:null}});}res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
-    const loginAsset=['/login','/login.html','/login.js','/login.css','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg'].includes(p);
+    const loginAsset=['/login','/login.html','/login.js','/login.css','/google-login.js','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg'].includes(p);
     const session=sessionInfo(req);if(session&&session.account!=='legacy'&&session.account!=='env'&&adminStore&&!['/api/session','/api/logout','/api/change-password','/change-password','/change-password.html','/change-password.js'].includes(p)){const email=Buffer.from(session.account,'base64url').toString('utf8'),user=await adminStore.users.findOne({email},{projection:{mustChangePassword:1,active:1}});if(!user?.active){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,401,{error:'الحساب غير مفعّل.'});}if(user.mustChangePassword){if(req.method==='GET'&&!p.startsWith('/api/')&&String(req.headers.accept||'').includes('text/html')){res.writeHead(302,{Location:'/change-password','Cache-Control':'no-store'});return res.end();}return send(req,res,428,{error:'غيّر كلمة المرور المؤقتة أولاً.'});}}
     const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
     if(adminPage&&sessionRole(req)!=='admin')return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'admin-login.html')),'text/html; charset=utf-8');

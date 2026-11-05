@@ -33,6 +33,7 @@ export async function connectAdminStore(uri) {
       db.collection('managedContent').createIndex({ status: 1, category: 1, date: -1 }),
       db.collection('adminAudit').createIndex({ createdAt: -1 }),
       db.collection('libraryUsers').createIndex({ email: 1 }, { unique: true }),
+      db.collection('libraryUsers').createIndex({ googleSub: 1 }, { unique: true, sparse: true }),
       db.collection('libraryUsers').createIndex({ active: 1, role: 1 }),
       db.collection('libraryUsers').createIndex({ activationTokenHash: 1 }, { sparse: true }),
       db.collection('libraryUsers').createIndex({ lastSeenAt: -1 }),

@@ -24,3 +24,4 @@ body.dark .form-brand::before{opacity:.16;mix-blend-mode:luminosity}
 .registration-area form{text-align:right}.registration-area form[hidden]{display:none}.registration-area #registerMessage{min-height:20px;line-height:1.7}
 body.dark .registration-area>p button{color:#e0be70}
 .registration-area a{color:#9b722a;font-weight:700}body.dark .registration-area a{color:#e0be70}
+.google-button:not(:disabled){cursor:pointer}.google-button:not(:disabled):hover{background:#155841}
