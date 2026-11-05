@@ -36,8 +36,8 @@ export function activationMessage(url) {
     html: `<div dir="rtl" lang="ar" style="font-family:Tahoma,Arial,sans-serif;color:#143e34;line-height:1.9"><h2>مرحباً بك في المكتبة الرقمية</h2><p>لتفعيل حسابك وتعيين كلمة مرورك، اضغط على الزر التالي خلال 24 ساعة.</p><p><a href="${safe}" style="display:inline-block;background:#143e34;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">تفعيل الحساب</a></p><p>إذا لم تطلب إنشاء الحساب فتجاهل هذه الرسالة.</p></div>`,
   };
 }
-export async function notifyOwner(event, email) {
-  const owner = ownerEmail();
+export async function notifyOwner(event, email, recipient = ownerEmail()) {
+  const owner = String(recipient || '').trim().toLowerCase();
   if (!validEmail(owner)) return false;
   const label = event === 'activated' ? 'تفعيل حساب' : 'محاولة تسجيل حساب';
   await sendMail(owner, `${label} — المكتبة الرقمية`, `${label} في المكتبة الرقمية\nالبريد الإلكتروني: ${email}\nالوقت: ${new Date().toISOString()}`, `<div dir="rtl" lang="ar" style="font-family:Tahoma,Arial,sans-serif;line-height:1.8"><h2>${label}</h2><p>البريد الإلكتروني: ${escapeHtml(email)}</p><p>الوقت: ${escapeHtml(new Date().toISOString())}</p></div>`);
