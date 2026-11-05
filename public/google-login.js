@@ -1,5 +1,7 @@
 const googleButton=document.querySelector('#googleLogin');
 const googleHint=document.querySelector('#googleHint');
+const adminDestination=new URLSearchParams(location.search).get('next')==='admin';
+if(googleButton&&adminDestination)googleButton.dataset.destination='admin';
 if(googleButton){
   fetch('/api/auth/google/status').then(response=>response.json()).then(status=>{
     if(status.available){googleButton.disabled=false;if(googleHint)googleHint.textContent='استخدم حساب Google المرتبط ببريدك المفعّل في المكتبة.';}

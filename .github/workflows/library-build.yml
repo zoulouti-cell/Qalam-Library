@@ -26,6 +26,10 @@ jobs:
           node --check public/app.js
           node --check public/login.js
           node --check public/google-login.js
+          node --check public/account.js
+          node --check public/password-toggle.js
+          node --check public/admin.js
+          node --check tools/apply-judicial-index.mjs
           node --test tests/google-login.test.mjs
           node --check public/admin-ocr.js
           node --check public/admin-scanner.js
@@ -78,19 +82,20 @@ jobs:
         with:
           node-version: 24
       - name: Install runtime dependencies
-        run: npm install --omit=dev
+        run: npm ci --omit=dev
       - name: Assemble the USB-ready offline copy
         shell: pwsh
         run: |
           $root = (Get-Location).Path
           $out = Join-Path $root 'release\qalam-library-offline'
           New-Item -ItemType Directory -Force -Path $out, "$out\public", "$out\src", "$out\tools", "$out\data" | Out-Null
-          Copy-Item server.mjs, package.json, README.md, API_CONTRACT.md -Destination $out
+          Copy-Item server.mjs, package.json, package-lock.json, README.md, API_CONTRACT.md -Destination $out
           Copy-Item public\* -Destination "$out\public" -Recurse
           Copy-Item src\* -Destination "$out\src" -Recurse
           Copy-Item tools\* -Destination "$out\tools" -Recurse
           Copy-Item .offline-data\library.sqlite "$out\data\library.sqlite"
-          Copy-Item data\drive-source-map.json, data\treaty-titles.json -Destination "$out\data"
+          Copy-Item data\drive-source-map.json, data\treaty-titles.json, data\judicial-index.json.br -Destination "$out\data"
+          node tools/apply-judicial-index.mjs "$out\data\library.sqlite"
           Copy-Item node_modules -Destination $out -Recurse
           Copy-Item (Get-Command node).Source "$out\node.exe"
           @'

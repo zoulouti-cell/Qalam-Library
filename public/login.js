@@ -6,7 +6,9 @@ document.querySelector('#login').addEventListener('submit',async event=>{
     const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.querySelector('#email').value,password:document.querySelector('#password').value})});
     const result=await response.json();
     if(!response.ok)throw new Error(result.error||'تعذر تسجيل الدخول.');
-    location.replace(result.mustChangePassword?'/change-password':'/');
+    const adminDestination=new URLSearchParams(location.search).get('next')==='admin';
+    if(adminDestination&&result.role!=='admin')throw new Error('هذا الحساب لا يملك صلاحية إدارة المكتبة.');
+    location.replace(result.mustChangePassword?'/change-password':adminDestination?'/admin':'/');
   }catch(error){message.textContent=error.message;}
 });
 

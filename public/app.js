@@ -29,7 +29,7 @@
   applyTheme(document.documentElement.dataset.theme);
   const storedPreferences = store.get('preferences', {});
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
-  const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, translationEngine: 'deepl', assistantEngine: 'groq', groqModel: '', ...storedPreferences };
+  const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, assistantEngine: 'groq', ...storedPreferences };
   const state = {
     view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
     categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
@@ -131,7 +131,9 @@
     const cls = compact ? 'source-action source-action-compact' : 'source-action';
     const officialUrl = doc?.officialUrl || doc?.officialSourceUrl || (url && !driveId ? url : '');
     const query=[doc?.title,doc?.lawNumber,doc?.decisionNumber,doc?.caseNumber].filter(Boolean).join(' '),mapped=!!(doc?.driveSourceName&&doc?.driveSourcePath),driveAttrs=' data-drive-open="'+esc(query)+'" data-drive-source="'+esc(url&&!driveId?url:(doc?.sourceUrl||''))+'"'+(mapped?' data-drive-name="'+esc(doc.driveSourceName)+'" data-drive-path="'+esc(doc.driveSourcePath)+'"':'');
-    const originals = driveId
+    const judicialMapped=doc?.type==='juriscassation'&&/^jc:\d+$/.test(doc?.id||'')&&doc?.judicialIndex===true;
+    if(judicialMapped){previewUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=download';}
+    const originals = judicialMapped||driveId
       ? '<a class="'+cls+'" href="'+esc(previewUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل من Drive" title="معاينة الأصل من Drive">'+icon('preview')+'</a><a class="'+cls+'" href="'+esc(downloadUrl)+'" aria-label="تحميل الأصل من Drive" title="تحميل الأصل من Drive">'+icon('download')+'</a>'
       : '<button type="button" class="'+cls+'"'+driveAttrs+' data-drive-mode="preview" aria-label="معاينة الوثيقة الأصلية من Drive" title="'+(mapped?'معاينة الأصل المطابق في Drive':'البحث اليدوي عن الأصل في Drive')+'">'+icon('preview')+'</button><button type="button" class="'+cls+'"'+driveAttrs+' data-drive-mode="download" aria-label="تحميل الوثيقة الأصلية من Drive" title="تحميل الأصل بعد التحقق">'+icon('download')+'</button>';
     return '<span class="source-actions" aria-label="معاينة الأصل والمصدر الرسمي والتنزيل">'+originals+(!driveId&&!mapped&&doc?.driveSourceStatus==='unmapped'?'<small class="drive-link-status" title="لم يثبت وجود ملف أصلي مطابق في فهرس Drive">الأصل غير مربوط بعد</small>':'')+(officialUrl?'<a class="'+cls+'" href="'+esc(officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي على الإنترنت" title="المصدر الرسمي">'+icon('official')+'</a>':'')+'</span>';
@@ -555,20 +557,20 @@
     const groqReady=state.capabilities.ai?.mode==='groq_model';
     const active=groqReady&&prefs.assistantEngine==='groq';
     $('assistantGroq').disabled=!groqReady; $('assistantGroq').classList.toggle('active',active); $('assistantGroq').setAttribute('aria-pressed',String(active));
-    $('assistantGroq').title=groqReady?(active?'إيقاف تحليل Groq والاكتفاء بالمصادر':'تفعيل تحليل Groq المسند'):'Groq غير مهيأ على الخادم';
+    $('assistantGroq').title=groqReady?(active?'إيقاف التحليل الذكي والاكتفاء بالمصادر':'تفعيل التحليل الذكي المسند'):'التحليل الذكي غير متاح وفق إعدادات المكتبة';
     $('assistantSourceMode').textContent=active?'◈ بحث محلي + Groq':'◈ بحث محلي في المصادر';
-    $('assistantLocalTranslate').title='ترجمة آخر إجابة محلياً على هذا الجهاز';
+    const translation=state.capabilities.translation||{};$('assistantLocalTranslate').hidden=!translation.available;$('assistantLocalTranslate').disabled=!translation.available;$('assistantLocalTranslate').textContent=translation.engine==='local'?'ترجمة محلية':'ترجمة DeepL';$('assistantLocalTranslate').title=translation.engine==='local'?'ترجمة آخر إجابة على هذا الجهاز':'ترجمة آخر إجابة بواسطة DeepL';
   }
   function renderAssistantAnswer(element,result) {
     const modes={extractive:'استرجاع من المصادر · دون توليد بنموذج',local_model:'تحليل بمساعد محلي',remote_model:'تحليل بمساعد متصل',gemini_model:'تحليل Gemini · مرتبط بمصادر المكتبة',groq_model:'تحليل Groq · مرتبط بمصادر المكتبة'};
     const sources=result.sources||[];
-    element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
+    element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer&&state.capabilities.translation?.available?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
   }
-  async function translateAssistantAnswer(button,engine=prefs.translationEngine){
+  async function translateAssistantAnswer(button){
     const message=button.closest('.chat-message'),answer=message?.querySelector('.chat-answer'),panel=message?.querySelector('.chat-translation');
     if(!answer||!panel)return;
     button.disabled=true;setTranslationButton(button,'جارٍ إعداد الترجمة…');panel.hidden=false;
-    const local=engine==='local';panel.textContent=local?'جارٍ تشغيل المترجم المحلي…':'جارٍ الاتصال بخدمة DeepL…';
+    const local=state.capabilities.translation?.engine==='local';panel.textContent=local?'جارٍ تشغيل المترجم المحلي…':'جارٍ الاتصال بخدمة DeepL…';
     try{
       const source=answer.innerText;
       const translated=local
@@ -577,7 +579,7 @@
       panel.textContent=translated||'لم تصل ترجمة.';panel.dataset.engine=local?'device':'deepl';
       setTranslationButton(button,local?'ترجمة محلية':'ترجمة DeepL المهنية');
     }catch(error){
-      panel.textContent=local?(error?.message==='local_unsupported'||error?.message==='local_pair_unsupported'?'الترجمة المحلية غير مدعومة في هذا المتصفح أو لهذا الزوج اللغوي. يمكن اختيار DeepL من التفضيلات.':'تعذرت الترجمة المحلية. قد يتطلب النموذج تنزيله أول مرة.'):'تعذرت ترجمة DeepL: '+(error.message||'تحقق من إعداد الخدمة.');
+      panel.textContent=local?(error?.message==='local_unsupported'||error?.message==='local_pair_unsupported'?'الترجمة المحلية غير مدعومة في هذا المتصفح أو لهذا الزوج اللغوي.':'تعذرت الترجمة المحلية. قد يتطلب النموذج تنزيله أول مرة.'):'تعذرت ترجمة DeepL: '+(error.message||'تحقق من إعداد الخدمة.');
       setTranslationButton(button,'إعادة المحاولة');
     }finally{button.disabled=false;}
   }
@@ -587,7 +589,7 @@
     await stopMic(true); state.busyAsk = true; $('askSubmit').disabled = true; appendChat('user', question); $('askInput').value = '';
     const pending = appendChat('assistant', '<div class="chat-pending"><span></span> جارٍ البحث في النصوص وإعداد المساعدة…</div>');
     try {
-      let result = await api('/api/ask', { method: 'POST', body: JSON.stringify({ question, history: state.chat.slice(-6), analysisMode: prefs.assistantEngine==='groq'&&state.capabilities.ai?.mode==='groq_model'?'groq':'sources', groqModel:prefs.groqModel, ...(state.askDocument ? { documentId: state.askDocument.id } : {}) }), signal: AbortSignal.timeout(15000) });
+      let result = await api('/api/ask', { method: 'POST', body: JSON.stringify({ question, history: state.chat.slice(-6), analysisMode: prefs.assistantEngine==='groq'&&state.capabilities.ai?.mode==='groq_model'?'groq':'sources', ...(state.askDocument ? { documentId: state.askDocument.id } : {}) }), signal: AbortSignal.timeout(15000) });
       renderAssistantAnswer(pending,result);
       if(result.analysisPending&&result.jobId){
         const until=Date.now()+125000;let finished=false;
@@ -626,11 +628,8 @@
     const utterance=new SpeechSynthesisUtterance('هذا اختبار للصوت العربي في مكتبة قلم.');utterance.voice=voice;utterance.lang=voice.lang;utterance.rate=Number(prefs.rate)||1;utterance.onend=()=>{status.textContent='اكتمل الاختبار بواسطة '+voice.name+'.';button.disabled=false;};utterance.onerror=()=>{status.textContent='تعذر تشغيل صوت المتصفح.';button.disabled=false;};speechSynthesis.cancel();speechSynthesis.speak(utterance);
   }
   function refreshSettings() {
-    $('translationEngine').value=prefs.translationEngine==='local'?'local':'deepl';
-    $('translationAvailability').textContent=state.capabilities.translation?.available?'DeepL مهيأة؛ الترجمة المحلية تعمل في المتصفحات الداعمة وقد تُنزّل نموذجها أول مرة.':'DeepL غير مهيأة؛ الترجمة المحلية متاحة في المتصفحات الداعمة فقط.';
-    const choices=['openai/gpt-oss-20b','openai/gpt-oss-120b','llama-3.3-70b-versatile'];
-    $('groqModel').value=choices.includes(prefs.groqModel)?prefs.groqModel:choices.includes(state.capabilities.ai?.model)?state.capabilities.ai.model:choices[0];
-    $('groqAvailability').textContent=state.capabilities.ai?.mode==='groq_model'?'Groq مهيأ على الخادم. اختر النموذج؛ تختلف الإتاحة وفق حسابك وحصته.':'Groq غير مهيأ على الخادم؛ يعمل المساعد بالبحث في المصادر فقط.';
+    $('translationAvailability').textContent=state.capabilities.translation?.available?'الترجمة متاحة بالطريقة التي حددها مدير المكتبة.':'الترجمة غير متاحة حالياً.';
+    $('groqAvailability').textContent=state.capabilities.ai?.mode==='groq_model'?'التحليل الذكي متاح؛ فعّله أو أوقفه داخل المساعد.':'يعمل المساعد حالياً بالبحث في المصادر فقط.';
     $('personalize').checked = !!prefs.personalize; $('searchHistoryEnabled').checked = !!prefs.searchHistory; $('dictationEngine').value = prefs.dictationEngine; $('readingEngine').value = prefs.readingEngine; $('readRate').value = prefs.rate;
     $('allowNetworkVoices').checked = !!prefs.allowNetworkVoices; $('networkVoiceWarning').hidden = !prefs.allowNetworkVoices;
     $('browserSpeechWarning').hidden = prefs.dictationEngine !== 'browser';
@@ -860,15 +859,14 @@
     $('clearHistory').addEventListener('click', () => { state.history = []; store.set('history', []); renderLocalView(); toast('مُسح سجل القراءة على هذا الجهاز.'); });
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
     $('themeToggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    $('logoutButton').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('settingsClose').addEventListener('click', () => $('settings').close());$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
     $('driveSourceClose').addEventListener('click',()=>$('driveSourceDialog').close());$('driveSourceDialog').addEventListener('click',event=>{if(event.target===$('driveSourceDialog'))$('driveSourceDialog').close();});
     $('personalize').addEventListener('change', event => { prefs.personalize = event.target.checked; persistPrefs(); toast(prefs.personalize ? 'فُعّل السجل والتخصيص على هذا الجهاز فقط.' : 'توقف حفظ القراءات وعمليات البحث الجديدة.'); });
     $('searchHistoryEnabled').addEventListener('change', event => { prefs.searchHistory = event.target.checked; if (!prefs.searchHistory) { state.queries = []; store.set('queries', []); } persistPrefs(); toast(prefs.searchHistory ? 'فُعّل سجل البحث؛ ستُحفظ عمليات البحث التالية محلياً.' : 'أُوقف سجل البحث وحُذفت العبارات المحفوظة محلياً.'); });
     $('dictationEngine').addEventListener('change', event => { stopMic(true); prefs.dictationEngine = event.target.value; persistPrefs(); refreshSettings(); });
-    $('translationEngine').addEventListener('change',event=>{prefs.translationEngine=event.target.value;persistPrefs();toast(prefs.translationEngine==='local'?'اختيرت الترجمة على هذا الجهاز.':'اختيرت ترجمة DeepL عبر الشبكة.');});
-    $('groqModel').addEventListener('change',event=>{prefs.groqModel=event.target.value;persistPrefs();});
     $('assistantGroq').addEventListener('click',()=>{if(state.capabilities.ai?.mode!=='groq_model')return;prefs.assistantEngine=prefs.assistantEngine==='groq'?'sources':'groq';persistPrefs();refreshAssistantTools();});
-    $('assistantLocalTranslate').addEventListener('click',()=>{const button=[...$('chatMessages').querySelectorAll('.chat-message.assistant [data-translate-answer]')].at(-1);if(button)translateAssistantAnswer(button,'local');else toast('اسأل المساعد أولاً لترجمة آخر إجابة محلياً.');});
+    $('assistantLocalTranslate').addEventListener('click',()=>{const button=[...$('chatMessages').querySelectorAll('.chat-message.assistant [data-translate-answer]')].at(-1);if(button)translateAssistantAnswer(button);else toast('اسأل المساعد أولاً لترجمة آخر إجابة.');});
     $('readingEngine').addEventListener('change', event => { stopReading(); prefs.readingEngine = event.target.value; persistPrefs(); refreshSettings(); });
     $('allowNetworkVoices').addEventListener('change', event => { stopReading(); prefs.allowNetworkVoices = event.target.checked; prefs.voice = ''; persistPrefs(); populateVoices(); refreshSettings(); });
     $('voiceSelect').addEventListener('change', event => { stopReading(); prefs.voice = event.target.value; persistPrefs(); });

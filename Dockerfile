@@ -9,7 +9,8 @@ RUN git clone https://github.com/zoulouti-cell/Qalam-Library-data.git /tmp/qalam
     && cd /tmp/qalam-library-data && git checkout "${LIBRARY_DATA_REVISION}" && git lfs pull \
     && mkdir -p /app/data \
     && cp /tmp/qalam-library-data/library.sqlite /app/data/library.sqlite \
-    && cd /app && npm install --omit=dev \
+    && cd /app && npm ci --omit=dev \
+    && node tools/apply-judicial-index.mjs data/library.sqlite \
     && rm -rf /tmp/qalam-library-data
 ENV HOST=0.0.0.0
 EXPOSE 10000

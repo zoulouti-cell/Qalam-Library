@@ -10,7 +10,7 @@ import { createHash,randomBytes,createHmac,timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { PDFDocument } from 'pdf-lib';
 import { Library } from './src/library.mjs';
-import { answerQuestion,aiCapability } from './src/assistant.mjs';
+import { answerQuestion,aiCapability,GROQ_CHAT_MODELS,selectedGroqModel } from './src/assistant.mjs';
 import { geminiApiKey,geminiModel,geminiOcrApiKey,geminiOcrModel,geminiOcrEnabled } from './src/gemini.mjs';
 import { deeplApiKey,translateWithDeepL } from './src/deepl.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
@@ -18,7 +18,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveJudicialDrivePdf } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -87,6 +87,12 @@ const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
+async function assistantPolicy(){
+  const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{assistant:1}}):null;
+  const config=saved?.assistant||{};
+  const configuredModel=selectedGroqModel();
+  return {aiEnabled:config.aiEnabled!==false,translationEnabled:config.translationEnabled!==false,translationEngine:config.translationEngine==='local'?'local':'deepl',groqModel:GROQ_CHAT_MODELS.includes(config.groqModel)?config.groqModel:GROQ_CHAT_MODELS.includes(configuredModel)?configuredModel:GROQ_CHAT_MODELS[0]};
+}
 async function configuredOwnerEmail(){const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{ownerEmail:1}}):null;return String(saved?.ownerEmail||ownerEmail()).trim().toLowerCase();}
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
@@ -148,7 +154,7 @@ function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||proces
 function sessionRole(req){return sessionInfo(req)?.role||null;}
 function auditActor(req){const account=sessionInfo(req)?.account||'admin';if(account==='env'||account==='legacy')return'admin';try{return Buffer.from(account,'base64url').toString('utf8').slice(0,160)||'admin';}catch{return'admin';}}
 function validSession(req){return !!sessionInfo(req);}
-function issueSession(res,role,account='legacy'){const expiry=String(Date.now()+7*86400000),payload=expiry+'.'+role+'.'+account,signature=createHmac('sha256',sessionSecret).update(payload).digest('hex');res.setHeader('Set-Cookie',`qalam_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=604800`);}
+function issueSession(res,role,account='legacy'){const expiry=String(Date.now()+7*86400000),payload=expiry+'.'+role+'.'+account,signature=createHmac('sha256',sessionSecret).update(payload).digest('hex');res.setHeader('Set-Cookie',`qalam_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`);}
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
 function ingestionSnapshot(progress){const age=Date.now()-Date.parse(progress.lastUpdate||'');const stale=progress.running===true&&Number.isFinite(age)&&age>300000;return stale?{...progress,running:false,status:'stalled',stale:true}:progress;}
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'};
@@ -169,7 +175,7 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/auth/google/callback'&&req.method==='GET'){
       const config=googleLoginConfig(),flow=finishGoogleFlow(req.headers.cookie,url.searchParams.get('state'),config.sessionSecret);
       res.setHeader('Set-Cookie',clearGoogleFlowCookie);
-      const fail=(reason='failed')=>{res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:`${flow?.destination==='admin'?'/admin':'/login'}?google_error=${reason}`});res.end();};
+      const fail=(reason='failed')=>{res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':clearGoogleFlowCookie,Location:`/login?google_error=${reason}${flow?.destination==='admin'?'&next=admin':''}`});res.end();};
       if(!config.available||!adminStore||!flow||url.searchParams.has('error')||!url.searchParams.get('code'))return fail('failed');
       try{
         const identity=await exchangeGoogleCode(url.searchParams.get('code'),flow,config);
@@ -183,10 +189,10 @@ const server=http.createServer(async(req,res)=>{
         }
         if(flow.destination==='admin'&&user.role!=='admin')return fail('admin');
         const now=new Date();await adminStore.users.updateOne({_id:user._id},{$set:{lastLoginAt:now,lastSeenAt:now},$inc:{loginCount:1}});
-        await recordAudit(adminStore,user.email,'google_login',user.email);
+        try{await recordAudit(adminStore,user.email,'google_login',user.email);}catch(error){console.error('Google login audit failed:',error?.message||'unknown error');}
         issueSession(res,user.role,Buffer.from(user.email).toString('base64url'));
         const sessionCookie=res.getHeader('Set-Cookie');res.setHeader('Set-Cookie',[clearGoogleFlowCookie,sessionCookie]);
-        res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:user.mustChangePassword?'/change-password':flow.destination==='admin'?'/admin':'/'});return res.end();
+        res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':[clearGoogleFlowCookie,sessionCookie],Location:user.mustChangePassword?'/change-password':flow.destination==='admin'?'/admin':'/'});return res.end();
       }catch(error){console.error('Google login failed:',error?.message||'unknown error');return fail('failed');}
     }
     if(p==='/api/registration'&&req.method==='GET')return send(req,res,200,{available:!!adminStore&&emailReady()&&validEmail(await configuredOwnerEmail())});
@@ -215,6 +221,25 @@ const server=http.createServer(async(req,res)=>{
       return send(req,res,200,{ok:true,message:'تم تفعيل الحساب. يمكنك تسجيل الدخول الآن.'});
     }
     if(p==='/api/session'){const session=sessionInfo(req);let mustChangePassword=false,email='';if(session?.account&&session.account!=='legacy'&&session.account!=='env'&&adminStore){const decoded=Buffer.from(session.account,'base64url').toString('utf8'),user=await adminStore.users.findOne({email:decoded},{projection:{email:1,mustChangePassword:1,active:1}});if(!user?.active)return send(req,res,200,{authenticated:false});email=user.email;mustChangePassword=!!user.mustChangePassword;}return send(req,res,200,{authenticated:!!session,role:session?.role||null,canAdmin:session?.role==='admin',mustChangePassword,email});}
+    if(p==='/api/account/profile'&&req.method==='GET'){
+      const current=sessionInfo(req);
+      if(!current)return send(req,res,401,{error:'سجّل الدخول أولاً.'});
+      if(!adminStore||['legacy','env'].includes(current.account))return send(req,res,200,{email:'',role:current.role,individual:false});
+      const email=Buffer.from(current.account,'base64url').toString('utf8');
+      const user=await adminStore.users.findOne({email,active:true},{projection:{email:1,role:1,createdAt:1,lastLoginAt:1,loginCount:1,googleSub:1,passwordHash:1}});
+      if(!user)return send(req,res,401,{error:'هذا الحساب غير متاح.'});
+      return send(req,res,200,{email:user.email,role:user.role,individual:true,createdAt:user.createdAt,lastLoginAt:user.lastLoginAt,loginCount:user.loginCount||0,googleLinked:!!user.googleSub,canChangePassword:!!user.passwordHash});
+    }
+    if(p==='/api/account/password'&&req.method==='POST'){
+      const current=sessionInfo(req);
+      if(!current||!adminStore||['legacy','env'].includes(current.account))return send(req,res,403,{error:'تغيير كلمة المرور متاح للحسابات الفردية فقط.'});
+      const body=await jsonBody(req),email=Buffer.from(current.account,'base64url').toString('utf8'),password=String(body.password||''),newPassword=String(body.newPassword||'');
+      if(newPassword.length<12||newPassword.length>256)return send(req,res,400,{error:'اختر كلمة مرور جديدة من 12 إلى 256 حرفاً.'});
+      const user=await adminStore.users.findOne({email,active:true});
+      if(!user?.passwordHash||!verifyPassword(password,user.passwordSalt,user.passwordHash))return send(req,res,403,{error:'كلمة المرور الحالية غير صحيحة.'});
+      const saved=hashPassword(newPassword);await adminStore.users.updateOne({_id:user._id},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,updatedAt:new Date()}});
+      await recordAudit(adminStore,email,'password_changed',email);return send(req,res,200,{ok:true});
+    }
     if(p==='/api/presence'&&req.method==='POST'){
       const current=sessionInfo(req);
       if(!current||!adminStore||['legacy','env'].includes(current.account))return send(req,res,200,{ok:true});
@@ -240,11 +265,11 @@ const server=http.createServer(async(req,res)=>{
       const session=sessionInfo(req);if(!session||session.account==='legacy'||session.account==='env'||!adminStore)return send(req,res,403,{error:'تغيير كلمة المرور متاح للحسابات الفردية فقط.'});
       const body=await jsonBody(req),email=Buffer.from(session.account,'base64url').toString('utf8'),password=String(body.password||'');if(password.length<12)return send(req,res,400,{error:'اختر كلمة مرور من 12 حرفاً على الأقل.'});const saved=hashPassword(password),result=await adminStore.users.updateOne({email,active:true},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,mustChangePassword:false,updatedAt:new Date()}});if(!result.matchedCount)return send(req,res,401,{error:'الحساب غير موجود أو معطل.'});await recordAudit(adminStore,email,'password_changed',email);return send(req,res,200,{ok:true});
     }
-    if(p==='/api/logout'&&req.method==='POST'){const current=sessionInfo(req);if(adminStore&&current?.account&&!['legacy','env'].includes(current.account)){const email=Buffer.from(current.account,'base64url').toString('utf8');await adminStore.users.updateOne({email},{$set:{lastSeenAt:null}});}res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
-    const loginAsset=['/login','/login.html','/login.js','/login.css','/google-login.js','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg'].includes(p);
+    if(p==='/api/logout'&&req.method==='POST'){const current=sessionInfo(req);if(adminStore&&current?.account&&!['legacy','env'].includes(current.account)){const email=Buffer.from(current.account,'base64url').toString('utf8');await adminStore.users.updateOne({email},{$set:{lastSeenAt:null}});}res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
+    const loginAsset=['/login','/login.html','/login.js','/login.css','/google-login.js','/password-toggle.js','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg'].includes(p);
     const session=sessionInfo(req);if(session&&session.account!=='legacy'&&session.account!=='env'&&adminStore&&!['/api/session','/api/logout','/api/change-password','/change-password','/change-password.html','/change-password.js'].includes(p)){const email=Buffer.from(session.account,'base64url').toString('utf8'),user=await adminStore.users.findOne({email},{projection:{mustChangePassword:1,active:1}});if(!user?.active){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,401,{error:'الحساب غير مفعّل.'});}if(user.mustChangePassword){if(req.method==='GET'&&!p.startsWith('/api/')&&String(req.headers.accept||'').includes('text/html')){res.writeHead(302,{Location:'/change-password','Cache-Control':'no-store'});return res.end();}return send(req,res,428,{error:'غيّر كلمة المرور المؤقتة أولاً.'});}}
     const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
-    if(adminPage&&sessionRole(req)!=='admin')return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'admin-login.html')),'text/html; charset=utf-8');
+    if(adminPage&&sessionRole(req)!=='admin'){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/login?next=admin'});return res.end();}
     if(p.startsWith('/api/admin/')&&sessionRole(req)!=='admin')return send(req,res,403,{error:'هذه الوظيفة مخصصة لمدير المكتبة.'});
     if(p.startsWith('/api/admin/')&&!adminStore&&['/api/admin/settings','/api/admin/content','/api/admin/content/save','/api/admin/content/publish','/api/admin/content/delete'].includes(p))return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً؛ تحقق من اتصال MongoDB.'});
     if(p==='/api/admin/users'&&req.method==='GET'){
@@ -375,6 +400,11 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/drive/agreements'&&req.method==='GET'){
       try{return send(req,res,200,await listAgreementPdfs(url.searchParams.get('q')||'',url.searchParams.get('page')||1,url.searchParams.get('limit')||20));}catch(error){return send(req,res,503,{error:error.message||'تعذر فهرسة ملفات الاتفاقيات والمعاهدات في Drive.'});}
     }
+    if(p==='/api/drive/document'&&req.method==='GET'){
+      const documentId=(url.searchParams.get('id')||'').slice(0,80),document=library.document(documentId);
+      if(!document||document.type!=='juriscassation')return send(req,res,404,{error:'القرار غير موجود في الفهرس القضائي.'});
+      try{const match=await resolveJudicialDrivePdf(documentId,document.category),{item,response}=await openDrivePdf(match.id),mode=url.searchParams.get('mode')==='download'?'attachment':'inline',safeName=encodeURIComponent(String(item.name||'decision.pdf').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':'application/pdf','Content-Disposition':`${mode}; filename="decision.pdf"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,404,{error:error.message||'لم يُعثر على أصل القرار في Drive.'});}
+    }
     if(p==='/api/drive/file'&&req.method==='GET'){
       const id=(url.searchParams.get('id')||'').slice(0,200),mode=url.searchParams.get('mode')==='download'?'attachment':'inline';if(!id)return send(req,res,400,{error:'معرف ملف Drive مطلوب.'});
       try{const {item,response}=await openDrivePdf(id);const safeName=encodeURIComponent(String(item.name||'document.pdf').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':'application/pdf','Content-Disposition':`${mode}; filename="document.pdf"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
@@ -413,6 +443,17 @@ const server=http.createServer(async(req,res)=>{
       await adminStore.settings.updateOne({_id:'library'},{$set:settings,$setOnInsert:{createdAt:new Date()}},{upsert:true});await recordAudit(adminStore,'admin','settings_updated','library',{ocrEngine:engine,foldersUpdated:!!driveIn.folders});
       const envEngine=process.env.GEMINI_OCR_ENABLED===undefined?null:(geminiOcrEnabled()?'gemini':'local');
       return send(req,res,200,{ok:true,mongoConnected:true,settings:{drive:{account:settings.drive.account,folders,autoBackup:settings.drive.autoBackup,connection:settings.drive.connection},ocr:{engine:envEngine||engine,engineControlledByEnvironment:envEngine!==null,workers:settings.ocr.workers,maxPages:settings.ocr.maxPages,geminiConfigured:!!geminiOcrApiKey(openSecret(encryptedKey)),geminiConfiguredByEnvironment:!!(process.env.GEMINI_OCR_API_KEY||geminiApiKey()),model:geminiOcrModel()},permissions:{reader:'اطلاع فقط',administrator:'إدارة كاملة'}}});
+    }
+    if(p==='/api/admin/assistant-settings'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إعدادات المكتبة غير متاحة.'});
+      if(req.method==='GET')return send(req,res,200,{...await assistantPolicy(),groqConfigured:!!process.env.GROQ_API_KEY,deeplConfigured:!!deeplApiKey(),models:GROQ_CHAT_MODELS});
+      if(req.method!=='POST')return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
+      let body;try{body=await jsonBody(req,2000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+      if(!GROQ_CHAT_MODELS.includes(body.groqModel)||!['local','deepl'].includes(body.translationEngine)||typeof body.aiEnabled!=='boolean'||typeof body.translationEnabled!=='boolean')return send(req,res,400,{error:'إعدادات المساعد غير صالحة.'});
+      const assistant={aiEnabled:body.aiEnabled,translationEnabled:body.translationEnabled,translationEngine:body.translationEngine,groqModel:body.groqModel};
+      await adminStore.settings.updateOne({_id:'library'},{$set:{assistant,updatedAt:new Date()},$setOnInsert:{createdAt:new Date()}},{upsert:true});
+      await recordAudit(adminStore,auditActor(req),'assistant_settings_updated','library',{aiEnabled:assistant.aiEnabled,translationEnabled:assistant.translationEnabled,translationEngine:assistant.translationEngine,groqModel:assistant.groqModel});
+      return send(req,res,200,{ok:true,...assistant,groqConfigured:!!process.env.GROQ_API_KEY,deeplConfigured:!!deeplApiKey(),models:GROQ_CHAT_MODELS});
     }
     if(p==='/api/admin/content'&&req.method==='GET'){
       const status=['draft','published','superseded'].includes(url.searchParams.get('status'))?url.searchParams.get('status'):'draft';
@@ -504,10 +545,11 @@ const server=http.createServer(async(req,res)=>{
       const d=library.document((url.searchParams.get('id')||'').slice(0,120));return send(req,res,d?200:404,d||{error:'الوثيقة غير موجودة في هذه النسخة.'});
     }
     if(p==='/api/capabilities'){
-      const [ai,speech]=await Promise.all([aiCapability(),speechCapabilities()]);return send(req,res,200,{pdfFree:true,ai,translation:{available:!!deeplApiKey(),target:'français',provider:'DeepL'},speech});
+      const [ai,speech,policy]=await Promise.all([aiCapability(),speechCapabilities(),assistantPolicy()]);return send(req,res,200,{pdfFree:true,ai:{...ai,available:policy.aiEnabled&&ai.available,mode:policy.aiEnabled?ai.mode:'extractive',model:policy.groqModel,enabled:policy.aiEnabled},translation:{available:policy.translationEnabled&&(policy.translationEngine==='local'||!!deeplApiKey()),enabled:policy.translationEnabled,engine:policy.translationEngine,target:'français',provider:policy.translationEngine==='local'?'محلي':'DeepL'},speech});
     }
     if(p==='/api/translate'){
       if(req.method!=='POST')return send(req,res,405,{error:'أرسل النص عبر POST.'});
+      const policy=await assistantPolicy();if(!policy.translationEnabled||policy.translationEngine!=='deepl')return send(req,res,403,{error:'الترجمة عبر DeepL غير متاحة وفق إعدادات المكتبة.'});
       if(!deeplApiKey())return send(req,res,503,{error:'الترجمة غير مهيأة؛ أضف DEEPL_AUTH_KEY إلى متغيرات Render.'});
       let body;try{body=await jsonBody(req,16000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
       const text=String(body?.text||'').trim();if(!text||text.length>6500)return send(req,res,400,{error:'أدخل نصاً بين حرف واحد و6500 حرف.'});
@@ -515,7 +557,9 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/ask'){
       if(req.method!=='POST')return send(req,res,405,{error:'أرسل السؤال عبر POST.'});
-      const body=await jsonBody(req),initial=await answerQuestion(library,{...body,retrieveOnly:true});
+      const body=await jsonBody(req),policy=await assistantPolicy();
+      body.analysisMode=policy.aiEnabled&&body.analysisMode==='groq'?'groq':'sources';body.groqModel=policy.groqModel;
+      const initial=await answerQuestion(library,{...body,retrieveOnly:true});
       const canAnalyze=initial.canAnalyze;delete initial.canAnalyze;
       if(canAnalyze&&activeAI===0&&(await aiCapability()).available){
         for(const[id,job]of analysisJobs)if(job.expires<Date.now())analysisJobs.delete(id);
@@ -541,7 +585,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/api/'))return send(req,res,404,{error:'الخدمة غير موجودة.'});
     if(!['GET','HEAD'].includes(req.method))return send(req,res,405,'Method not allowed','text/plain');
-    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/archive'?'/archive.html':p==='/login'?'/login.html':p==='/activate'?'/activate.html':p==='/change-password'?'/change-password.html':p==='/'?'/index.html':p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
+    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/account'?'/account.html':p==='/archive'?'/archive.html':p==='/login'?'/login.html':p==='/activate'?'/activate.html':p==='/change-password'?'/change-password.html':p==='/'?'/index.html':p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
     if(!target.startsWith(PUBLIC+path.sep)||relative.includes('\0'))return send(req,res,403,'Forbidden','text/plain');
     const type=MIME[path.extname(target).toLowerCase()];if(!type||!fs.existsSync(target)||!fs.statSync(target).isFile())return send(req,res,404,'Not found','text/plain');
     const bytes=fs.readFileSync(target),etag='"'+createHash('sha1').update(bytes).digest('hex')+'"';

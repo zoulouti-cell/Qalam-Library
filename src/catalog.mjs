@@ -35,7 +35,7 @@ export function orderedCategories(categories, original={}) {
   return GROUPS.flatMap(([group,groupLabel])=>{
     const members=sorted.filter(c=>groupOf(c.name)===group);
     if(group==='judicial')members.sort((a,b)=>judicialRank(a.name)-judicialRank(b.name));
-    return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'?(c.name.includes('محكمة الاستئناف')?'محاكم الدرجة الثانية':c.name.includes('المحكمة الإدارية')||c.name.includes('المحكمة التجارية')?'محاكم الدرجة الأولى':''):''}));
+    return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':''}));
   });
 }
 function kindRank(d){const primaryReference=d.type==='national'&&((d.law_number&&referenceRank(d)<99)||d.title.includes('بالمصادقة على مجموعة القانون الجنائي'));const kind=primaryReference&&['other','dahir'].includes(d.kind)?'law':d.kind;return ({law:0,dahir:1,decree:2,order:3,other:4,decision:5,jurisprudence:6,study:7})[kind]??9;}

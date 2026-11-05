@@ -1,5 +1,6 @@
 import { createSign } from 'node:crypto';
 import fs from 'node:fs';
+import { brotliDecompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const treatyTitleIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/treaty-titles.json', import.meta.url)), 'utf8')).documents || {};
@@ -11,6 +12,14 @@ const treatyTitleByDriveTimestamp = Object.fromEntries(Object.values(treatyTitle
   } catch { return []; }
 }));
 const sourceDocumentIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/drive-source-map.json', import.meta.url)), 'utf8')).files || {};
+const judicialRows=JSON.parse(brotliDecompressSync(fs.readFileSync(fileURLToPath(new URL('../data/judicial-index.json.br',import.meta.url))))).rows;
+const judicialById=new Map(judicialRows.map(row=>['jc:'+row[0],{court:row[1],name:row[6]}]));
+const JUDICIAL_FOLDERS=new Map([
+  ['محكمة النقض','1Xgq4UR8KjiV8IvU5dRCjLcFi_rLe0Fl4'],['المجلس الأعلى','112NkRnyZLyodxy9V65ugdSfB5ObJJEKs'],
+  ['محكمة الاستئناف التجارية بمراكش','1ORjSANaCyyCCGDrc_KpHiWS3y-r_5UAF'],['محكمة الاستئناف التجارية بالدار البيضاء','1i922Pcbht3bmzJ4ta9ha0CPz08G-a-Oh'],
+  ['محكمة الاستئناف التجارية بفاس','16VRWsB8sPCSBK9MWDSRc79Wmud96YnNn'],['محكمة الاستئناف بتازة','1P1MNS1LP-SXSabRfmJCAsTlpR9OAM_1B'],
+]);
+const judicialFileCache=new Map();
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K';
 let tokenCache = { value: '', expiresAt: 0 };
@@ -214,7 +223,26 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   };
 }
 
-export function driveSourceForDocument(id) { return sourceDocumentIndex[String(id || '')] || null; }
+export function driveSourceForDocument(id) {
+  const judicial=judicialById.get(String(id||''));
+  return judicial?{name:judicial.name,path:'الاجتهادات القضائية/'+judicial.court,judicialIndex:true}:sourceDocumentIndex[String(id||'')]||null;
+}
+
+export async function resolveJudicialDrivePdf(documentId,court){
+  const numeric=String(documentId||'').match(/^jc:(\d+)$/)?.[1],folderId=JUDICIAL_FOLDERS.get(court);
+  if(!numeric||!folderId)throw new Error('لم يثبت مجلد أصل هذا القرار في Drive.');
+  const cached=judicialFileCache.get(documentId);if(cached&&cached.until>Date.now()&&cached.court===court)return cached.item;
+  const expected=judicialById.get(documentId)?.name||sourceDocumentIndex[documentId]?.name||`${numeric}.pdf`;
+  const names=[...new Set([expected,`${numeric}.pdf`])];
+  for(const name of names){
+    const query=new URLSearchParams({q:`'${folderId}' in parents and name = '${name.replaceAll("'","\\'")}' and trashed = false`,pageSize:'10',fields:`files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});
+    const result=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`)).json();
+    const matches=(result.files||[]).filter(item=>item.mimeType==='application/pdf'&&item.name===name);
+    if(matches.length===1){const item=await withinLibrary(matches[0].id);judicialFileCache.set(documentId,{court,item,until:Date.now()+15*60_000});return item;}
+    if(matches.length>1)throw new Error('وجدت أكثر من أصل مطابق لهذا القرار؛ تلزم مراجعة الربط قبل إتاحة التحميل.');
+  }
+  throw new Error('لم يُعثر على أصل مطابق لهذا القرار في مجلد المحكمة المصدرة.');
+}
 
 export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {
   const { item, response } = await openDrivePdf(id);
