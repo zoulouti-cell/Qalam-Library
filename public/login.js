@@ -9,3 +9,17 @@ document.querySelector('#login').addEventListener('submit',async event=>{
     location.replace(result.mustChangePassword?'/change-password':'/');
   }catch(error){message.textContent=error.message;}
 });
+
+const themeToggle=document.querySelector('#themeToggle');
+if(themeToggle){
+  const setTheme=dark=>{
+    document.body.classList.toggle('dark',dark);
+    themeToggle.textContent=dark?'☀':'☾';
+    themeToggle.setAttribute('aria-pressed',String(dark));
+    try{localStorage.setItem('qalam-library-login-theme',dark?'dark':'light');}catch{}
+  };
+  let saved='';
+  try{saved=localStorage.getItem('qalam-library-login-theme')||'';}catch{}
+  setTheme(saved==='dark');
+  themeToggle.addEventListener('click',()=>setTheme(!document.body.classList.contains('dark')));
+}
