@@ -414,6 +414,10 @@
     if (isAssistantCompared(doc)) note = 'قورن النص بصور صفحات الأصل بواسطة المساعد. هذه مقارنة من المساعد، ولا تمثل تدقيقاً أو اعتماداً بشرياً أو رسمياً.';
     if (doc.reviewStatus === 'needs_review' && kind === 'extracted_text') note += ' رُصدت مؤشرات تستدعي المراجعة.';
     if (doc.reviewStatus === 'official_source_import') note = 'نص مستورد من النشر الإلكتروني الرسمي للمحكمة الدستورية، مع التحقق من اكتمال فصوله. لا يمثل ذلك تدقيقاً بشرياً مستقلاً لكل كلمة.';
+    if (doc.type === 'juriscassation' && doc.category === 'قرارات أخرى') {
+      note += ' هذه بطاقة اجتهادية ضمن قسم «قرارات أخرى»؛ النص المتاح خلاصة أو قاعدة وليس متن الحكم الكامل.';
+      if (!doc.decisionNumber && !doc.caseNumber && !doc.date) note += ' لا تتوفر إحالة القرار برقم القرار أو رقم الملف أو تاريخ الصدور؛ يُرجى الرجوع إلى الأصل قبل الاستشهاد.';
+    }
     if (doc.abrogated) note += ' مُعلّم كمنسوخ بحسب البيانات المتاحة؛ يلزم التحقق من وضعه الزمني.';
     if ((doc.issues || []).includes('source_date_conflict')) note += ' تاريخ الوثيقة مختلف بين رأس المصدر وفهرسه؛ يلزم التحقق.';
     if ((doc.issues || []).includes('reconstructed_pdf_container')) note += ' استُعيدت بنية الملف لقراءة صفحاته؛ النص قيد المراجعة.';
