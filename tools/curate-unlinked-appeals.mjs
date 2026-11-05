@@ -37,7 +37,7 @@ const counts=new Map();
 for(const row of rows)row.curatedTitle=subject(row);
 for(const row of rows)counts.set(normalize(row.curatedTitle),(counts.get(normalize(row.curatedTitle))||0)+1);
 for(const row of rows)if(counts.get(normalize(row.curatedTitle))>1){const id=row.id.replace(/^jc:/u,'');row.curatedTitle+=row.decision?` — قرار ${row.decision}`:` — ${id}`;}
-const mapping=Object.fromEntries(rows.map(row=>[row.id,{category:'قرارات أخرى',title:row.curatedTitle}]));
+const mapping=Object.fromEntries(rows.map(row=>[row.id,{category:'قواعد قضائية',title:row.curatedTitle}]));
 fs.writeFileSync(path.join(root,'data/judicial-curation.json'),JSON.stringify({version:1,source:'Drive court-folder audit and stored decision summaries',entries:mapping},null,2));
 db.close();
 console.log(JSON.stringify({curated:rows.length,duplicateSubjects:[...counts.values()].filter(n=>n>1).length,uniqueFinalTitles:new Set(rows.map(x=>normalize(x.curatedTitle))).size,examples:rows.slice(0,8).map(x=>({id:x.id,from:x.title,to:x.curatedTitle}))},null,2));
