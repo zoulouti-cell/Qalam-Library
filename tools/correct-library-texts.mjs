@@ -51,10 +51,11 @@ try {
   const continuationRow = read.get('jc:35266');
   if (continuationRow) {
     const oldText = brotliDecompressSync(continuationRow.body).toString('utf8');
-    const correctedContinuation = 'وتشمل هذه الصعوبات الأخطاء المادية التي تمس تنفيذ الأوامر، على ألا يترتب على تصحيحها أي تأثير في الأساس القانوني للقرار.';
+    const correctedContinuation = 'وتشمل الأخطاء المادية التي تمس تنفيذ الأوامر، دون التأثير على الأساس القانوني للقرار.';
     const text = oldText
       .replace('بما في ذلك الأخطاء المادية التي تمس تنفيذ الأوامر، دون التأثير على الأساس القانوني للقرار.', correctedContinuation)
-      .replace('ويشمل ذلك تصحيح الأخطاء المادية المتصلة بتنفيذ الأوامر، شريطة ألا يمس التصحيح الأساس القانوني للقرار.', correctedContinuation);
+      .replace('ويشمل ذلك تصحيح الأخطاء المادية المتصلة بتنفيذ الأوامر، شريطة ألا يمس التصحيح الأساس القانوني للقرار.', correctedContinuation)
+      .replace('وتشمل هذه الصعوبات الأخطاء المادية التي تمس تنفيذ الأوامر، على ألا يترتب على تصحيحها أي تأثير في الأساس القانوني للقرار.', correctedContinuation);
     if (text !== oldText) {
       deleteFts.run(continuationRow.rowid, normalizeSearch(continuationRow.title), normalizeSearch(oldText));
       update.run(brotliCompressSync(Buffer.from(text), { params: { [constants.BROTLI_PARAM_QUALITY]: 9 } }), createHash('sha256').update(text).digest('hex'), text.length, continuationRow.rowid);
