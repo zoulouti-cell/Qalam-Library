@@ -165,6 +165,18 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
     if(p.startsWith('/api/')&&!['GET','POST','HEAD'].includes(req.method))return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
     if(p==='/api/health')return send(req,res,200,{ok:true});
+    if(p==='/api/partner/account-status'&&req.method==='GET'){
+      // نقطة ربط بين منصة قلم والمكتبة الرقمية: تتحقق من وجود حساب فعّال بهذا البريد دون كشف أي بيانات أخرى عنه.
+      const partnerSecret=process.env.QALAM_PARTNER_SECRET||'';
+      if(!partnerSecret)return send(req,res,503,{error:'الربط مع منصة قلم غير مهيأ.'});
+      const given=Buffer.from(String(req.headers['x-qalam-partner-secret']||'')),expected=Buffer.from(partnerSecret);
+      if(given.length!==expected.length||!timingSafeEqual(given,expected))return send(req,res,403,{error:'غير مصرح.'});
+      if(!adminStore)return send(req,res,200,{linked:false});
+      const email=String(url.searchParams.get('email')||'').trim().toLowerCase();
+      if(!validEmail(email))return send(req,res,200,{linked:false});
+      const user=await adminStore.users.findOne({email,active:true,accountStatus:{$ne:'pending'}},{projection:{_id:1}});
+      return send(req,res,200,{linked:!!user});
+    }
     if(p==='/api/auth/google/status'&&req.method==='GET')return send(req,res,200,{available:googleLoginConfig().available&&!!adminStore});
     if(p==='/api/auth/google/start'&&req.method==='GET'){
       const config=googleLoginConfig();
