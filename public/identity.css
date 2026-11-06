@@ -448,5 +448,9 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] .reader-document-labels .document-category{background:#303b2b;border-color:#59634a;color:#e8e4c9}
 .account-dialog .account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:540px){.account-dialog .account-grid{grid-template-columns:1fr}.result-card-head .document-category{max-width:38%}}
+.reader-header-top>.reader-document-labels{flex:1;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.reader-document-labels::-webkit-scrollbar{display:none}
+.reader-document-labels>*{flex-shrink:0}
+.reader-content-label{flex-wrap:nowrap;flex:0 0 auto}
 @media(max-width:480px){.assistant-source-indicator{width:100%;margin-left:0}.assistant-tool{flex:1}}
 
