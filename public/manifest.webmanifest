@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "المكتبة الرقمية — قلم",
+  "short_name": "المكتبة الرقمية",
+  "description": "مكتبة قانونية مغربية للبحث والقراءة.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#123f35",
+  "theme_color": "#123f35",
+  "icons": [
+    { "src": "/assets/library-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/library-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

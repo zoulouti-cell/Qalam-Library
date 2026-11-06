@@ -19,6 +19,7 @@ const update = db.prepare('UPDATE documents SET body=?,sha256=?,chars=? WHERE ro
 const deleteFts = db.prepare("INSERT INTO search(search,rowid,title,body) VALUES('delete',?,?,?)");
 const insertFts = db.prepare('INSERT INTO search(rowid,title,body) VALUES(?,?,?)');
 let fixedNational = 0, fixedRuleHeaders = 0;
+let fixedRuleContinuation = 0;
 db.exec('BEGIN');
 try {
   for (const [id, correct] of corrections) {
@@ -46,8 +47,20 @@ try {
     insertFts.run(row.rowid, normalizeSearch(row.title), normalizeSearch(text));
     fixedRuleHeaders++;
   }
+
+  const continuationRow = read.get('jc:35266');
+  if (continuationRow) {
+    const oldText = brotliDecompressSync(continuationRow.body).toString('utf8');
+    const text = oldText.replace('بما في ذلك الأخطاء المادية التي تمس تنفيذ الأوامر، دون التأثير على الأساس القانوني للقرار.', 'ويشمل ذلك تصحيح الأخطاء المادية المتصلة بتنفيذ الأوامر، شريطة ألا يمس التصحيح الأساس القانوني للقرار.');
+    if (text !== oldText) {
+      deleteFts.run(continuationRow.rowid, normalizeSearch(continuationRow.title), normalizeSearch(oldText));
+      update.run(brotliCompressSync(Buffer.from(text), { params: { [constants.BROTLI_PARAM_QUALITY]: 9 } }), createHash('sha256').update(text).digest('hex'), text.length, continuationRow.rowid);
+      insertFts.run(continuationRow.rowid, normalizeSearch(continuationRow.title), normalizeSearch(text));
+      fixedRuleContinuation++;
+    }
+  }
   db.exec('COMMIT');
-  console.log(JSON.stringify({ fixedNational, fixedRuleHeaders }));
+  console.log(JSON.stringify({ fixedNational, fixedRuleHeaders, fixedRuleContinuation }));
 } catch (error) {
   db.exec('ROLLBACK');
   throw error;

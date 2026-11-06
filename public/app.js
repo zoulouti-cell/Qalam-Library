@@ -14,6 +14,7 @@
     get(key, fallback) { try { return JSON.parse(localStorage.getItem('qalam.' + key)) ?? fallback; } catch { return fallback; } },
     set(key, value) { try { localStorage.setItem('qalam.' + key, JSON.stringify(value)); return true; } catch { toast('تعذّر الحفظ المحلي. تحقق من مساحة التخزين وإعدادات المتصفح.'); return false; } }
   };
+  let deferredInstallPrompt = null;
   function applyTheme(theme) {
     const dark = theme === 'dark';
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -901,6 +902,12 @@
     $('spellReferences').addEventListener('change', event => { prefs.spellReferences = event.target.checked; stopReading(); persistPrefs(); });
     $('readRate').addEventListener('change', event => { prefs.rate = event.target.value; persistPrefs(); if (state.reading) { stopReading(); audioStatus('تغيّرت السرعة. اضغط استمع لبدء القراءة بالسرعة الجديدة.'); } });
     $('menuToggle').addEventListener('click', () => { const open = $('sidebar').classList.toggle('open'); $('sidebarScrim').hidden = !open; $('menuToggle').setAttribute('aria-expanded', String(open)); }); $('sidebarScrim').addEventListener('click', closeSidebar);
+    $('fullscreenBtn').addEventListener('click', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { toast('تعذر تفعيل ملء الشاشة في هذا المتصفح.'); } });
+    document.addEventListener('fullscreenchange', () => { const active=!!document.fullscreenElement; $('fullscreenBtn').title=active?'إنهاء ملء الشاشة':'ملء الشاشة'; $('fullscreenBtn').setAttribute('aria-label',$('fullscreenBtn').title); });
+    window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt=event; $('installAppBtn').hidden=false; toast('يمكنك تثبيت المكتبة الرقمية على جهازك من زر التثبيت في الشريط العلوي.'); });
+    window.addEventListener('appinstalled', () => { deferredInstallPrompt=null; $('installAppBtn').hidden=true; toast('تم تثبيت المكتبة الرقمية على جهازك.'); });
+    $('installAppBtn').addEventListener('click', async () => { if (!deferredInstallPrompt) { toast('للتثبيت افتح قائمة المتصفح ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».'); return; } deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; $('installAppBtn').hidden=true; });
+    if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
     $('browseToggle').addEventListener('click', () => { const open = $('browsePanel').hidden; $('browsePanel').hidden = !open; $('browseToggle').setAttribute('aria-expanded', String(open)); if (!open) { state.browseGroup = ''; $('browseContent').hidden = true; $('browseGroups').hidden = false; document.querySelectorAll('[data-browse-group]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); }); } });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('sidebar').classList.contains('open')) closeSidebar(); });
     $('readerClose').addEventListener('click', closeReader); $('reader').addEventListener('cancel', () => { saveNote(); stopReading(); state.documentAbort?.abort(); });
