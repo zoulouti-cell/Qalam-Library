@@ -33,7 +33,7 @@ export function beginGoogleLogin(config,destination='reader'){
   const flow={state:randomBytes(32).toString('base64url'),nonce:randomBytes(32).toString('base64url'),verifier:randomBytes(32).toString('base64url'),createdAt:Date.now(),destination:destination==='admin'?'admin':'reader'};
   const challenge=createHash('sha256').update(flow.verifier).digest('base64url');
   const url=new URL(authorizationEndpoint);
-  for(const [key,value] of Object.entries({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:'openid email',state:flow.state,nonce:flow.nonce,code_challenge:challenge,code_challenge_method:'S256',prompt:'select_account'}))url.searchParams.set(key,value);
+  for(const [key,value] of Object.entries({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:'openid email profile',state:flow.state,nonce:flow.nonce,code_challenge:challenge,code_challenge_method:'S256',prompt:'select_account'}))url.searchParams.set(key,value);
   return {url:url.href,cookie:`${cookieName}=${signedFlow(flow,config.sessionSecret)}; HttpOnly; Secure; SameSite=Lax; Path=/api/auth/google; Max-Age=600`};
 }
 
@@ -69,7 +69,10 @@ export async function verifyGoogleIdToken(token,clientId,nonce){
   if(!key||!verify('RSA-SHA256',Buffer.from(`${parts[0]}.${parts[1]}`),createPublicKey({key,format:'jwk'}),Buffer.from(parts[2],'base64url')))throw new Error('تعذر التحقق من توقيع Google.');
   const now=Math.floor(Date.now()/1000);
   if(!['accounts.google.com','https://accounts.google.com'].includes(claims.iss)||claims.aud!==clientId||!Number.isInteger(claims.exp)||claims.exp<=now||!Number.isInteger(claims.iat)||claims.iat>now+60||claims.nonce!==nonce||claims.email_verified!==true||typeof claims.sub!=='string'||!claims.sub||typeof claims.email!=='string')throw new Error('بيانات هوية Google غير مطابقة.');
-  return {sub:claims.sub,email:claims.email.trim().toLowerCase(),hostedDomain:claims.hd||''};
+  /* الاسم والصورة (نطاق profile) لعرض صاحب الحساب في الواجهة؛ الصورة من خوادم Google فقط */
+  const name=typeof claims.name==='string'?claims.name.trim().slice(0,120):'';
+  const picture=typeof claims.picture==='string'&&/^https:\/\/[a-z0-9-]+\.googleusercontent\.com\/[^\s"'<>]{1,500}$/i.test(claims.picture)?claims.picture:'';
+  return {sub:claims.sub,email:claims.email.trim().toLowerCase(),hostedDomain:claims.hd||'',name,picture};
 }
 
 export async function exchangeGoogleCode(code,flow,config){

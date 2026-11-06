@@ -14,6 +14,17 @@
   async function deleteDraft(){const id=$('documentId').value;if(!id)return;message('');try{await api('/api/admin/content/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentId:id})});$('editor').hidden=true;message('حُذفت المسودة.',true);await load();}catch(e){message(e.message);}}
   let usersPage=1;
   const userDate=value=>value?new Date(value).toLocaleString('ar-MA',{dateStyle:'medium',timeStyle:'short'}):'—';
+  /* اسم المدير ومعرّف حسابه في Google أعلى يمين الصفحة، كما في إدارة منصة قلم */
+  async function loadAdminIdentity(){
+    try{
+      const d=await api('/api/account/profile'),email=d.email||'',name=d.name||(email?email.split('@')[0]:'مدير المكتبة');
+      $('adminWhoName').textContent=name;$('adminWhoEmail').textContent=email||'دخول بكلمة الإدارة';
+      $('adminWhoInitial').textContent=(name.trim()[0]||'ق').toUpperCase();
+      const picture=typeof d.picture==='string'&&/^https:\/\/[a-z0-9-]+\.googleusercontent\.com\//i.test(d.picture)?d.picture:'';
+      if(picture){const img=$('adminWhoImg');img.onerror=()=>{img.hidden=true;$('adminWhoInitial').hidden=false;};img.src=picture;img.hidden=false;$('adminWhoInitial').hidden=true;}
+      $('adminWho').hidden=false;
+    }catch{}
+  }
   async function loadUsers(){
     try{
       const d=await api('/api/admin/users?page='+usersPage+'&q='+encodeURIComponent($('userSearch').value.trim()));
@@ -56,7 +67,7 @@
   $('adminPasswordForm').addEventListener('submit',async e=>{e.preventDefault();const status=$('adminProfileStatus'),password=$('adminNewPassword').value;if(password!==$('adminConfirmPassword').value){status.textContent='كلمتا المرور الجديدتان غير متطابقتين.';return;}status.textContent='جارٍ تغيير كلمة المرور…';try{await api('/api/admin/profile/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:$('adminCurrentPassword').value,password})});$('adminPasswordForm').reset();status.textContent='تغيّرت كلمة المرور بنجاح.';}catch(error){status.textContent=error.message;}});
   $('userForm').addEventListener('submit',async e=>{e.preventDefault();$('temporaryPassword').hidden=true;try{const d=await api('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('userEmail').value,role:$('userRole').value})});if(d.delivery==='manual')showTemporaryPassword(d,'تم إنشاء الحساب');$('userForm').reset();message(d.delivery==='email'?'أُرسلت دعوة التفعيل إلى المستخدم، ولن يدخل قبل تعيين كلمة مروره.':'أُنشئ الحساب. انسخ كلمة المرور المؤقتة الآن؛ لن تظهر ثانية.',true);await loadUsers();}catch(error){message(error.message);}});
   $('logout').addEventListener('click',async()=>{try{await api('/api/logout',{method:'POST'});}finally{location.replace('/');}});$('newDocument').addEventListener('click',newDoc);$('closeEditor').addEventListener('click',()=>$('editor').hidden=true);$('saveDraft').addEventListener('click',saveDraft);$('publishDraft').addEventListener('click',publish);$('deleteDraft').addEventListener('click',deleteDraft);
-  document.querySelector('.admin-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-panel]');if(!b)return;document.querySelectorAll('.admin-tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab-panel').forEach(x=>x.hidden=x.id!==b.dataset.panel);if(b.dataset.panel==='settingsPanel')loadSettings();if(b.dataset.panel==='archivePanel')loadMonitor();if(b.dataset.panel==='usersPanel')loadUsers();if(b.dataset.panel==='auditPanel')loadAudit();});
+  document.querySelector('.admin-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-panel]');if(!b)return;document.querySelectorAll('.admin-tabs button').forEach(x=>{x.classList.toggle('active',x===b);if(x===b)x.setAttribute('aria-current','true');else x.removeAttribute('aria-current');});document.querySelectorAll('.tab-panel').forEach(x=>x.hidden=x.id!==b.dataset.panel);if(b.dataset.panel==='settingsPanel')loadSettings();if(b.dataset.panel==='archivePanel')loadMonitor();if(b.dataset.panel==='usersPanel')loadUsers();if(b.dataset.panel==='auditPanel')loadAudit();});
   window.addEventListener('qalam:open-draft',e=>{const id=e.detail?.id;if(!id)return;document.querySelector('[data-panel="contentPanel"]').click();openDoc(id);});
   document.addEventListener('click',async e=>{
     const doc=e.target.closest('[data-document]'),draft=e.target.closest('[data-draft]'),reset=e.target.closest('[data-reset-user]'),action=e.target.closest('[data-user-action]'),invite=e.target.closest('[data-invite-user]'),notify=e.target.closest('[data-notify-user]'),copy=e.target.closest('[data-copy-temp]');
@@ -67,5 +78,5 @@
     if(notify){try{await api('/api/admin/users/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:notify.dataset.notifyUser})});message('أُرسل إشعار التفعيل إلى بريد المالك.',true);await loadUsers();}catch(error){message(error.message);}}
     if(copy){try{await navigator.clipboard.writeText($('temporaryPassword').querySelector('code').textContent);copy.textContent='نُسخت';}catch{message('تعذر النسخ التلقائي؛ حدد كلمة المرور وانسخها يدوياً.');}}
   });
-  $('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(queue,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='qalam-library-review-queue.json';a.click();URL.revokeObjectURL(a.href);});$('publishConfirm').addEventListener('change',e=>{$('publishDraft').disabled=!e.target.checked;});$('openEditorialPanel').addEventListener('click',()=>document.querySelector('[data-panel=contentPanel]').click());load().then(()=>{const id=new URLSearchParams(location.search).get('draft');if(id)openDoc(id);});
+  $('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(queue,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='qalam-library-review-queue.json';a.click();URL.revokeObjectURL(a.href);});$('publishConfirm').addEventListener('change',e=>{$('publishDraft').disabled=!e.target.checked;});$('openEditorialPanel').addEventListener('click',()=>document.querySelector('[data-panel=contentPanel]').click());loadUsers();loadAdminIdentity();load().then(()=>{const id=new URLSearchParams(location.search).get('draft');if(id){document.querySelector('[data-panel="contentPanel"]').click();openDoc(id);}});
 })();

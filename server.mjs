@@ -128,7 +128,7 @@ const driveMonitorTimer=setInterval(async()=>{
 driveMonitorTimer.unref();
 const headers={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',
-  'Content-Security-Policy':"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+  'Content-Security-Policy':"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
   'Permissions-Policy':'microphone=(self), camera=(), geolocation=()',
 };
 function send(req,res,status,value,type='application/json; charset=utf-8'){
@@ -200,7 +200,7 @@ const server=http.createServer(async(req,res)=>{
           await adminStore.users.updateOne({_id:user._id,googleSub:{$exists:false}},{$set:{googleSub:identity.sub,googleLinkedAt:new Date()}});
         }
         if(flow.destination==='admin'&&user.role!=='admin')return fail('admin');
-        const now=new Date();await adminStore.users.updateOne({_id:user._id},{$set:{lastLoginAt:now,lastSeenAt:now},$inc:{loginCount:1}});
+        const now=new Date(),profile={...(identity.name?{googleName:identity.name}:{}),...(identity.picture?{googlePicture:identity.picture}:{})};await adminStore.users.updateOne({_id:user._id},{$set:{lastLoginAt:now,lastSeenAt:now,...profile},$inc:{loginCount:1}});
         try{await recordAudit(adminStore,user.email,'google_login',user.email);}catch(error){console.error('Google login audit failed:',error?.message||'unknown error');}
         issueSession(res,user.role,Buffer.from(user.email).toString('base64url'));
         const sessionCookie=res.getHeader('Set-Cookie');res.setHeader('Set-Cookie',[clearGoogleFlowCookie,sessionCookie]);
@@ -238,9 +238,9 @@ const server=http.createServer(async(req,res)=>{
       if(!current)return send(req,res,401,{error:'سجّل الدخول أولاً.'});
       if(!adminStore||['legacy','env'].includes(current.account))return send(req,res,200,{email:'',role:current.role,individual:false});
       const email=Buffer.from(current.account,'base64url').toString('utf8');
-      const user=await adminStore.users.findOne({email,active:true},{projection:{email:1,role:1,createdAt:1,lastLoginAt:1,loginCount:1,googleSub:1,passwordHash:1}});
+      const user=await adminStore.users.findOne({email,active:true},{projection:{email:1,role:1,createdAt:1,lastLoginAt:1,loginCount:1,googleSub:1,passwordHash:1,googleName:1,googlePicture:1}});
       if(!user)return send(req,res,401,{error:'هذا الحساب غير متاح.'});
-      return send(req,res,200,{email:user.email,role:user.role,individual:true,createdAt:user.createdAt,lastLoginAt:user.lastLoginAt,loginCount:user.loginCount||0,googleLinked:!!user.googleSub,canChangePassword:!!user.passwordHash});
+      return send(req,res,200,{email:user.email,name:user.googleName||'',picture:user.googlePicture||'',role:user.role,individual:true,createdAt:user.createdAt,lastLoginAt:user.lastLoginAt,loginCount:user.loginCount||0,googleLinked:!!user.googleSub,canChangePassword:!!user.passwordHash});
     }
     if(p==='/api/account/password'&&req.method==='POST'){
       const current=sessionInfo(req);
@@ -278,7 +278,7 @@ const server=http.createServer(async(req,res)=>{
       const body=await jsonBody(req),email=Buffer.from(session.account,'base64url').toString('utf8'),password=String(body.password||'');if(password.length<12)return send(req,res,400,{error:'اختر كلمة مرور من 12 حرفاً على الأقل.'});const saved=hashPassword(password),result=await adminStore.users.updateOne({email,active:true},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,mustChangePassword:false,updatedAt:new Date()}});if(!result.matchedCount)return send(req,res,401,{error:'الحساب غير موجود أو معطل.'});await recordAudit(adminStore,email,'password_changed',email);return send(req,res,200,{ok:true});
     }
     if(p==='/api/logout'&&req.method==='POST'){const current=sessionInfo(req);if(adminStore&&current?.account&&!['legacy','env'].includes(current.account)){const email=Buffer.from(current.account,'base64url').toString('utf8');await adminStore.users.updateOne({email},{$set:{lastSeenAt:null}});}res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
-    const loginAsset=['/','/home.html','/robots.txt','/sitemap.xml','/login','/login.html','/login.js','/login.css','/google-login.js','/password-toggle.js','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg','/assets/gateway-office-emblem.svg','/assets/gateway-library-emblem.svg','/assets/gateway-pen-animated.mp4','/assets/gateway-pen-hero.jpg','/home.js'].includes(p);
+    const loginAsset=['/','/home.html','/robots.txt','/sitemap.xml','/login','/login.html','/login.js','/login.css','/google-login.js','/password-toggle.js','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg','/assets/gateway-office-emblem.svg','/assets/gateway-library-emblem.svg','/assets/gateway-pen-animated.mp4','/assets/gateway-pen-hero.jpg','/home.js','/assets/cairo-arabic-800.woff2','/assets/cairo-latin-800.woff2','/assets/ibm-plex-arabic-400.woff2','/assets/ibm-plex-latin-400.woff2'].includes(p);
     const session=sessionInfo(req);if(session&&session.account!=='legacy'&&session.account!=='env'&&adminStore&&!['/api/session','/api/logout','/api/change-password','/change-password','/change-password.html','/change-password.js'].includes(p)){const email=Buffer.from(session.account,'base64url').toString('utf8'),user=await adminStore.users.findOne({email},{projection:{mustChangePassword:1,active:1}});if(!user?.active){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,401,{error:'الحساب غير مفعّل.'});}if(user.mustChangePassword){if(req.method==='GET'&&!p.startsWith('/api/')&&String(req.headers.accept||'').includes('text/html')){res.writeHead(302,{Location:'/change-password','Cache-Control':'no-store'});return res.end();}return send(req,res,428,{error:'غيّر كلمة المرور المؤقتة أولاً.'});}}
     const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
     if(adminPage&&sessionRole(req)!=='admin'){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/login?next=admin'});return res.end();}

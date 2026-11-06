@@ -15,13 +15,15 @@
     set(key, value) { try { localStorage.setItem('qalam.' + key, JSON.stringify(value)); return true; } catch { toast('تعذّر الحفظ المحلي. تحقق من مساحة التخزين وإعدادات المتصفح.'); return false; } }
   };
   let deferredInstallPrompt = null;
+  /* أيقونات التحكم بنفس رسم أيقونات المكتب الرقمي وقياسها */
+  const ICONS = { sun: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>', moon: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>', maximize: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>', minimize: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>' };
   function applyTheme(theme) {
     const dark = theme === 'dark';
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     try { localStorage.setItem('qalam.theme', dark ? 'dark' : 'light'); } catch {}
     const button = $('themeToggle');
     if (button) {
-      button.textContent = dark ? '☀' : '☾';
+      button.innerHTML = dark ? ICONS.moon : ICONS.sun;
       button.title = dark ? 'تفعيل الألوان الفاتحة' : 'تفعيل الألوان الداكنة';
       button.setAttribute('aria-label', button.title);
       button.setAttribute('aria-pressed', String(dark));
@@ -401,10 +403,27 @@
     const selected = state.suggestions[index]; if (!selected) return;
     closeSuggestions(); if (selected.id) openDocument(selected.id, activeQuery().value.trim()); else applyQuery(selected.text);
   }
+  /* الاسم وصورة الحساب كما في Google؛ وإلا الحرف الأول من البريد */
+  function showIdentity(data, ids) {
+    const email = data?.email || '', name = data?.name || (email ? email.split('@')[0] : (data && data.individual === false ? 'حساب دخول مشترك' : 'حسابي'));
+    const img = $(ids.img), initial = $(ids.initial);
+    if ($(ids.name)) $(ids.name).textContent = name;
+    if ($(ids.email)) $(ids.email).textContent = email;
+    if (initial) initial.textContent = (name.trim()[0] || 'ق').toUpperCase();
+    if (img) {
+      const picture = typeof data?.picture === 'string' && /^https:\/\/[a-z0-9-]+\.googleusercontent\.com\//i.test(data.picture) ? data.picture : '';
+      img.hidden = !picture; if (initial) initial.hidden = !!picture;
+      if (picture) { img.onerror = () => { img.hidden = true; if (initial) initial.hidden = false; }; img.src = picture; } else img.removeAttribute('src');
+    }
+  }
+  async function loadSidebarIdentity() {
+    try { const data = await api('/api/account/profile'); showIdentity(data, { img: 'accountAvatarImg', initial: 'accountAvatarInitial', name: 'accountName', email: 'accountIdentityEmail' }); } catch {}
+  }
   async function openAccount() {
     closeSidebar(); $('accountDialog').showModal(); $('accountDialogStatus').textContent='جارٍ تحميل بيانات الحساب…'; $('accountAdminLink').hidden=true; $('accountPasswordPanel').hidden=true;
     try {
       const data=await api('/api/account/profile');
+      showIdentity(data,{img:'accountDialogAvatar',initial:'accountDialogInitial',name:'accountDialogName',email:'accountDialogEmailLine'});
       $('accountDialogEmail').textContent=data.email||'حساب دخول مشترك'; $('accountDialogRole').textContent=data.role==='admin'?'مدير المكتبة':'قارئ';
       const date=value=>value?new Date(value).toLocaleString('ar-MA',{dateStyle:'medium',timeStyle:'short'}):'—';
       $('accountDialogCreated').textContent=date(data.createdAt); $('accountDialogLastLogin').textContent=date(data.lastLoginAt); $('accountDialogGoogle').textContent=data.googleLinked?'مرتبط':'غير مرتبط';
@@ -582,15 +601,16 @@
   function refreshAssistantTools() {
     const groqReady=state.capabilities.ai?.mode==='groq_model';
     const active=groqReady&&prefs.assistantEngine==='groq';
-    $('assistantGroq').disabled=!groqReady; $('assistantGroq').classList.toggle('active',active); $('assistantGroq').setAttribute('aria-pressed',String(active));
+    $('assistantGroq').disabled=!groqReady; $('assistantGroq').classList.toggle('active',active); $('assistantGroq').setAttribute('aria-pressed',String(active)); $('assistantGroq').setAttribute('aria-checked',String(active)); $('assistantGroq').querySelector('.qalam-switch')?.classList.toggle('is-on',active);
     $('assistantGroq').title=groqReady?(active?'إيقاف التحليل الذكي والاكتفاء بالمصادر':'تفعيل التحليل الذكي المسند'):'التحليل الذكي غير متاح وفق إعدادات المكتبة';
     $('assistantSourceMode').textContent=active?'◈ بحث محلي + Groq':'◈ بحث محلي في المصادر';
-    const translation=state.capabilities.translation||{};$('assistantLocalTranslate').hidden=!translation.available;$('assistantLocalTranslate').disabled=!translation.available;$('assistantLocalTranslate').textContent=translation.engine==='local'?'ترجمة محلية':'ترجمة DeepL';$('assistantLocalTranslate').title=translation.engine==='local'?'ترجمة آخر إجابة على هذا الجهاز':'ترجمة آخر إجابة بواسطة DeepL';
+    const translation=state.capabilities.translation||{},translating=!!(translation.available&&prefs.autoTranslate);$('assistantLocalTranslate').hidden=!translation.available;$('assistantLocalTranslate').disabled=!translation.available;$('assistantTranslateLabel').textContent=translation.engine==='local'?'الترجمة المحلية':'الترجمة (DeepL)';$('assistantLocalTranslate').title=translating?'إيقاف ترجمة الإجابات إلى الفرنسية':'ترجمة الإجابات إلى الفرنسية تلقائياً';$('assistantLocalTranslate').setAttribute('aria-checked',String(translating));$('assistantLocalTranslate').querySelector('.qalam-switch')?.classList.toggle('is-on',translating);
   }
   function renderAssistantAnswer(element,result) {
     const modes={extractive:'استرجاع من المصادر · دون توليد بنموذج',local_model:'تحليل بمساعد محلي',remote_model:'تحليل بمساعد متصل',gemini_model:'تحليل Gemini · مرتبط بمصادر المكتبة',groq_model:'تحليل Groq · مرتبط بمصادر المكتبة'};
     const sources=result.sources||[];
     element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer&&state.capabilities.translation?.available?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
+    if(prefs.autoTranslate&&result.answer&&!result.analysisPending){const button=element.querySelector('[data-translate-answer]');if(button)translateAssistantAnswer(button);}
   }
   async function translateAssistantAnswer(button){
     const message=button.closest('.chat-message'),answer=message?.querySelector('.chat-answer'),panel=message?.querySelector('.chat-translation');
@@ -886,7 +906,7 @@
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
     $('themeToggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
     $('logoutButton').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
-    $('accountNav').addEventListener('click',openAccount); $('accountClose').addEventListener('click',()=>$('accountDialog').close()); $('accountLogout').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
+    $('accountNav').addEventListener('click',openAccount); $('accountIdentity')?.addEventListener('click',openAccount); $('accountClose').addEventListener('click',()=>$('accountDialog').close()); $('accountLogout').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('accountDialog').addEventListener('click',event=>{if(event.target===$('accountDialog'))$('accountDialog').close();});
     $('accountPasswordForm').addEventListener('submit',async event=>{event.preventDefault();const status=$('accountPasswordStatus');status.textContent='جارٍ الحفظ…';try{const response=await fetch('/api/account/password',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('accountCurrentPassword').value,newPassword:$('accountNewPassword').value})}),data=await response.json();if(!response.ok)throw new Error(data.error||'تعذر تغيير كلمة المرور.');event.target.reset();status.textContent='حُفظت كلمة المرور الجديدة.';}catch(error){status.textContent=error.message;}});
     $('settingsClose').addEventListener('click', () => $('settings').close());$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
@@ -895,7 +915,7 @@
     $('searchHistoryEnabled').addEventListener('change', event => { prefs.searchHistory = event.target.checked; if (!prefs.searchHistory) { state.queries = []; store.set('queries', []); } persistPrefs(); toast(prefs.searchHistory ? 'فُعّل سجل البحث؛ ستُحفظ عمليات البحث التالية محلياً.' : 'أُوقف سجل البحث وحُذفت العبارات المحفوظة محلياً.'); });
     $('dictationEngine').addEventListener('change', event => { stopMic(true); prefs.dictationEngine = event.target.value; persistPrefs(); refreshSettings(); });
     $('assistantGroq').addEventListener('click',()=>{if(state.capabilities.ai?.mode!=='groq_model')return;prefs.assistantEngine=prefs.assistantEngine==='groq'?'sources':'groq';persistPrefs();refreshAssistantTools();});
-    $('assistantLocalTranslate').addEventListener('click',()=>{const button=[...$('chatMessages').querySelectorAll('.chat-message.assistant [data-translate-answer]')].at(-1);if(button)translateAssistantAnswer(button);else toast('اسأل المساعد أولاً لترجمة آخر إجابة.');});
+    $('assistantLocalTranslate').addEventListener('click',()=>{prefs.autoTranslate=!prefs.autoTranslate;persistPrefs();refreshAssistantTools();if(!prefs.autoTranslate)return;const button=[...$('chatMessages').querySelectorAll('.chat-message.assistant [data-translate-answer]')].at(-1);if(button&&!button.disabled)translateAssistantAnswer(button);});
     $('readingEngine').addEventListener('change', event => { stopReading(); prefs.readingEngine = event.target.value; persistPrefs(); refreshSettings(); });
     $('allowNetworkVoices').addEventListener('change', event => { stopReading(); prefs.allowNetworkVoices = event.target.checked; prefs.voice = ''; persistPrefs(); populateVoices(); refreshSettings(); });
     $('voiceSelect').addEventListener('change', event => { stopReading(); prefs.voice = event.target.value; persistPrefs(); });
@@ -904,10 +924,10 @@
     $('readRate').addEventListener('change', event => { prefs.rate = event.target.value; persistPrefs(); if (state.reading) { stopReading(); audioStatus('تغيّرت السرعة. اضغط استمع لبدء القراءة بالسرعة الجديدة.'); } });
     $('menuToggle').addEventListener('click', () => { const open = $('sidebar').classList.toggle('open'); $('sidebarScrim').hidden = !open; $('menuToggle').setAttribute('aria-expanded', String(open)); }); $('sidebarScrim').addEventListener('click', closeSidebar);
     $('fullscreenBtn').addEventListener('click', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { toast('تعذر تفعيل ملء الشاشة في هذا المتصفح.'); } });
-    document.addEventListener('fullscreenchange', () => { const active=!!document.fullscreenElement; $('fullscreenBtn').title=active?'إنهاء ملء الشاشة':'ملء الشاشة'; $('fullscreenBtn').setAttribute('aria-label',$('fullscreenBtn').title); });
-    window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt=event; $('installAppBtn').hidden=false; toast('يمكنك تثبيت المكتبة الرقمية على جهازك من زر التثبيت في الشريط العلوي.'); });
-    window.addEventListener('appinstalled', () => { deferredInstallPrompt=null; $('installAppBtn').hidden=true; toast('تم تثبيت المكتبة الرقمية على جهازك.'); });
-    $('installAppBtn').addEventListener('click', async () => { if (!deferredInstallPrompt) { toast('للتثبيت افتح قائمة المتصفح ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».'); return; } deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; $('installAppBtn').hidden=true; });
+    document.addEventListener('fullscreenchange', () => { const active=!!document.fullscreenElement; $('fullscreenBtn').title=active?'إنهاء ملء الشاشة':'ملء الشاشة'; $('fullscreenBtn').setAttribute('aria-label',$('fullscreenBtn').title); $('fullscreenBtn').innerHTML=active?ICONS.minimize:ICONS.maximize; });
+    window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt=event; toast('يمكنك تثبيت المكتبة الرقمية على جهازك من الإعدادات.'); });
+    window.addEventListener('appinstalled', () => { deferredInstallPrompt=null; toast('تم تثبيت المكتبة الرقمية على جهازك.'); });
+    $('installAppBtn').addEventListener('click', async () => { if (!deferredInstallPrompt) { toast('للتثبيت افتح قائمة المتصفح ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».'); return; } deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; });
     if ('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});
     $('browseToggle').addEventListener('click', () => { const open = $('browsePanel').hidden; $('browsePanel').hidden = !open; $('browseToggle').setAttribute('aria-expanded', String(open)); if (!open) { state.browseGroup = ''; $('browseContent').hidden = true; $('browseGroups').hidden = false; document.querySelectorAll('[data-browse-group]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); }); } });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('sidebar').classList.contains('open')) closeSidebar(); });
@@ -939,7 +959,7 @@
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
-    wireEvents(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
+    wireEvents(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
     window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });

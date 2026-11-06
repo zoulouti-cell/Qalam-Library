@@ -1,0 +1,98 @@
+/* هوية موحدة مع المكتب الرقمي: أيقونات التحكم، مفاتيح التفعيل، بطاقات الإعدادات، الحساب، والمساعد.
+   يُحمَّل بعد بقية الأنماط فيعلو عليها دون تغيير بنيتها. */
+:root{--q-forest-950:#06231a;--q-forest-900:#0b2f24;--q-forest-800:#113a2c;--q-forest-700:#164a38;--q-forest-600:#1c5c45;--q-forest-50:#eef5f1;--q-gold-500:#c39a44;--q-gold-400:#d4ae5c;--q-gold-200:#eedcae;--q-cream:#f7f5ef;--q-line:#e3dccb;--q-ink:#17241e;--q-muted:#58665e;--q-card:#fffefa}
+:root[data-theme="dark"]{--q-cream:#101b16;--q-line:#2a3d34;--q-ink:#e7eee8;--q-muted:#a8b8ae;--q-card:#13241d;--q-forest-50:#142019}
+
+/* ———— أيقونات التحكم في الشريط العلوي (المظهر، الإعدادات، ملء الشاشة) بقياس المكتب وسمكه ———— */
+.identity-header .topbar-actions{gap:4px}
+.identity-header .topbar-actions .header-control{display:grid;place-items:center;width:36px;height:36px;padding:0;margin:0;border:0;border-radius:10px;background:transparent;color:#f2d790;font-size:0;line-height:0;transition:background .15s,color .15s}
+.identity-header .topbar-actions .header-control:hover{background:#ffffff14;color:#ffe9b0}
+.identity-header .topbar-actions .header-control:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
+.identity-header .topbar-actions .header-control svg{display:block;width:18px;height:18px}
+.identity-header .topbar-actions .theme-toggle svg{width:19px;height:19px}
+.identity-header .connection-pill{margin-inline-start:6px}
+
+/* ———— مفتاح التفعيل: نفس مفتاح إعدادات المكتب (34×20، أخضر عند التفعيل) ———— */
+.qalam-switch{position:relative;flex:none;display:inline-block;inline-size:34px;block-size:20px;border-radius:999px;background:#d9d3c3;transition:background .18s ease}
+.qalam-switch::before{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;inline-size:16px;block-size:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transition:inset-inline-start .18s ease}
+.qalam-switch.is-on{background:#174734}.qalam-switch.is-on::before{inset-inline-start:16px}
+:root[data-theme="dark"] .qalam-switch{background:#3a4d44}:root[data-theme="dark"] .qalam-switch.is-on{background:#c8a24a}
+/* خانات role=switch القائمة تأخذ الشكل نفسه */
+.settings-dialog .switch-row input[role="switch"]{appearance:none;-webkit-appearance:none;position:relative;flex:none;inline-size:34px;block-size:20px;margin:0;border:0;border-radius:999px;background:#d9d3c3;cursor:pointer;transition:background .18s ease}
+.settings-dialog .switch-row input[role="switch"]::before{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;right:auto;top:auto;inline-size:16px;block-size:16px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transform:none;transition:inset-inline-start .18s ease}
+.settings-dialog .switch-row input[role="switch"]:checked{background:#174734}
+.settings-dialog .switch-row input[role="switch"]:checked::before{inset-inline-start:16px;transform:none}
+.settings-dialog .switch-row input[role="switch"]:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
+:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]{background:#3a4d44}:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]:checked{background:#c8a24a}
+
+/* ———— الإعدادات: بطاقات بأيقونات كإعدادات المكتب وقلم التحرير ———— */
+.settings-dialog-editorial{width:min(920px,calc(100vw - 32px));border:1px solid var(--q-line);border-radius:22px;background:var(--q-cream);box-shadow:0 30px 80px #06231a40}
+.settings-dialog-editorial .simple-dialog-header{padding:16px 22px;border-bottom:1px solid var(--q-line);background:var(--q-card)}
+.settings-title{display:flex;align-items:center;gap:12px}
+.settings-title h2{margin:0;font-size:20px;font-weight:800;color:var(--q-ink)}
+.settings-title p{margin:2px 0 0;font-size:12px;color:var(--q-muted)}
+.settings-dialog-editorial .settings-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;padding:18px 22px 22px}
+.settings-dialog-editorial .settings-content>section.settings-card{display:grid;gap:10px;margin:0;padding:18px;border:1px solid var(--q-line);border-radius:18px;background:var(--q-card);box-shadow:0 1px 0 #ffffff80 inset,0 6px 18px #06231a0d}
+.settings-dialog-editorial .settings-content>section.settings-card:last-child{border-bottom:1px solid var(--q-line)}
+.settings-card-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px}
+.settings-card-head h3{margin:0;font-size:16px;font-weight:800;color:var(--q-ink)}
+.settings-card-head p{margin:3px 0 0;font-size:12px;line-height:1.7;color:var(--q-muted)}
+.settings-card-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:12px;background:var(--q-forest-900);color:#fff;box-shadow:0 4px 10px #06231a26}
+.settings-card-icon svg{width:19px;height:19px}
+.settings-dialog-editorial .switch-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 14px;border:1px solid var(--q-line);border-radius:14px;background:color-mix(in srgb,var(--q-cream) 55%,transparent);cursor:pointer}
+.settings-dialog-editorial .switch-row strong{display:block;font-size:13.5px;font-weight:700;color:var(--q-ink)}
+.settings-dialog-editorial .switch-row small{display:block;margin-top:3px;font-size:11.5px;line-height:1.7;color:var(--q-muted)}
+.settings-dialog-editorial .setting-note{margin:0;font-size:12px;line-height:1.8;color:var(--q-muted)}
+.settings-dialog-editorial .field-label{display:block;margin:2px 0 -4px;font-size:12.5px;font-weight:700;color:var(--q-ink)}
+.settings-dialog-editorial select{width:100%;height:40px;padding:0 12px;border:1px solid var(--q-line);border-radius:10px;background:var(--q-card);color:var(--q-ink);font-size:13px}
+.settings-dialog-editorial .secondary-button{justify-self:start;min-height:38px;padding:7px 14px;border:1px solid var(--q-line);border-radius:10px;background:var(--q-card);color:var(--q-forest-700);font-size:12.5px;font-weight:700}
+.settings-dialog-editorial .secondary-button:hover{border-color:#9fbfaf;background:#f2f7f3}
+.settings-dialog-editorial .privacy-callout{margin:0;padding:10px 12px;border:1px solid #e2c58399;border-radius:12px;background:#fbf6e8;color:#7a5a1e;font-size:12px;line-height:1.7}
+:root[data-theme="dark"] .settings-dialog-editorial .privacy-callout{background:#2b2615;color:#eedcae}
+:root[data-theme="dark"] .settings-card-icon{background:#c8a24a;color:#0b2f24}
+@media(max-width:760px){.settings-dialog-editorial .settings-content{grid-template-columns:1fr;padding:14px}}
+
+/* ———— الحساب في الشريط الجانبي: زر الخروج أمام «حسابي»، والاسم والصورة من Google تحته ———— */
+.account-row{display:flex;align-items:center;gap:6px}
+.account-row .account-nav{flex:1;min-width:0}
+.account-logout{display:grid;place-items:center;flex:none;width:34px;height:34px;padding:0;border:0;border-radius:10px;background:transparent;color:#e8d7a5;cursor:pointer;transition:background .15s,color .15s}
+.account-logout:hover{background:#ffffff14;color:#ffe2a0}
+.account-logout:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
+.account-identity{display:flex;align-items:center;gap:10px;width:100%;margin:2px 0 4px;padding:8px 10px;border:1px solid #ffffff1a;border-radius:14px;background:#ffffff0a;color:inherit;text-align:start;cursor:pointer}
+.account-identity:hover{background:#ffffff12;border-color:#d4ae5c55}
+.account-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;overflow:hidden;border-radius:50%;background:linear-gradient(135deg,#f3d17e,#c39a44);color:#0b2f24;font-weight:800;font-size:15px;box-shadow:0 0 0 2px #d4ae5c66}
+.account-avatar img{width:100%;height:100%;object-fit:cover}
+.account-avatar img[hidden],.account-avatar span[hidden]{display:none}
+.account-identity-text{display:grid;min-width:0;line-height:1.35}
+.account-identity-text strong{overflow:hidden;font-size:13.5px;font-weight:700;text-overflow:ellipsis;white-space:nowrap;color:#fff6dc}
+.account-identity-text small{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap;color:#c9d6cc;text-align:start}
+
+/* نافذة «حسابي»: الخروج بجانب العنوان، والهوية تحته */
+.account-dialog-header .account-dialog-title{display:flex;align-items:center;gap:10px}
+.account-dialog-header h2{margin:0}
+.account-logout.account-logout-text{display:inline-flex;gap:6px;width:auto;height:32px;padding:0 11px;border:1px solid var(--q-line);border-radius:10px;background:var(--q-card);color:#8a3b2e;font-size:12.5px;font-weight:700}
+.account-logout.account-logout-text:hover{background:#fbeeea;border-color:#e1b7ad;color:#7a2f23}
+.account-identity.account-identity-large{margin:14px 0 4px;padding:12px 14px;border-color:var(--q-line);background:var(--q-card);cursor:default}
+.account-identity.account-identity-large .account-avatar{width:48px;height:48px;font-size:19px}
+.account-identity.account-identity-large .account-identity-text strong{font-size:16px;color:var(--q-ink)}
+.account-identity.account-identity-large .account-identity-text small{font-size:12px;color:var(--q-muted)}
+
+/* ———— المساعد: الدائرة والكتاب نفسهما في البوابة وشاشة الدخول ———— */
+.assistant-nav-icon img{display:block;width:24px;height:24px}
+.nav-item>span.assistant-nav-icon{width:24px;font-size:0}
+.assistant-emblem{display:inline-grid;place-items:center;flex:none}
+.assistant-emblem img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 10px #00000040)}
+.assistant-header .assistant-emblem{width:46px;height:46px}
+.assistant-welcome .assistant-emblem{width:84px;height:84px;margin-inline:auto}
+
+/* مفتاحا الترجمة والذكاء الاصطناعي: صف بمفتاح كإعدادات المكتب */
+.assistant-tools .assistant-switch{display:flex;flex:0 1 auto;align-items:center;justify-content:space-between;gap:12px;min-height:38px;padding:6px 12px;border:1px solid var(--q-line);border-radius:12px;background:var(--q-card);color:var(--q-ink);font-size:12.5px;font-weight:700}
+.assistant-tools .assistant-switch:hover,.assistant-tools .assistant-switch.active{border-color:#9fbfaf;background:#f2f7f3;color:var(--q-ink)}
+.assistant-tools .assistant-switch:disabled{opacity:.55;cursor:not-allowed}
+.assistant-switch-label{display:inline-flex;align-items:center;gap:7px}
+.assistant-switch-label svg{color:var(--q-gold-500)}
+:root[data-theme="dark"] .assistant-tools .assistant-switch,:root[data-theme="dark"] .assistant-tools .assistant-switch.active{background:#13241d;border-color:#2a3d34;color:#e7eee8}
+.main-nav>.account-row,.main-nav>.account-identity{grid-column:1/-1}
+.main-nav>.account-row{margin-top:2px;padding-top:6px;border-top:1px solid #ffffff14}
+.sidebar-foot .sidebar-settings svg{display:block;width:18px;height:18px}
+@media(max-width:720px){.identity-header .topbar-actions .header-control{width:30px;height:32px}.identity-header .topbar-description{inset-inline-end:112px}}
