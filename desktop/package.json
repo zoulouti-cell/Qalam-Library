@@ -30,6 +30,10 @@
           "**/*",
           "!data/library.sqlite"
         ]
+      },
+      {
+        "from": "library/node_modules",
+        "to": "library/node_modules"
       }
     ],
     "win": {

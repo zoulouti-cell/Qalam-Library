@@ -131,9 +131,11 @@ jobs:
           $offline = Join-Path $root 'release\qalam-library-offline'
           $desktop = Join-Path $root 'release\qalam-library-desktop-build'
           $output = Join-Path $root 'release\qalam-library-desktop'
-          New-Item -ItemType Directory -Force -Path $desktop, "$desktop\library", "$output" | Out-Null
+          $appOutput = Join-Path $output 'المكتبة الرقمية'
+          New-Item -ItemType Directory -Force -Path $desktop, "$desktop\library", "$output", $appOutput | Out-Null
           Copy-Item 'desktop\main.cjs', 'desktop\package.json' -Destination $desktop
           Copy-Item "$offline\*" -Destination "$desktop\library" -Recurse
+          if (-not (Test-Path -LiteralPath "$desktop\library\node_modules\pdf-lib\package.json")) { throw 'The PDF runtime dependency was not assembled into the desktop build.' }
           Remove-Item -LiteralPath "$desktop\library\data\library.sqlite" -Force
           foreach ($runtimeFile in @('node.exe','msvcp140.dll','msvcp140_1.dll','msvcp140_2.dll','msvcp140_atomic_wait.dll','msvcp140_codecvt_ids.dll','vcruntime140.dll','vcruntime140_1.dll','vcruntime140_threads.dll')) {
             $runtimePath = Join-Path "$desktop\library" $runtimeFile
@@ -145,15 +147,17 @@ jobs:
           npm run package:windows
           if ($LASTEXITCODE -ne 0) { throw 'Packaging the Windows desktop application failed.' }
           Pop-Location
-          Copy-Item "$desktop\dist\win-unpacked\*" -Destination $output -Recurse
-          New-Item -ItemType Directory -Force -Path "$output\data" | Out-Null
-          Copy-Item "$offline\data\library.sqlite" "$output\data\library.sqlite"
+          $packedPdfLib = "$desktop\dist\win-unpacked\resources\library\node_modules\pdf-lib\package.json"
+          if (-not (Test-Path -LiteralPath $packedPdfLib)) { throw 'The packaged application is missing pdf-lib runtime files.' }
+          Copy-Item "$desktop\dist\win-unpacked\*" -Destination $appOutput -Recurse
+          New-Item -ItemType Directory -Force -Path "$appOutput\data" | Out-Null
+          Copy-Item "$offline\data\library.sqlite" "$appOutput\data\library.sqlite"
           @'
           المكتبة الرقمية — برنامج Windows محمول
 
           هذه نسخة برنامج بواجهة Windows مستقلة، ولا تحتاج إلى تثبيت Node.js أو فتح المتصفح يدوياً.
-          استخرج محتويات الحزمة كاملة إلى مجلد المكتبة الرقمية. تتضمن الحزمة قاعدة المكتبة داخل data\library.sqlite.
-          ضع مجلدات الأصول الأصلية بجانب مجلد البرنامج في جذر USB. يعمل البرنامج على Windows 64-bit، وتتوقف خدمته المحلية عند إغلاق نافذته.
+          استخرج مجلد «المكتبة الرقمية» كاملاً إلى جذر USB. تتضمن الحزمة قاعدة المكتبة داخل مجلد data.
+          ضع مجلدات الأصول الأصلية في جذر USB بجانب مجلد البرنامج. يعمل البرنامج على Windows 64-bit، وتتوقف خدمته المحلية عند إغلاق نافذته.
           لا تحتوي هذه الحزمة على ملفات PDF الأصلية؛ تبقى الملفات الأصلية على USB.
           '@ | Set-Content -Encoding utf8 "$output\اقرأني-البرنامج.txt"
           Compress-Archive -Path "$output\*" -DestinationPath (Join-Path $root 'release\qalam-library-windows-desktop.zip') -CompressionLevel Optimal -Force
@@ -169,4 +173,3 @@ jobs:
           path: release/qalam-library-windows-desktop.zip
           if-no-files-found: error
           retention-days: 30
-
