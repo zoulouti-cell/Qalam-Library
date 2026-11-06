@@ -4,7 +4,6 @@ document.querySelectorAll('[data-password-toggle]').forEach(button => {
   button.addEventListener('click', () => {
     const visible = input.type === 'password';
     input.type = visible ? 'text' : 'password';
-    button.textContent = visible ? 'إخفاء' : 'إظهار';
     button.setAttribute('aria-pressed', String(visible));
     button.setAttribute('aria-label', visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
   });
