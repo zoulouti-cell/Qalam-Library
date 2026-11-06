@@ -431,6 +431,7 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] #readerBody{background:#151d18!important;color:#e0e8df!important}
 :root[data-theme="dark"] #readerBody h3{color:#e0c774}
 :root[data-theme="dark"] #readerBody .reading-current{background:#344330;box-shadow:0 0 0 5px #344330}
+:root[data-theme="dark"] .card-preview{background:#202a23;color:#e3e9df;border-right-color:#b99c56}
 
 /* Assistant actions share the library's green and gold controls. */
 .assistant-tools{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
