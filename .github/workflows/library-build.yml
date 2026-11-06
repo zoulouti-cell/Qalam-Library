@@ -146,13 +146,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Packaging the Windows desktop application failed.' }
           Pop-Location
           Copy-Item "$desktop\dist\win-unpacked\*" -Destination $output -Recurse
+          New-Item -ItemType Directory -Force -Path "$output\data" | Out-Null
+          Copy-Item "$offline\data\library.sqlite" "$output\data\library.sqlite"
           @'
           المكتبة الرقمية — برنامج Windows محمول
 
           هذه نسخة برنامج بواجهة Windows مستقلة، ولا تحتاج إلى تثبيت Node.js أو فتح المتصفح يدوياً.
-          استخرج محتويات الحزمة داخل مجلد نسخة المكتبة المحلية القائم، مع إبقاء مجلد data\library.sqlite والملفات الأصلية على USB كما هي.
+          استخرج محتويات الحزمة كاملة إلى مجلد المكتبة الرقمية. تتضمن الحزمة قاعدة المكتبة داخل data\library.sqlite.
           ضع مجلدات الأصول الأصلية بجانب مجلد البرنامج في جذر USB. يعمل البرنامج على Windows 64-bit، وتتوقف خدمته المحلية عند إغلاق نافذته.
-          لا تحتوي هذه الحزمة على ملفات PDF الأصلية أو قاعدة المكتبة؛ فهي تبقى في النسخة المحلية الموجودة على USB.
+          لا تحتوي هذه الحزمة على ملفات PDF الأصلية؛ تبقى الملفات الأصلية على USB.
           '@ | Set-Content -Encoding utf8 "$output\اقرأني-البرنامج.txt"
           Compress-Archive -Path "$output\*" -DestinationPath (Join-Path $root 'release\qalam-library-windows-desktop.zip') -CompressionLevel Optimal -Force
       - uses: actions/upload-artifact@v4
@@ -167,3 +169,4 @@ jobs:
           path: release/qalam-library-windows-desktop.zip
           if-no-files-found: error
           retention-days: 30
+
