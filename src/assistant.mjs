@@ -64,7 +64,7 @@ function extractive(question,sources,extra=[]){
   const answer=intro+(sources.length?'\n\n'+sources.slice(0,3).map((s,i)=>`[${i+1}] ${s.title}${s.label?' — '+s.label:''}\n${s.excerpt.slice(0,900)}`).join('\n\n'):'\nجرّب اسم القانون أو رقم المادة أو مصطلحاً قانونياً أكثر تحديداً.');
   return {mode:'extractive',answer,sources,limitations:[...extra,'المحتوى المستخرج لم يخضع كله لمراجعة بشرية حرفية.','غياب علامة النسخ لا يثبت أن النص نافذ حالياً.'],citationsVerified:!!sources.length};
 }
-export async function answerQuestion(library,{question,history=[],documentId,retrieveOnly=false,analysisMode='groq',groqModel}={}){
+export async function answerQuestion(library,{question,history=[],documentId,retrieveOnly=false,analysisMode='groq',groqModel,processingLevel='balanced'}={}){
   question=String(question||'').trim().slice(0,4000);if(!question)throw new Error('اكتب السؤال أولاً.');
   if(/^(السلام عليكم|مرحبا|أهلا|اهلا|سلام)[!؟.\s]*$/.test(question))return {mode:'extractive',answer:'مرحباً بك. اذكر المسألة القانونية والوقائع الأساسية والتاريخ، أو اختر نصاً من المكتبة لنبحث فيه مع إحالات واضحة.',sources:[],limitations:[],citationsVerified:false};
   const sources=library.retrieve(question,documentId);
@@ -78,31 +78,31 @@ export async function answerQuestion(library,{question,history=[],documentId,ret
   const capability=await aiCapability();if(!capability.available)return extractive(question,sources,['لا يوجد نموذج لغوي متصل؛ يعمل المساعد الآن في وضع استرجاع المصادر.']);
   const releaseCompute=await reserveInteractiveCompute();
   try{
-    const mode=writingMode(question);
-    const selected=ready.slice(0,2);
-    const context=selected.map((s,i)=>({source:i+1,title:s.title,contentKind:s.textKind,documentType:s.documentType,kind:s.kind,date:s.date,label:s.label,excerpt:s.excerpt.slice(0,700)}));
+    const mode=writingMode(question),processing={fast:{sources:1,excerpt:420,maxTokens:450,maxWords:24},balanced:{sources:2,excerpt:700,maxTokens:700,maxWords:35},deep:{sources:3,excerpt:950,maxTokens:1100,maxWords:65}}[processingLevel]||{sources:2,excerpt:700,maxTokens:700,maxWords:35};
+    const selected=ready.slice(0,processing.sources);
+    const context=selected.map((s,i)=>({source:i+1,title:s.title,contentKind:s.textKind,documentType:s.documentType,kind:s.kind,date:s.date,label:s.label,excerpt:s.excerpt.slice(0,processing.excerpt)}));
     for(const source of context){source.quotationChoices=source.excerpt.split(/\n+|(?<=[.!؟؛])\s+/u).map(compact).filter(s=>s.length>=20&&!/^(المادة|الفصل|الباب|القسم)\s/.test(s)).slice(0,2).map(s=>s.split(/\s+/).slice(0,7).join(' '));if(!source.quotationChoices.length)source.quotationChoices=[compact(source.excerpt).split(/\s+/).slice(0,8).join(' ')];}
     const quoteOptions=[...new Set(context.flatMap(s=>s.quotationChoices))];
     const responseSchema=JSON.parse(JSON.stringify(schema));responseSchema.properties.paragraphs.items.properties.quote={type:'string',enum:quoteOptions};responseSchema.properties.paragraphs.items.properties.citations.items={type:'integer',enum:context.map(s=>s.source)};
     const past=Array.isArray(history)?history.slice(-2).filter(m=>['user','assistant'].includes(m.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content.slice(0,400)})):[];
     const instructions=MOROCCAN_LEGAL_PROFILE+'\n'+MODE_GUIDANCE[mode]+'\nكل فقرة قانونية في paragraphs تتضمن citations بأرقام المصادر وquote اقتباساً حرفياً قصيراً يدعمها. أعد JSON فقط: paragraphs:[{text,citations,quote}],questions:[],limitations:[]. إذا لم يكف الدليل فاترك paragraphs فارغة وبيّن النقص. أجب بقدر السؤال دون مقدمات عامة.';
     if(capability.mode==='gemini_model'){
-      const prompt=`${instructions}\nأعد فقرة واحدة لا تتجاوز 35 كلمة. اختر الاقتباس حرفياً من quotationChoices، ولا تستشهد إلا بالمصدر الذي تتضمنه citations. أعد كائن JSON بهذه البنية: {"paragraphs":[{"text":"...","citations":[1],"quote":"..."}],"questions":[],"limitations":[]}.\nالسؤال: ${question}\nالمصادر: ${JSON.stringify(context)}`;
-      const parsed=JSON.parse(await generateGeminiText(prompt,{model:capability.model,maxOutputTokens:700}));
+      const prompt=`${instructions}\nأعد إجابة مركزة لا تتجاوز ${processing.maxWords} كلمة. اختر الاقتباس حرفياً من quotationChoices، ولا تستشهد إلا بالمصدر الذي تتضمنه citations. أعد كائن JSON بهذه البنية: {"paragraphs":[{"text":"...","citations":[1],"quote":"..."}],"questions":[],"limitations":[]}.\nالسؤال: ${question}\nالمصادر: ${JSON.stringify(context)}`;
+      const parsed=JSON.parse(await generateGeminiText(prompt,{model:capability.model,maxOutputTokens:processing.maxTokens}));
       const checked=validateModelAnswer(parsed,selected.map((s,i)=>({...s,excerpt:context[i].excerpt})));
       if(!checked.answer.trim())return extractive(question,sources,['المقتطفات لا تكفي للاستنتاج المطلوب.',...checked.limitations]);
       return {mode:capability.mode,answer:checked.answer,sources:selected,limitations:[...checked.limitations,'تحقق النظام من الإحالات والاقتباس داخل المقتطفات؛ ولا يغني ذلك عن مراجعة المحامي للمصدر وسريانه.'],citationsVerified:true};
     }
     if(capability.mode==='groq_model'){
-      const prompt=`${instructions}\nأعد فقرة واحدة لا تتجاوز 35 كلمة. اختر الاقتباس حرفياً من quotationChoices، ولا تستشهد إلا بالمصدر الذي تتضمنه citations. أعد كائن JSON بهذه البنية: {"paragraphs":[{"text":"...","citations":[1],"quote":"..."}],"questions":[],"limitations":[]}.\nالسؤال: ${question}\nالمصادر: ${JSON.stringify(context)}`;
-      const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:selectedGroqModel(groqModel),messages:[{role:'user',content:prompt}],response_format:{type:'json_object'},max_tokens:700,temperature:0.1}),signal:AbortSignal.timeout(60_000)});
+      const prompt=`${instructions}\nأعد إجابة مركزة لا تتجاوز ${processing.maxWords} كلمة. اختر الاقتباس حرفياً من quotationChoices، ولا تستشهد إلا بالمصدر الذي تتضمنه citations. أعد كائن JSON بهذه البنية: {"paragraphs":[{"text":"...","citations":[1],"quote":"..."}],"questions":[],"limitations":[]}.\nالسؤال: ${question}\nالمصادر: ${JSON.stringify(context)}`;
+      const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:selectedGroqModel(groqModel),messages:[{role:'user',content:prompt}],response_format:{type:'json_object'},max_tokens:processing.maxTokens,temperature:0.1}),signal:AbortSignal.timeout(60_000)});
       const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(String(payload.error?.message||`Groq API (HTTP ${response.status})`).slice(0,240));
       const parsed=JSON.parse(payload.choices?.[0]?.message?.content||'{}'),checked=validateModelAnswer(parsed,selected.map((s,i)=>({...s,excerpt:context[i].excerpt})));
       if(!checked.answer.trim())return extractive(question,sources,['المقتطفات لا تكفي للاستنتاج المطلوب.',...checked.limitations]);
       return {mode:capability.mode,answer:checked.answer,sources:selected,limitations:[...checked.limitations,'تحقق النظام من الإحالات والاقتباس داخل المقتطفات؛ ولا يغني ذلك عن مراجعة المحامي للمصدر وسريانه.'],citationsVerified:true};
     }
     const c=connection();
-    const r=await fetch(c.root+'/v1/chat/completions',{method:'POST',headers:c.headers,body:JSON.stringify({model:process.env.AI_MODEL||(c.local?'local':capability.model),messages:[{role:'system',content:instructions+'\nفقرة واحدة لا تتجاوز 35 كلمة. اختر quote حرفياً من quotationChoices للمصدر الذي تستشهد به. اجعل questions وlimitations فارغتين إلا عند الحاجة.'},...past,{role:'user',content:JSON.stringify({question,sources:context})}],response_format:{type:'json_object',schema:responseSchema},max_tokens:480,temperature:0.1,stream:false}),signal:AbortSignal.timeout(90000)});
+    const r=await fetch(c.root+'/v1/chat/completions',{method:'POST',headers:c.headers,body:JSON.stringify({model:process.env.AI_MODEL||(c.local?'local':capability.model),messages:[{role:'system',content:instructions+`\nإجابة مركزة لا تتجاوز ${processing.maxWords} كلمة. اختر quote حرفياً من quotationChoices للمصدر الذي تستشهد به. اجعل questions وlimitations فارغتين إلا عند الحاجة.`},...past,{role:'user',content:JSON.stringify({question,sources:context})}],response_format:{type:'json_object',schema:responseSchema},max_tokens:processing.maxTokens,temperature:0.1,stream:false}),signal:AbortSignal.timeout(90000)});
     if(!r.ok)throw new Error('Model request failed');const j=await r.json();let content=j.choices?.[0]?.message?.content||'';
     content=content.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();const parsed=JSON.parse(content),checked=validateModelAnswer(parsed,selected.map((s,i)=>({...s,excerpt:context[i].excerpt})));
     if(!checked.answer.trim())return extractive(question,sources,['المقتطفات لا تكفي للاستنتاج المطلوب.',...checked.limitations]);

@@ -91,7 +91,7 @@ async function assistantPolicy(){
   const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{assistant:1}}):null;
   const config=saved?.assistant||{};
   const configuredModel=selectedGroqModel();
-  return {aiEnabled:config.aiEnabled!==false,translationEnabled:config.translationEnabled!==false,translationEngine:config.translationEngine==='local'?'local':'deepl',groqModel:GROQ_CHAT_MODELS.includes(config.groqModel)?config.groqModel:GROQ_CHAT_MODELS.includes(configuredModel)?configuredModel:GROQ_CHAT_MODELS[0]};
+  return {aiEnabled:config.aiEnabled!==false,translationEnabled:config.translationEnabled!==false,translationEngine:config.translationEngine==='local'?'local':'deepl',processingLevel:['fast','balanced','deep'].includes(config.processingLevel)?config.processingLevel:'balanced',groqModel:GROQ_CHAT_MODELS.includes(config.groqModel)?config.groqModel:GROQ_CHAT_MODELS.includes(configuredModel)?configuredModel:GROQ_CHAT_MODELS[0]};
 }
 async function configuredOwnerEmail(){const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{ownerEmail:1}}):null;return String(saved?.ownerEmail||ownerEmail()).trim().toLowerCase();}
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
@@ -449,10 +449,10 @@ const server=http.createServer(async(req,res)=>{
       if(req.method==='GET')return send(req,res,200,{...await assistantPolicy(),groqConfigured:!!process.env.GROQ_API_KEY,deeplConfigured:!!deeplApiKey(),models:GROQ_CHAT_MODELS});
       if(req.method!=='POST')return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
       let body;try{body=await jsonBody(req,2000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
-      if(!GROQ_CHAT_MODELS.includes(body.groqModel)||!['local','deepl'].includes(body.translationEngine)||typeof body.aiEnabled!=='boolean'||typeof body.translationEnabled!=='boolean')return send(req,res,400,{error:'إعدادات المساعد غير صالحة.'});
-      const assistant={aiEnabled:body.aiEnabled,translationEnabled:body.translationEnabled,translationEngine:body.translationEngine,groqModel:body.groqModel};
+      if(!GROQ_CHAT_MODELS.includes(body.groqModel)||!['local','deepl'].includes(body.translationEngine)||!['fast','balanced','deep'].includes(body.processingLevel)||typeof body.aiEnabled!=='boolean'||typeof body.translationEnabled!=='boolean')return send(req,res,400,{error:'إعدادات المساعد غير صالحة.'});
+      const assistant={aiEnabled:body.aiEnabled,translationEnabled:body.translationEnabled,translationEngine:body.translationEngine,processingLevel:body.processingLevel,groqModel:body.groqModel};
       await adminStore.settings.updateOne({_id:'library'},{$set:{assistant,updatedAt:new Date()},$setOnInsert:{createdAt:new Date()}},{upsert:true});
-      await recordAudit(adminStore,auditActor(req),'assistant_settings_updated','library',{aiEnabled:assistant.aiEnabled,translationEnabled:assistant.translationEnabled,translationEngine:assistant.translationEngine,groqModel:assistant.groqModel});
+      await recordAudit(adminStore,auditActor(req),'assistant_settings_updated','library',{aiEnabled:assistant.aiEnabled,translationEnabled:assistant.translationEnabled,translationEngine:assistant.translationEngine,processingLevel:assistant.processingLevel,groqModel:assistant.groqModel});
       return send(req,res,200,{ok:true,...assistant,groqConfigured:!!process.env.GROQ_API_KEY,deeplConfigured:!!deeplApiKey(),models:GROQ_CHAT_MODELS});
     }
     if(p==='/api/admin/content'&&req.method==='GET'){
@@ -464,12 +464,12 @@ const server=http.createServer(async(req,res)=>{
       const title=String(body.title||'').trim().slice(0,500),text=String(body.text||'').trim(),reason=String(body.reason||'').trim().slice(0,2000);if(title.length<3||text.length<40||!reason)return send(req,res,400,{error:'أدخل عنواناً ونصاً كاملاً وسبباً موثقاً للتعديل.'});
       const documentId=String(body.documentId||'managed_'+randomBytes(12).toString('hex')).slice(0,120);let base=null;try{base=library.document(documentId);}catch{}if(!base&&!documentId.startsWith('managed_'))return send(req,res,404,{error:'الوثيقة الأصلية غير موجودة في فهرس المكتبة.'});
       const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(base?.type||'national'),category:String(body.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||base?.date||'').slice(0,20),kind:String(body.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:String(body.sourceLabel||base?.sourceLabel||'').slice(0,300),reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin'};
-      if(!/^https:\/\//i.test(record.sourceUrl))return send(req,res,400,{error:'أدخل رابطاً رسمياً يبدأ بـ https:// قبل حفظ المسودة.'});
+      if(!/^https:\/\//i.test(record.sourceUrl))return send(req,res,400,{error:'أدخل رابط المصدر الرسمي أو رابط أصل Drive بصيغة https:// قبل حفظ المسودة.'});
       await adminStore.content.updateMany({documentId,status:'draft'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','draft_saved',documentId,{title,sourceUrl:record.sourceUrl});return send(req,res,201,{ok:true,documentId,status:'draft'});
     }
     if(p==='/api/admin/content/publish'&&req.method==='POST'){
       let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),draft=await adminStore.content.findOne({documentId,status:'draft'},{sort:{updatedAt:-1}});
-      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر الرسمي.'});
+      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر.'});
       await adminStore.content.updateMany({documentId,status:'published'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.updateOne({_id:draft._id},{$set:{status:'published',publishedAt:new Date(),publishedBy:'admin',updatedAt:new Date()}});await recordAudit(adminStore,'admin','content_published',documentId,{title:draft.title,sourceUrl:draft.sourceUrl});library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());return send(req,res,200,{ok:true,documentId,status:'published'});
     }
     if(p==='/api/admin/content/delete'&&req.method==='POST'){
@@ -558,7 +558,7 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/ask'){
       if(req.method!=='POST')return send(req,res,405,{error:'أرسل السؤال عبر POST.'});
       const body=await jsonBody(req),policy=await assistantPolicy();
-      body.analysisMode=policy.aiEnabled&&body.analysisMode==='groq'?'groq':'sources';body.groqModel=policy.groqModel;
+      body.analysisMode=policy.aiEnabled&&body.analysisMode==='groq'?'groq':'sources';body.groqModel=policy.groqModel;body.processingLevel=policy.processingLevel;
       const initial=await answerQuestion(library,{...body,retrieveOnly:true});
       const canAnalyze=initial.canAnalyze;delete initial.canAnalyze;
       if(canAnalyze&&activeAI===0&&(await aiCapability()).available){

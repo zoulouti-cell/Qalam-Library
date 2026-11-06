@@ -11,7 +11,9 @@ const curationBytes=fs.readFileSync(new URL('../data/judicial-curation.json',imp
 const curation=JSON.parse(curationBytes).entries||{};
 const referenceBytes=fs.readFileSync(new URL('../data/appeal-reference-overrides.json',import.meta.url));
 const referenceOverrides=JSON.parse(referenceBytes).entries||{};
-const fingerprint=createHash('sha256').update(indexBytes).update(curationBytes).update(referenceBytes).digest('hex');
+const nationalCurationBytes=fs.readFileSync(new URL('../data/national-curation.json',import.meta.url));
+const nationalCuration=JSON.parse(nationalCurationBytes);
+const fingerprint=createHash('sha256').update(indexBytes).update(curationBytes).update(referenceBytes).update(nationalCurationBytes).digest('hex');
 const rows=JSON.parse(brotliDecompressSync(indexBytes)).rows;
 const indexedIds=new Set(rows.map(row=>'jc:'+row[0]));
 const db=new DatabaseSync(file);
@@ -29,6 +31,7 @@ const insert=db.prepare('INSERT INTO documents(id,type,title,title_norm,category
 const insertFts=db.prepare('INSERT INTO search(rowid,title,body) VALUES(?,?,?)');
 const meta=db.prepare('INSERT OR REPLACE INTO metadata(key,value) VALUES(?,?)');
 let removed=0,updated=0,added=0;
+let removedNational=0,reclassifiedNational=0;
 db.exec('BEGIN');
 try{
   for(const row of existing){
@@ -56,6 +59,17 @@ try{
     const old=byId.get(id);if(!old)continue;
     update.run(old.category,ref.decisionNumber||'',ref.decisionNumber||'',old.decision_number,ref.caseNumber||'',ref.caseNumber||'',old.case_number,'',old.rowid);
   }
+  for(const item of nationalCuration.remove||[]){
+    const old=db.prepare('SELECT rowid,id,title,body FROM documents WHERE id=?').get(item.id);if(!old)continue;
+    deleteFts.run(old.rowid,old.title,brotliDecompressSync(old.body).toString('utf8'));
+    removeOrder.run(old.rowid);removeAudit.run(old.id);
+    if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='headings'").get())db.prepare('DELETE FROM headings WHERE doc_rowid=?').run(old.rowid);
+    if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='original_sequence'").get())db.prepare('DELETE FROM original_sequence WHERE doc_id=?').run(old.id);
+    if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='editorial_history'").get())db.prepare('DELETE FROM editorial_history WHERE doc_id=?').run(old.id);
+    remove.run(old.rowid);removedNational++;
+  }
+  const reclassify=db.prepare('UPDATE documents SET category=? WHERE id=?');
+  for(const [id,category] of Object.entries(nationalCuration.categories||{}))reclassifiedNational+=Number(reclassify.run(category,id).changes||0);
   installCatalogOrder(db);
   const stats=db.prepare("SELECT count(*) documents,sum(text_kind='extracted_text') texts,sum(text_kind='source_summary') summaries,sum(text_kind='image_only') catalogOnly,sum(review_status<>'human_verified') needsReview FROM documents").get();
   for(const [key,value] of Object.entries(stats))meta.run(key,JSON.stringify(value));
@@ -66,5 +80,5 @@ try{
   driveMap.ids={...(driveMap.ids||{}),...Object.fromEntries(Object.entries(referenceOverrides).filter(([,value])=>value.driveId).map(([id,value])=>[id,value.driveId]))};
   fs.writeFileSync(driveMapPath,brotliCompressSync(Buffer.from(JSON.stringify(driveMap))));
   db.exec('COMMIT');
-  console.log(JSON.stringify({removedFirstInstance:removed,reclassified:updated,added,documents:stats.documents}));
+  console.log(JSON.stringify({removedFirstInstance:removed,reclassified:updated,removedNational,reclassifiedNational,added,documents:stats.documents}));
 }catch(error){db.exec('ROLLBACK');throw error;}finally{db.close();}
