@@ -59,6 +59,7 @@ export class Library {
     if(['national','judicial','juriscassation'].includes(params.type)){clauses.push('d.type=?');values.push(params.type);}
     if(params.category==='المادة البيئية'){clauses.push("(d.category=? OR d.title LIKE '%الأجزاء التابعة%الملك العمومي%')");values.push(params.category);}
     else if(params.category==='مادة الفلاحة'){clauses.push("(d.category=? OR (d.category='قوانين وتشريعات وطنية' AND d.title NOT LIKE '%الأجزاء التابعة%'))");values.push(params.category);}
+    else if(params.category==='محكمة النقض - الخبرة'){clauses.push('d.category=?');values.push('اجتهادات قضائية - الخبرة والخبراء');}
     else if(params.category){clauses.push('d.category=?');values.push(String(params.category).slice(0,200));}    const kinds={text:'extracted_text',summary:'source_summary',catalog:'image_only'};
     if(kinds[params.quality]){clauses.push('d.text_kind=?');values.push(kinds[params.quality]);}
     for(const [key,operator] of [['from','>='],['to','<=']])if(/^\d{4}(?:-\d{2}-\d{2})?$/.test(params[key]||'')){clauses.push('d.date '+operator+' ?');values.push(params[key].length===4?params[key]+(key==='from'?'-01-01':'-12-31'):params[key]);}
