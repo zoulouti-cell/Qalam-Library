@@ -29,4 +29,9 @@
 :root[data-theme="dark"] .result-card .document-type.juriscassation,:root[data-theme="dark"] .result-card .document-type.national{color:#e4ca7c}
 :root[data-theme="dark"] .source-action{background:#343a25;border-color:#66704a;color:#ecebc9}
 :root[data-theme="dark"] .source-action:hover{background:#42492c;border-color:#a39756;color:#fff4ce}
+
+/* Keep origin and download controls in a stable left-to-right sequence. */
+.source-actions{direction:ltr;flex-direction:row;flex-wrap:nowrap;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
+.source-actions .drive-link-status{direction:rtl;max-width:min(34vw,220px);overflow:hidden;text-overflow:ellipsis}
+.reader-original-actions .source-actions .source-action:last-child{order:99}
 :root[data-theme="dark"] .reader-toolbar .find-controls button{background:#343a25;color:#ecebc9}

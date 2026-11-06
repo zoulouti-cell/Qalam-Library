@@ -226,6 +226,9 @@
 .query-clear-bottom:hover{background:#e2ebd7;color:#304d30}
 .search-input-wrap input::-webkit-search-cancel-button,.bottom-search-wrap input::-webkit-search-cancel-button{display:none}
 .reader-document-labels{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.account-dialog .account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.account-dialog .settings-content{max-height:min(76dvh,760px);overflow:auto}.account-dialog .primary-button{text-decoration:none}.account-dialog #accountPasswordPanel[hidden]{display:none}#resultsTitle{scroll-margin-top:78px}
+.document-category{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.reader-document-labels .document-category{font-size:12px;padding:3px 8px;max-width:min(35vw,360px)}
+.account-dialog{width:min(680px,calc(100vw - 28px))}.account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.account-grid>div{display:grid;gap:5px;padding:12px;background:var(--paper);border:1px solid var(--line);border-radius:10px}.account-grid small{color:var(--muted)}.account-grid strong{overflow-wrap:anywhere}.account-dialog-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}.account-dialog-actions [hidden]{display:none}.account-password-panel{padding-top:13px;border-top:1px solid var(--line)}.account-password-panel h3{margin:0 0 12px}.account-password-form{display:grid;gap:11px}.account-password-form label{display:grid;gap:6px;font-weight:700}.account-password-form input{width:100%;min-height:42px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--white);color:var(--ink)}.account-password-form p{margin:0}.account-nav{border:0;background:transparent;color:inherit;font:inherit;text-align:right;cursor:pointer}
 .reader-content-label{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .reader-document-labels .status-badge{font-size:12px;padding:3px 8px}
 .reader-header-top{justify-content:space-between}
@@ -439,5 +442,11 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 :root[data-theme="dark"] .assistant-tool{background:#2a382c;color:#e8d89f;border-color:#7b764e}
 :root[data-theme="dark"] .assistant-tool:hover,:root[data-theme="dark"] .assistant-tool.active{background:#d5b871;color:#173626;border-color:#e0c87e}
 :root[data-theme="dark"] .settings-content select{background:#263329;color:#e8e4c9;border-color:#59634a}
+
+/* Category badges stay legible beside the document type in cards and reader. */
+.result-card-head .document-category,.reader-document-labels .document-category{display:inline-flex;align-items:center;max-width:min(42%,360px);min-width:0;padding:3px 8px;border:1px solid var(--line);border-radius:5px;background:var(--green-soft);color:var(--muted);font-size:11px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root[data-theme="dark"] .reader-document-labels .document-category{background:#303b2b;border-color:#59634a;color:#e8e4c9}
+.account-dialog .account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:540px){.account-dialog .account-grid{grid-template-columns:1fr}.result-card-head .document-category{max-width:38%}}
 @media(max-width:480px){.assistant-source-indicator{width:100%;margin-left:0}.assistant-tool{flex:1}}
 
