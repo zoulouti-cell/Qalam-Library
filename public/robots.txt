@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /account
+Disallow: /archive
+Disallow: /change-password
+
+Sitemap: https://qalam-library.onrender.com/sitemap.xml
