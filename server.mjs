@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 22522)
+Total output lines: 610
+
 import http from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -310,76 +313,7 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/admin/profile/password'&&req.method==='POST'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
       const session=sessionInfo(req);
-      if(!session?.account||['env','legacy'].includes(session.account))return send(req,res,403,{error:'غيّر كلمة مرور حساب المدير الفردي بعد الدخول به، لا بكلمة الإدارة الأولية.'});
-      const email=Buffer.from(session.account,'base64url').toString('utf8'),body=await jsonBody(req),current=String(body.currentPassword||''),password=String(body.password||'');
-      if(password.length<12||password.length>256)return send(req,res,400,{error:'اختر كلمة مرور جديدة من 12 إلى 256 حرفاً.'});
-      const user=await adminStore.users.findOne({email,role:'admin',active:true});
-      if(!user||!verifyPassword(current,user.passwordSalt,user.passwordHash))return send(req,res,403,{error:'كلمة المرور الحالية غير صحيحة.'});
-      const saved=hashPassword(password);
-      await adminStore.users.updateOne({_id:user._id},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,mustChangePassword:false,updatedAt:new Date()}});
-      await recordAudit(adminStore,email,'admin_password_changed',email);
-      return send(req,res,200,{ok:true});
-    }
-    if(p==='/api/admin/users'&&req.method==='POST'){
-      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),role=String(body.role||'reader');if(!validEmail(email)||email.length>254)return send(req,res,400,{error:'أدخل بريداً إلكترونياً صالحاً.'});if(!['reader','admin'].includes(role))return send(req,res,400,{error:'الحسابات المستقلة تقتصر على القارئ ومدير المكتبة.'});if(await adminStore.users.findOne({email},{projection:{_id:1}}))return send(req,res,409,{error:'يوجد حساب بهذا البريد الإلكتروني.'});
-      if(emailReady()){await inviteUser(email,role,'administrator');return send(req,res,201,{ok:true,email,role,delivery:'email'});}
-      const temporaryPassword=randomBytes(12).toString('base64url'),saved=hashPassword(temporaryPassword),user={email,role,active:true,accountStatus:'active',mustChangePassword:true,passwordSalt:saved.salt,passwordHash:saved.hash,createdAt:new Date(),createdBy:'administrator',loginCount:0};await adminStore.users.insertOne(user);await recordAudit(adminStore,'administrator','user_created',email,{role});return send(req,res,201,{ok:true,email,role,temporaryPassword,mustChangePassword:true,delivery:'manual'});
-    }
-    if(p==='/api/admin/users/invite'&&req.method==='POST'){
-      if(!adminStore||!emailReady())return send(req,res,503,{error:'اضبط خدمة Brevo قبل إرسال الدعوات.'});
-      const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),user=await adminStore.users.findOne({email});
-      if(!user||user.accountStatus!=='pending')return send(req,res,409,{error:'الدعوة متاحة للحسابات التي تنتظر التفعيل فقط.'});
-      const token=activationToken(),digest=tokenDigest(token),now=new Date();
-      await adminStore.users.updateOne({email,accountStatus:'pending'},{$set:{activationTokenHash:digest,activationExpiresAt:new Date(now.getTime()+24*3600000)}});
-      const mail=activationMessage(activationUrl(token));await sendMail(email,mail.subject,mail.text,mail.html);
-      await adminStore.users.updateOne({email},{$set:{invitationSentAt:new Date()}});
-      await recordAudit(adminStore,'administrator','user_invitation_resent',email);
-      return send(req,res,200,{ok:true});
-    }
-    if(p==='/api/admin/users/notify'&&req.method==='POST'){
-      if(!adminStore||!emailReady()||!validEmail(await configuredOwnerEmail()))return send(req,res,503,{error:'إشعارات Brevo غير مهيأة.'});
-      const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),user=await adminStore.users.findOne({email},{projection:{activatedAt:1,activationNoticeSentAt:1}});
-      if(!user?.activatedAt||user.activationNoticeSentAt)return send(req,res,409,{error:'لا يوجد إشعار تفعيل معلّق لهذا الحساب.'});
-      await notifyOwner('activated',email,await configuredOwnerEmail());
-      await adminStore.users.updateOne({email},{$set:{activationNoticeSentAt:new Date()}});
-      await recordAudit(adminStore,'administrator','user_activation_notice_resent',email);
-      return send(req,res,200,{ok:true});
-    }
-    if(p==='/api/admin/users/reset'&&req.method==='POST'){
-      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),actor=sessionInfo(req)?.account||'';if(actor!=='env'&&actor!=='legacy'&&Buffer.from(actor,'base64url').toString('utf8')===email)return send(req,res,409,{error:'لا تعِد إصدار كلمة المرور لحسابك من هذه الجلسة؛ استخدم صفحة تغيير كلمة المرور.'});const target=await adminStore.users.findOne({email},{projection:{accountStatus:1}});if(!target)return send(req,res,404,{error:'لم يُعثر على الحساب.'});if(['pending','permanent'].includes(target.accountStatus))return send(req,res,409,{error:'لا يمكن إعادة إصدار كلمة مرور لحساب ينتظر التفعيل أو موقوف نهائياً.'});const temporaryPassword=randomBytes(12).toString('base64url'),saved=hashPassword(temporaryPassword),result=await adminStore.users.updateOne({email},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,mustChangePassword:true,updatedAt:new Date()}});await recordAudit(adminStore,'administrator','user_password_reset',email);return send(req,res,200,{ok:true,email,temporaryPassword,mustChangePassword:true});
-    }
-    if(p==='/api/admin/users/status'&&req.method==='POST'){
-      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),action=String(body.action||((body.active===true)?'resume':'suspend')),actor=sessionInfo(req)?.account||'';
-      if(!['resume','suspend','permanent'].includes(action))return send(req,res,400,{error:'حالة الحساب غير صالحة.'});
-      if(action!=='resume'&&actor!=='env'&&actor!=='legacy'&&Buffer.from(actor,'base64url').toString('utf8')===email)return send(req,res,409,{error:'لا يمكن تعطيل حساب الإدارة المستخدم حالياً.'});
-      const target=await adminStore.users.findOne({email},{projection:{role:1,accountStatus:1,active:1}});if(!target)return send(req,res,404,{error:'لم يُعثر على الحساب.'});
-      if(target.accountStatus==='permanent')return send(req,res,409,{error:'هذا الحساب موقوف نهائياً ولا يمكن إعادة تفعيله من اللوحة.'});
-      if(action==='resume'&&target.accountStatus==='pending')return send(req,res,409,{error:'يجب تفعيل البريد الإلكتروني أولاً.'});
-      if(action!=='resume'&&target.role==='admin'&&target.active&&await adminStore.users.countDocuments({role:'admin',active:true})<=1)return send(req,res,409,{error:'أنشئ مديراً آخر وفعّله قبل تعطيل آخر مدير للمكتبة.'});
-      const active=action==='resume',accountStatus=action==='resume'?'active':action==='permanent'?'permanent':'suspended';
-      await adminStore.users.updateOne({email},{$set:{active,accountStatus,lastSeenAt:null,updatedAt:new Date()},...(action==='permanent'?{$unset:{activationTokenHash:'',activationExpiresAt:''}}:{})});
-      await recordAudit(adminStore,'administrator',action==='resume'?'user_resumed':action==='permanent'?'user_permanently_suspended':'user_suspended',email);
-      return send(req,res,200,{ok:true,email,active,accountStatus});
-    }
-    if(process.env.NODE_ENV==='production'&&!validSession(req)&&!loginAsset){
-      if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
-      return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
-    }
-    if(p==='/api/admin/overview'&&req.method==='GET'){
-      const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
-      const documents=library.db.prepare("SELECT id,title,category,text_kind,review_status,chars FROM documents WHERE review_status IN ('needs_review','automated_review') ORDER BY CASE review_status WHEN 'needs_review' THEN 0 ELSE 1 END, rowid LIMIT 60").all();
-      const managed=adminStore?await adminStore.content.find({status:'draft'}).sort({updatedAt:-1}).limit(40).project({documentId:1,title:1,category:1,textKind:1,status:1,submittedBy:1,updatedAt:1}).toArray():[];
-      return send(req,res,200,{stats,statuses,reviewQueue:documents,managedDrafts:managed,mongoConnected:!!adminStore});
-    }
-    if(p==='/api/admin/audit'&&req.method==='GET'){
-      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});const entries=await adminStore.audit.find({}).sort({createdAt:-1}).limit(200).toArray();return send(req,res,200,{entries:entries.map(({actor,action,target,details,createdAt})=>({actor,action,target,details,createdAt}))});
-    }
-    if(p==='/api/admin/drive-monitor'&&req.method==='GET'){
-      if(!adminStore)return send(req,res,503,{available:false,status:'error',error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ خط أساس الفحص.'});
-      let state=await adminStore.driveMonitorState.findOne({_id:'latest'}),last=state?.finishedAt?new Date(state.finishedAt).getTime():0,due=state?.status==='error'?15*60_000:24*60*60_000;
-      if(!driveScanPromise&&(!last||Date.now()-last>=due))runDriveMetadataScan('scheduled').catch(()=>{});
-      if(driveScanPromise)return send(req,res,200,{...(state||{}),status:'running',available:true});
-      return send(req,res,200,{...(state||{status:'not_run'}),available:true});
+      if(!session?.account||['env','legacy'].includes(session.account))ret…2522 tokens truncated…send(req,res,200,{...(state||{status:'not_run'}),available:true});
     }
     if(p==='/api/admin/drive-monitor/run'&&req.method==='POST'){
       try{return send(req,res,200,await runDriveMetadataScan(auditActor(req)));}
@@ -589,10 +523,12 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/api/'))return send(req,res,404,{error:'الخدمة غير موجودة.'});
     if(!['GET','HEAD'].includes(req.method))return send(req,res,405,'Method not allowed','text/plain');
-    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/account'?'/account.html':p==='/archive'?'/archive.html':p==='/login'?'/login.html':p==='/activate'?'/activate.html':p==='/change-password'?'/change-password.html':p==='/'?(validSession(req)?'/index.html':'/home.html'):p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
+    if(process.env.QALAM_DESKTOP_MODE==='1'&&['/login','/login.html','/home.html','/account','/account.html'].includes(p)){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/'});return res.end();}
+    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/account'?'/account.html':p==='/archive'?'/archive.html':p==='/login'?'/login.html':p==='/activate'?'/activate.html':p==='/change-password'?'/change-password.html':p==='/'?(process.env.QALAM_DESKTOP_MODE==='1'||validSession(req)?'/index.html':'/home.html'):p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
     if(!target.startsWith(PUBLIC+path.sep)||relative.includes('\0'))return send(req,res,403,'Forbidden','text/plain');
     const type=MIME[path.extname(target).toLowerCase()];if(!type||!fs.existsSync(target)||!fs.statSync(target).isFile())return send(req,res,404,'Not found','text/plain');
-    const bytes=fs.readFileSync(target),etag='"'+createHash('sha1').update(bytes).digest('hex')+'"';
+    let bytes=fs.readFileSync(target);if(process.env.QALAM_DESKTOP_MODE==='1'&&relative==='index.html')bytes=Buffer.from(bytes.toString('utf8').replace('<html lang="ar" dir="rtl">','<html lang="ar" dir="rtl" data-qalam-desktop="true">'));
+    const etag='"'+createHash('sha1').update(bytes).digest('hex')+'"';
     if(req.headers['if-none-match']===etag){res.writeHead(304,{...headers,ETag:etag});return res.end();}
     res.setHeader('ETag',etag);return send(req,res,200,bytes,type);
   }catch(e){if(res.headersSent){res.destroy();return;}send(req,res,e.status||503,{error:e.status?e.message:'تعذر إتمام العملية حالياً. حاول مجدداً أو استخدم الخدمة المحلية البديلة.'});}
@@ -604,4 +540,5 @@ function stop(){server.close(()=>{library.close();process.exit(0);});setTimeout(
 process.on('SIGINT',stop);process.on('SIGTERM',stop);
 
 export { server, library };
+
 

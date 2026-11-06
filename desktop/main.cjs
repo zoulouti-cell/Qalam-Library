@@ -65,6 +65,7 @@ async function startApplication() {
 
   const port = await choosePort();
   process.env.NODE_ENV = 'development';
+  process.env.QALAM_DESKTOP_MODE = '1';
   process.env.HOST = '127.0.0.1';
   process.env.PORT = String(port);
   process.env.QALAM_DB_PATH = databasePath;
@@ -123,3 +124,4 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => app.quit());
+

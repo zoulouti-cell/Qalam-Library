@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -173,3 +173,19 @@ jobs:
           path: release/qalam-library-windows-desktop.zip
           if-no-files-found: error
           retention-days: 30
+      - name: Publish the latest Windows download
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $tag = 'windows-latest'
+          gh release view $tag --repo $env:GH_REPO *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag 'release\qalam-library-windows-desktop.zip' --repo $env:GH_REPO --clobber
+          } else {
+            gh release create $tag 'release\qalam-library-windows-desktop.zip' --repo $env:GH_REPO --target '${{ github.sha }}' --title 'المكتبة الرقمية — نسخة Windows' --notes 'أحدث حزمة Windows المحمولة للمكتبة الرقمية. فك ضغط الملف كاملاً داخل USB، ثم شغّل التطبيق من مجلد «المكتبة الرقمية».' --latest=false
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the Windows download failed.' }
+

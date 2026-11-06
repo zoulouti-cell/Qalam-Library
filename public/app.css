@@ -68,3 +68,5 @@ h2,h3,h4,.result-open,.outline-title,.ingestion-top strong{font-family:CalibriLo
 .chat-translation-actions{display:flex;justify-content:flex-start;margin-top:10px}
 .chat-translation-actions .secondary-button{display:inline-flex;align-items:center;gap:8px}
 .account-nav{text-decoration:none}.topbar-actions #logoutButton{font-size:21px;line-height:1}
+html[data-qalam-desktop="true"] #accountNav,html[data-qalam-desktop="true"] #logoutButton,html[data-qalam-desktop="true"] #accountDialog{display:none!important}
+
