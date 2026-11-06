@@ -960,7 +960,15 @@
     if (responses[2].status === 'fulfilled') state.capabilities = responses[2].value;
     if (responses[4].status === 'fulfilled') {state.agreementCount=Number(responses[4].value.total)||0;state.agreementBranchCounts=responses[4].value.branches||state.agreementBranchCounts;$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();}
     if (!state.voices.some(voice => voice.localService) && state.capabilities.speech?.piperAvailable && prefs.readingEngine === 'browser') { prefs.readingEngine = 'local'; persistPrefs(); }
-    refreshAssistantTools(); refreshSettings(); pollIngestion(); await runSearch();  }
+    refreshAssistantTools(); refreshSettings(); pollIngestion(); await runSearch();
+    openDocumentFromUrl();
+  }
+  /** رابط مباشر لوثيقة بعينها: ?doc=<id> (الشكل الذي يصدره طلب الربط من تطبيق المكتب) يفتح القارئ تلقائياً عند التحميل. */
+  function openDocumentFromUrl() {
+    let id = '';
+    try { id = new URLSearchParams(location.search).get('doc') || ''; } catch { id = ''; }
+    if (id) openDocument(id);
+  }
   initialize();
 })();
 

@@ -30,6 +30,13 @@
     <section class="topics" aria-label="محتويات المكتبة"><article class="topic"><b>القوانين الوطنية</b><p>الدستور والقوانين والمدونات والنصوص التنظيمية المغربية.</p></article><article class="topic"><b>الاجتهاد القضائي</b><p>قرارات محكمة النقض ومحاكم الاستئناف وقواعد قضائية مفهرسة.</p></article><article class="topic"><b>الاتفاقيات والمعاهدات</b><p>اتفاقيات ثنائية ومتعددة الأطراف ومراجعها المتاحة.</p></article><article class="topic"><b>الدراسات والمؤسسات</b><p>أبحاث قانونية ومعلومات عن المؤسسات والهيئات المغربية.</p></article></section>
     <footer class="footer"><span>قلم — المكتبة الرقمية القانونية المغربية</span><a href="/login">دخول المستخدمين</a></footer>
   </main>
+  <script>
+    // رابط مباشر لوثيقة بعينها (?doc=) يصل هنا قبل تسجيل الدخول؛ يُحفظ عبر روابط الدخول ليعود المستخدم إليها بعد الدخول.
+    try {
+      var docId = new URLSearchParams(location.search).get('doc');
+      if (docId) document.querySelectorAll('a[href="/login"]').forEach(function (a) { a.href = '/login?doc=' + encodeURIComponent(docId); });
+    } catch (e) {}
+  </script>
 </body>
 </html>
 
