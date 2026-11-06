@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#123f35">
+  <meta name="theme-color" content="#031b14">
   <meta name="description" content="المكتبة الرقمية من قلم: فضاء للبحث والاطلاع على التشريع المغربي والاجتهادات القضائية والاتفاقيات والمعاهدات والدراسات القانونية، مع الإحالة إلى المصادر والأصول المتاحة.">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <meta name="google-site-verification" content="54uQdL3gc-gnxRLFVKRibIww4YgB0BSGaFXJAR-b4Wo">
@@ -19,24 +19,82 @@
   <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"WebSite","name":"قلم — المكتبة الرقمية","url":"https://qalam-library.onrender.com/","inLanguage":"ar-MA","description":"مكتبة رقمية للبحث والاطلاع على التشريع المغربي والاجتهادات القضائية والاتفاقيات والمعاهدات والدراسات القانونية."}
   </script>
+  <!-- script-src في CSP هنا 'self' بلا unsafe-inline ولا nonce، فالمنطق التفاعلي في ملف خارجي (home.js) -->
+  <script src="/home.js" defer></script>
   <style>
-    :root{color-scheme:light;--green:#123f35;--deep:#082d25;--gold:#d5ad56;--paper:#f5f1e6;--ink:#182923;--muted:#53655c}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Almarai",Tahoma,Arial,sans-serif;min-height:100vh}.page{width:min(1080px,calc(100% - 36px));margin:0 auto;padding:24px 0 38px}.bar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 22px;background:var(--green);border:1px solid #d0a64c;border-radius:18px;color:#fff;box-shadow:0 12px 32px #092d2524}.brand{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none}.brand img{width:54px;height:54px;object-fit:contain}.brand span{font-weight:800;font-size:1.15rem}.login,.download{border-radius:12px;padding:11px 20px;background:linear-gradient(135deg,#f3d17e,#c8993c);color:#16392f;font-weight:800;text-decoration:none;white-space:nowrap}.hero{position:relative;overflow:hidden;margin-top:26px;padding:clamp(32px,7vw,76px);border-radius:26px;background:radial-gradient(ellipse at 82% 0%,#d8c17d40,transparent 38%),linear-gradient(145deg,#fffdf6,#e9e2cd);border:1px solid #d7c99f;box-shadow:0 20px 54px #102e2412}.hero:after{content:"ق";position:absolute;left:4%;top:-42px;font-size:clamp(230px,38vw,430px);line-height:1;color:#0f463512;font-weight:900;pointer-events:none}.hero-content{position:relative;z-index:1;max-width:780px}.eyebrow{color:#916d25;font-weight:800;letter-spacing:.02em}.hero h1{margin:12px 0 18px;color:var(--deep);font-size:clamp(2rem,5vw,3.5rem);line-height:1.35}.hero p{max-width:740px;color:#34483f;font-size:clamp(1.05rem,2vw,1.25rem);line-height:2}.hero-action{display:inline-flex;margin-top:14px;padding:14px 24px;background:var(--green);border:1px solid var(--gold);border-radius:13px;color:white;text-decoration:none;font-weight:800}.hero-action.download{margin-right:10px;background:linear-gradient(135deg,#f3d17e,#c8993c);color:#16392f}.topics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}.topic{min-height:130px;padding:21px 18px;background:#fffdf6;border:1px solid #d9cfb4;border-radius:17px;box-shadow:0 8px 24px #13291c0d}.topic b{display:block;color:var(--green);font-size:1.05rem;margin-bottom:8px}.topic p{margin:0;color:var(--muted);line-height:1.8;font-size:.92rem}.footer{display:flex;justify-content:space-between;gap:15px;margin-top:22px;padding:16px 4px;color:var(--muted);font-size:.9rem}.footer a{color:var(--green)}@media(max-width:760px){.topics{grid-template-columns:repeat(2,minmax(0,1fr))}.bar{padding:12px 14px}.brand img{width:44px;height:44px}.hero{padding:32px 24px}}@media(max-width:420px){.topics{grid-template-columns:1fr}.brand span{font-size:1rem}.login{padding:10px 13px}}
+    :root{color-scheme:dark;--paper:#f5f1e6;--ink:#182923;--muted:#53655c;--green:#123f35}
+    *{box-sizing:border-box}
+    body{margin:0;background:#031b14;color:#f6f4ea;font-family:"Almarai",Tahoma,Arial,sans-serif}
+
+    /* ===== البوابة المشتركة: نفس تصميم بوابة قلم في تطبيق المكتب ===== */
+    .gateway{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;padding:40px 20px}
+    .gateway-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 38%;opacity:.85;filter:saturate(1.05)}
+    .gateway-veil{position:absolute;inset:0;background:radial-gradient(ellipse 80% 65% at 50% 38%,#03201833 0%,#03130ecc 72%),linear-gradient(180deg,#031b14b3 0%,#021008e6 100%)}
+    .gateway-pattern{position:absolute;inset:0;opacity:.16;mix-blend-mode:soft-light;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='none' stroke='%23c9a72e' stroke-width='1'%3E%3Cpath d='M60 6 93 30 106 60 93 90 60 114 27 90 14 60 27 30Z'/%3E%3Cpath d='M60 6 60 114M14 60 106 60M27 30 93 90M93 30 27 90'/%3E%3C/g%3E%3C/svg%3E");background-size:120px 120px}
+    .gateway-content{position:relative;z-index:1;max-width:760px;display:flex;flex-direction:column;align-items:center}
+    .gateway-eyebrow{display:inline-flex;align-items:center;border:1px solid #c9a72e;border-radius:30px;color:#e3c976;padding:5px 16px;font-size:12.5px;margin-bottom:18px;background:#10231c88;letter-spacing:.2px}
+    .gateway-title{font-size:clamp(28px,4.6vw,44px);font-weight:800;line-height:1.25;margin:0 0 9px;text-shadow:0 2px 18px #00000055}
+    .gateway-sub{font-size:15px;color:#d8dccd;margin:0 0 34px;max-width:480px}
+    .gateway-choices{display:flex;gap:26px;flex-wrap:wrap;justify-content:center}
+    .gateway-card{appearance:none;cursor:pointer;width:238px;border:1px solid #c9a72e55;border-radius:26px;background:linear-gradient(180deg,#0b2a20d9,#071c15d9);backdrop-filter:blur(6px);color:inherit;text-decoration:none;padding:26px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .35s cubic-bezier(.19,.9,.3,1.2),border-color .3s,box-shadow .3s}
+    .gateway-card:hover,.gateway-card:focus-visible{transform:translateY(-9px) scale(1.035);border-color:#e9cb6a;box-shadow:0 22px 48px #00000066,0 0 0 1px #e9cb6a55,0 0 60px -10px #c9a72e77;outline:none}
+    .gateway-card:active{transform:translateY(-3px) scale(1.01)}
+    .gateway-card img{width:96px;height:96px;object-fit:contain;filter:drop-shadow(0 6px 16px #00000066)}
+    .gateway-card-label{font-size:21px;font-weight:700;margin-top:8px}
+    .gateway-card-hint{font-size:12.5px;color:#c7cbba;line-height:1.7}
+    .gateway-skip{display:inline-flex;align-items:center;gap:5px;margin-top:30px;color:#aeb2a2;font-size:12.5px;text-decoration:none;padding:6px 10px;transition:color .2s}
+    .gateway-skip:hover{color:#e3c976}
+    @media(max-width:560px){.gateway-choices{gap:16px}.gateway-card{width:46%;min-width:150px;padding:20px 12px 16px}.gateway-card img{width:72px;height:72px}.gateway-card-label{font-size:17px}.gateway-card-hint{display:none}}
+    @media(prefers-reduced-motion:reduce){.gateway-card{transition:none}}
+
+    /* ===== محتوى تعريفي أسفل البوابة (يبقى مقروءًا للزوار ولمحرّكات البحث) ===== */
+    .page{width:min(1080px,calc(100% - 36px));margin:0 auto;padding:46px 0 38px}
+    .topics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .topic{min-height:120px;padding:20px 18px;background:#fffdf6;border:1px solid #d9cfb4;border-radius:17px;box-shadow:0 8px 24px #13291c0d;color:var(--ink)}
+    .topic b{display:block;color:var(--green);font-size:1.02rem;margin-bottom:8px}
+    .topic p{margin:0;color:var(--muted);line-height:1.8;font-size:.9rem}
+    .footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:15px;margin-top:22px;padding:16px 4px;color:var(--muted);font-size:.9rem}
+    .footer a{color:var(--green)}
+    @media(max-width:760px){.topics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:420px){.topics{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
+  <div class="gateway" role="region" aria-label="اختر وجهتك: المكتب الرقمي أو المكتبة الرقمية">
+    <video class="gateway-video" id="gatewayVideo" autoplay muted loop playsinline preload="auto" poster="/assets/gateway-pen-hero.jpg">
+      <source src="/assets/gateway-pen-animated.mp4" type="video/mp4">
+    </video>
+    <div class="gateway-veil" aria-hidden="true"></div>
+    <div class="gateway-pattern" aria-hidden="true"></div>
+    <div class="gateway-content">
+      <p class="gateway-eyebrow">منصة قلم الرقمية</p>
+      <h1 class="gateway-title">أهلاً بك في عالم قلم</h1>
+      <p class="gateway-sub">اختر الوجهة التي تريد الدخول إليها</p>
+      <div class="gateway-choices">
+        <a class="gateway-card" id="officeCard" href="https://qalam-office.onrender.com/app/?gateway=skip#/login">
+          <img src="/assets/gateway-office-emblem.svg" alt="" width="96" height="96">
+          <span class="gateway-card-label">المكتب الرقمي</span>
+          <span class="gateway-card-hint">نظّم ملفات مكتبك وموكليك وجلساتك</span>
+        </a>
+        <a class="gateway-card" id="libraryCard" href="/login">
+          <img src="/assets/gateway-library-emblem.svg" alt="" width="96" height="96">
+          <span class="gateway-card-label">المكتبة الرقمية</span>
+          <span class="gateway-card-hint">النصوص القانونية والاجتهادات القضائية</span>
+        </a>
+      </div>
+      <a class="gateway-skip" id="skipLink" href="/login">تخطّي إلى الدخول مباشرة ↓</a>
+    </div>
+  </div>
+
   <main class="page">
-    <header class="bar"><a class="brand" href="/" aria-label="قلم — المكتبة الرقمية"><img src="/assets/qaf-favicon.svg" alt=""><span>قلم · المكتبة الرقمية</span></a></header>
-    <section class="hero" aria-labelledby="title"><div class="hero-content"><span class="eyebrow">مرجع رقمي للمعرفة القانونية المغربية</span><h1 id="title">المكتبة الرقمية من قلم</h1><p>فضاء منظم للبحث والاطلاع على القوانين الوطنية والاجتهادات القضائية والاتفاقيات والمعاهدات والدراسات القانونية. تربط المكتبة النصوص بمراجعها وأصولها المتاحة، وتوفر أدوات للقراءة والبحث باللغة العربية.</p><a class="hero-action" href="/login">دخول المكتبة</a></div></section>
-    <section class="topics" aria-label="محتويات المكتبة"><article class="topic"><b>القوانين الوطنية</b><p>الدستور والقوانين والمدونات والنصوص التنظيمية المغربية.</p></article><article class="topic"><b>الاجتهاد القضائي</b><p>قرارات محكمة النقض ومحاكم الاستئناف وقواعد قضائية مفهرسة.</p></article><article class="topic"><b>الاتفاقيات والمعاهدات</b><p>اتفاقيات ثنائية ومتعددة الأطراف ومراجعها المتاحة.</p></article><article class="topic"><b>الدراسات والمؤسسات</b><p>أبحاث قانونية ومعلومات عن المؤسسات والهيئات المغربية.</p></article></section>
+    <section class="topics" aria-label="محتويات المكتبة">
+      <article class="topic"><b>القوانين الوطنية</b><p>الدستور والقوانين والمدونات والنصوص التنظيمية المغربية.</p></article>
+      <article class="topic"><b>الاجتهاد القضائي</b><p>قرارات محكمة النقض ومحاكم الاستئناف وقواعد قضائية مفهرسة.</p></article>
+      <article class="topic"><b>الاتفاقيات والمعاهدات</b><p>اتفاقيات ثنائية ومتعددة الأطراف ومراجعها المتاحة.</p></article>
+      <article class="topic"><b>الدراسات والمؤسسات</b><p>أبحاث قانونية ومعلومات عن المؤسسات والهيئات المغربية.</p></article>
+    </section>
     <footer class="footer"><span>قلم — المكتبة الرقمية القانونية المغربية</span><a href="/login">دخول المستخدمين</a></footer>
   </main>
-  <script>
-    // رابط مباشر لوثيقة بعينها (?doc=) يصل هنا قبل تسجيل الدخول؛ يُحفظ عبر روابط الدخول ليعود المستخدم إليها بعد الدخول.
-    try {
-      var docId = new URLSearchParams(location.search).get('doc');
-      if (docId) document.querySelectorAll('a[href="/login"]').forEach(function (a) { a.href = '/login?doc=' + encodeURIComponent(docId); });
-    } catch (e) {}
-  </script>
+
 </body>
 </html>
-

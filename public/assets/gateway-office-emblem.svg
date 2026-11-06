@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Qalam gold pen emblem">
+<defs><linearGradient id="gold" x1="0" x2="1" y1="0" y2="0"><stop stop-color="#a46b20"/><stop offset=".18" stop-color="#ffe69a"/><stop offset=".45" stop-color="#e8ae41"/><stop offset=".67" stop-color="#fff0a8"/><stop offset="1" stop-color="#ad701e"/></linearGradient><linearGradient id="nib" x1="0" x2="1" y1="0" y2="0"><stop stop-color="#b87623"/><stop offset=".28" stop-color="#ffe48c"/><stop offset=".55" stop-color="#d79832"/><stop offset=".78" stop-color="#fff0aa"/><stop offset="1" stop-color="#b77725"/></linearGradient></defs>
+<circle cx="64" cy="64" r="59" fill="#062d20" stroke="url(#gold)" stroke-width="4"/>
+<path d="M63 2 56 24 45 45 28 72 47 93 48 110 80 110 81 93 100 72 83 45 72 24 65 2Z" fill="url(#nib)" stroke="#ffdf7c" stroke-width="1.4"/>
+<path d="M63 3 63 62" fill="none" stroke="#093a29" stroke-width="2.6"/><circle cx="64" cy="71" r="8" fill="#063425" stroke="#ffe6a0" stroke-width="1.3"/>
+<path d="M61 25 35 72 51 90 52 108M67 25 93 72 77 90 76 108" fill="none" stroke="#985d21" stroke-width="1.5"/>
+<path d="M49 109h30v6H49zM47 118h34v5H47z" fill="url(#gold)" stroke="#aa752f" stroke-width="1"/>
+</svg>
