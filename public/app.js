@@ -455,7 +455,7 @@
       $('readerBody').innerHTML = '<div class="document-absence"><strong>هذه بطاقة فهرسة دون نص.</strong><br>لم يُستخرج المحتوى بعد، ولا تُنشئ المكتبة نصاً بديلاً عنه.<br>يمكنك حفظ البطاقة أو تدوين ملاحظتك عليها.</div>';
       state.marks = []; return;
     }
-    const headings = (doc.headings || []).filter(h => Number.isInteger(h.start) && h.start >= 0 && h.start < text.length).sort((a, b) => a.start - b.start);
+    const headings = (doc.textKind === 'source_summary' ? [] : doc.headings || []).filter(h => Number.isInteger(h.start) && h.start >= 0 && h.start < text.length).sort((a, b) => a.start - b.start);
     let html = '', cursor = 0;
     const paragraphs = value => String(value).split(/\n\s*\n/).map(p => p.replace(/\s+/g, ' ').trim()).filter(Boolean).map(p => '<p data-read-block>' + textRun(p, needle) + '</p>').join('');
     headings.forEach((heading, index) => {
@@ -483,7 +483,7 @@
     $('findCount').textContent = fmt(state.markIndex + 1) + ' من ' + fmt(state.marks.length);
   }
   function renderOutline(doc) {
-    const headings = doc.headings || []; $('outlineCount').textContent = headings.length ? fmt(headings.length) : '';
+    const headings = doc.textKind === 'source_summary' ? [] : doc.headings || []; $('outlineCount').textContent = headings.length ? fmt(headings.length) : '';
     $('outline').innerHTML = headings.length ? headings.map((h, i) => '<button class="outline-item" data-heading="' + i + '">' + esc(h.label) + '</button>').join('') : '<div class="setting-note">لا يتوفر فهرس بنيوي لهذه الوثيقة.</div>';
   }
   async function openDocument(id, searchNeedle = '') {
