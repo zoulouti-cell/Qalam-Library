@@ -42,6 +42,7 @@ h2,h3,h4,.result-open,.outline-title,.ingestion-top strong{font-family:CalibriLo
 .result-card.kind-decision,.result-card.kind-jurisprudence,.result-card.jc,.result-card.juriscassation{min-height:0;padding:15px 18px}
 .result-card.kind-decision .result-open,.result-card.kind-jurisprudence .result-open,.result-card.jc .result-open,.result-card.juriscassation .result-open{font-size:17px;line-height:1.65;-webkit-line-clamp:2;margin-bottom:7px}
 .result-card.kind-decision .result-snippet,.result-card.kind-jurisprudence .result-snippet,.result-card.jc .result-snippet,.result-card.juriscassation .result-snippet{-webkit-line-clamp:2;font-size:14px;line-height:1.7;margin-bottom:9px}
+.decision-reference{margin:0 0 7px;color:var(--gold,#9b7933);font-size:12px;font-weight:700;direction:rtl}
 .result-card.kind-study{min-height:220px;padding:19px 21px}.result-card.kind-study .result-open{-webkit-line-clamp:3;font-size:19px}.result-card.kind-study .result-snippet{-webkit-line-clamp:3}
 .pagination{font-size:14px}.pagination .page-summary{font-size:12px}.trust-note p,.trust-note button{font-size:12px;line-height:1.9}.main-footer{font-size:12px}.footer-link{font-size:inherit}
 .reader-header h2{font-size:22px;font-weight:700;line-height:1.7}.reader-meta{font-size:13px}.reader-status,.reader-status .notice-plain{font-size:13px;line-height:1.8}.reader-body{font-family:CalibriLocal,Calibri,Tahoma,Arial,sans-serif;font-size:19px;line-height:2.1}.reader-body h3{font-family:CalibriLocal,Calibri,Tahoma,sans-serif;font-weight:700;font-size:1.2em}

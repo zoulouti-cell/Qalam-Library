@@ -13,6 +13,7 @@ const REFERENCES = {
   'المادة الانتخابية':['الانتخابات'], 'مادة النقل':['مدونة السير'],
 };
 export function catalogCategory(row) {
+  if (row.category === 'اجتهادات قضائية - الخبرة والخبراء') return 'محكمة النقض - الخبرة';
   if (/الأجزاء التابعة.*الملك العمومي|الملك العمومي.*الأجزاء التابعة/i.test(row.title || '')) return 'المادة البيئية';
   if (row.category === 'قوانين وتشريعات وطنية') return 'مادة الفلاحة';
   return row.category;
@@ -28,14 +29,14 @@ function categoryRank(name) {
   if(name.includes('التنظيم الهيكلي'))return 150;
   return 100;
 }
-function judicialRank(name){return name==='المجلس الأعلى'?0:name.includes('محكمة النقض')?1:name.includes('محكمة الاستئناف')?2:name==='قواعد قضائية'?3:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?4:name.startsWith('اجتهادات قضائية')?5:6;}
+function judicialRank(name){return name==='المجلس الأعلى'?0:name==='محكمة النقض'?1:name==='محكمة النقض - الخبرة'?2:name==='قواعد قضائية'?3:name.includes('محكمة الاستئناف')?4:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?5:name.startsWith('اجتهادات قضائية')?6:7;}
 function groupOf(name){return ({110:'authorities',120:'judicial',130:'councils',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
 export function orderedCategories(categories, original={}) {
   const sorted=[...categories].sort((a,b)=>categoryRank(a.name)-categoryRank(b.name)||(original[b.name]?.count??b.count)-(original[a.name]?.count??a.count));
   return GROUPS.flatMap(([group,groupLabel])=>{
     const members=sorted.filter(c=>groupOf(c.name)===group);
     if(group==='judicial')members.sort((a,b)=>judicialRank(a.name)-judicialRank(b.name));
-    return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':''}));
+    return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&(c.name==='محكمة النقض - الخبرة'||c.name==='قواعد قضائية')?'محكمة النقض':group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':''}));
   });
 }
 function kindRank(d){const primaryReference=d.type==='national'&&((d.law_number&&referenceRank(d)<99)||d.title.includes('بالمصادقة على مجموعة القانون الجنائي'));const kind=primaryReference&&['other','dahir'].includes(d.kind)?'law':d.kind;return ({law:0,dahir:1,decree:2,order:3,other:4,decision:5,jurisprudence:6,study:7})[kind]??9;}

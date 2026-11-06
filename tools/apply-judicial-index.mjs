@@ -9,7 +9,9 @@ const file=process.argv[2]||'data/library.sqlite';
 const indexBytes=fs.readFileSync(new URL('../data/judicial-index.json.br',import.meta.url));
 const curationBytes=fs.readFileSync(new URL('../data/judicial-curation.json',import.meta.url));
 const curation=JSON.parse(curationBytes).entries||{};
-const fingerprint=createHash('sha256').update(indexBytes).update(curationBytes).digest('hex');
+const referenceBytes=fs.readFileSync(new URL('../data/appeal-reference-overrides.json',import.meta.url));
+const referenceOverrides=JSON.parse(referenceBytes).entries||{};
+const fingerprint=createHash('sha256').update(indexBytes).update(curationBytes).update(referenceBytes).digest('hex');
 const rows=JSON.parse(brotliDecompressSync(indexBytes)).rows;
 const indexedIds=new Set(rows.map(row=>'jc:'+row[0]));
 const db=new DatabaseSync(file);
@@ -21,7 +23,7 @@ const remove=db.prepare('DELETE FROM documents WHERE rowid=?');
 const removeOrder=db.prepare('DELETE FROM catalog_order WHERE doc_rowid=?');
 const removeAudit=db.prepare('DELETE FROM reading_audit WHERE id=?');
 const deleteFts=db.prepare("INSERT INTO search(search,rowid,title,body) VALUES('delete',?,?,?)");
-const update=db.prepare('UPDATE documents SET category=?,decision_number=COALESCE(NULLIF(decision_number,\'\'),?),case_number=COALESCE(NULLIF(case_number,\'\'),?),date=COALESCE(NULLIF(date,\'\'),?) WHERE rowid=?');
+const update=db.prepare('UPDATE documents SET category=?,decision_number=CASE WHEN ?<>\'\' THEN ? ELSE COALESCE(NULLIF(decision_number,\'\'),?) END,case_number=CASE WHEN ?<>\'\' THEN ? ELSE COALESCE(NULLIF(case_number,\'\'),?) END,date=COALESCE(NULLIF(date,\'\'),?) WHERE rowid=?');
 const updateTitleCategory=db.prepare('UPDATE documents SET category=?,title=?,title_norm=? WHERE rowid=?');
 const insert=db.prepare('INSERT INTO documents(id,type,title,title_norm,category,subcategory,date,kind,law_number,decision_number,case_number,text_kind,review_status,issues,chars,body,sha256,abrogated,source_label) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 const insertFts=db.prepare('INSERT INTO search(rowid,title,body) VALUES(?,?,?)');
@@ -41,18 +43,28 @@ try{
     insertFts.run(row.rowid,normalizeSearch(curated.title),normalizeSearch(brotliDecompressSync(row.body).toString('utf8')));
     updated++;
   }
-  for(const [number,court,title,date,decisionNumber,caseNumber,,summary] of rows){
+  for(const [number,court,title,date,indexDecisionNumber,indexCaseNumber,,summary] of rows){
+    const decisionNumber=String(referenceOverrides[`jc:${number}`]?.decisionNumber||indexDecisionNumber||''),caseNumber=String(referenceOverrides[`jc:${number}`]?.caseNumber||indexCaseNumber||'');
     const id='jc:'+number,old=byId.get(id),curated=curation[id],category=curated?.category||court,displayTitle=curated?.title||title||`قرار رقم ${decisionNumber||number}`;
-    if(old){if(old.category!==category||old.title!==displayTitle){const bodyText=brotliDecompressSync(old.body).toString('utf8');deleteFts.run(old.rowid,old.title,bodyText);updateTitleCategory.run(category,displayTitle,normalizeSearch(displayTitle),old.rowid);insertFts.run(old.rowid,normalizeSearch(displayTitle),normalizeSearch(bodyText));updated++;}update.run(category,decisionNumber,caseNumber,date,old.rowid);continue;}
+    if(old){if(old.category!==category||old.title!==displayTitle){const bodyText=brotliDecompressSync(old.body).toString('utf8');deleteFts.run(old.rowid,old.title,bodyText);updateTitleCategory.run(category,displayTitle,normalizeSearch(displayTitle),old.rowid);insertFts.run(old.rowid,normalizeSearch(displayTitle),normalizeSearch(bodyText));updated++;}const ref=referenceOverrides[id]||{};update.run(category,ref.decisionNumber||'',decisionNumber,decisionNumber,ref.caseNumber||'',caseNumber,caseNumber,date,old.rowid);continue;}
     const body=summary||'',kind=body?'source_summary':'image_only';
     const result=insert.run(id,'juriscassation',displayTitle,normalizeSearch(displayTitle),category,'',date,'decision','',decisionNumber,caseNumber,kind,'automated_review',JSON.stringify(body?['قاعدة فهرسة غير مطابقة بعد للأصل الكامل']:['بطاقة دون متن القرار']),body.length,brotliCompressSync(Buffer.from(body)),createHash('sha256').update(body).digest('hex'),0,'فهرس الاجتهادات القضائية');
     insertFts.run(Number(result.lastInsertRowid),normalizeSearch(displayTitle),normalizeSearch(body));added++;
+  }
+  for(const [id,ref] of Object.entries(referenceOverrides)){
+    if(indexedIds.has(id))continue;
+    const old=byId.get(id);if(!old)continue;
+    update.run(old.category,ref.decisionNumber||'',ref.decisionNumber||'',old.decision_number,ref.caseNumber||'',ref.caseNumber||'',old.case_number,'',old.rowid);
   }
   installCatalogOrder(db);
   const stats=db.prepare("SELECT count(*) documents,sum(text_kind='extracted_text') texts,sum(text_kind='source_summary') summaries,sum(text_kind='image_only') catalogOnly,sum(review_status<>'human_verified') needsReview FROM documents").get();
   for(const [key,value] of Object.entries(stats))meta.run(key,JSON.stringify(value));
   meta.run('judicialIndexSha256',JSON.stringify(fingerprint));
   meta.run('generation',JSON.stringify(Date.now()));
+  const driveMapPath=new URL('../data/judicial-drive-map.json.br',import.meta.url);
+  const driveMap=JSON.parse(brotliDecompressSync(fs.readFileSync(driveMapPath)));
+  driveMap.ids={...(driveMap.ids||{}),...Object.fromEntries(Object.entries(referenceOverrides).filter(([,value])=>value.driveId).map(([id,value])=>[id,value.driveId]))};
+  fs.writeFileSync(driveMapPath,brotliCompressSync(Buffer.from(JSON.stringify(driveMap))));
   db.exec('COMMIT');
   console.log(JSON.stringify({removedFirstInstance:removed,reclassified:updated,added,documents:stats.documents}));
 }catch(error){db.exec('ROLLBACK');throw error;}finally{db.close();}

@@ -1,0 +1,3367 @@
+{
+  "version": 1,
+  "source": "Google Drive original PDFs; metadata read from the source document header",
+  "checked": 480,
+  "entries": {
+    "jc:37281": {
+      "decisionNumber": "3420",
+      "caseNumber": "2014/8232/5079",
+      "driveId": "1-CtOhz6_J6aOB6gYVXTU5RSuw9B01N_s",
+      "sourceName": "37281.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:37274": {
+      "decisionNumber": "4678",
+      "caseNumber": "2019/8232/1927",
+      "driveId": "1e540F51EHb44sYbsb5zn_FdqEPxLrYQV",
+      "sourceName": "37274.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:37278": {
+      "decisionNumber": "3658",
+      "caseNumber": "2017/8206/5767",
+      "driveId": "1VDQQz644gaalJQrmku5mjzWIFJMVLPO6",
+      "sourceName": "37278.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:37272": {
+      "decisionNumber": "1126",
+      "caseNumber": "2021/8202/330",
+      "driveId": "1t8b-OW72GP8RP7qqL6_1aoFg8Mm42KdM",
+      "sourceName": "37272.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36864": {
+      "decisionNumber": "3988",
+      "caseNumber": "2019/8232/4042",
+      "driveId": "11kpzwKGdJrmLXGvvenhv1XfekEJ7tOtb",
+      "sourceName": "36864.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36834": {
+      "decisionNumber": "4182",
+      "caseNumber": "2018/8206/1857",
+      "driveId": "1Qpxp7sH0X2t898Q0qkolzQ807DjDaS5Q",
+      "sourceName": "36834.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36833": {
+      "decisionNumber": "5439",
+      "caseNumber": "2018/8206/4191",
+      "driveId": "1Zr1Du-Nc1lQMMrvSKG42_t8d7IaFCvuJ",
+      "sourceName": "36833.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36832": {
+      "decisionNumber": "31",
+      "caseNumber": "2018/8205/5128",
+      "driveId": "1fjpIUKHQQh1bF2EfHzWDxeSjpoEPPSao",
+      "sourceName": "36832.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36764": {
+      "decisionNumber": "6573",
+      "caseNumber": "2016/8206/5673",
+      "driveId": "1J4VS5Pzf19dy6Klf6z0x_esoeh0E0gwV",
+      "sourceName": "36764.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36674": {
+      "decisionNumber": "3036",
+      "caseNumber": "2018/8222/5182",
+      "driveId": "10022M-YYChac-7DGfLmlvnQYZwJfcXyO",
+      "sourceName": "36674.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36571": {
+      "decisionNumber": "4531",
+      "caseNumber": "2017/8206/3034",
+      "driveId": "1560m_LePPVSJPn4agXzlXr9RUVU_Dkgf",
+      "sourceName": "36571.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36570": {
+      "decisionNumber": "5870",
+      "caseNumber": "2018/8205/3097",
+      "driveId": "1ZiRILLbmWUfalWCVL8gtQ8gj7fsHWTpB",
+      "sourceName": "36570.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36569": {
+      "decisionNumber": "134",
+      "caseNumber": "2018/8206/4549",
+      "driveId": "1YbH05RXTe08r0YvJAsekMFBNKsL30Y8r",
+      "sourceName": "36569.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36568": {
+      "decisionNumber": "224",
+      "caseNumber": "2018/8206/2720",
+      "driveId": "1vNvQQIcsf8_j3b0jRAaUXhqu36eAvOa8",
+      "sourceName": "36568.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36567": {
+      "decisionNumber": "1557",
+      "caseNumber": "2019/8206/198",
+      "driveId": "1QD9iT5vgf3wRa1qT7tSeaPTtARi7C6Ez",
+      "sourceName": "36567.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36566": {
+      "decisionNumber": "2175",
+      "caseNumber": "2019/8206/1114",
+      "driveId": "1NJLfTq9dhJ3cYOMgHIrTeCm3iUNl9kfI",
+      "sourceName": "36566.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36565": {
+      "decisionNumber": "3572",
+      "caseNumber": "2018/8206/5553",
+      "driveId": "1EWuthJumKhaSkgdBdm2wua6FozSOJNt1",
+      "sourceName": "36565.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36562": {
+      "decisionNumber": "5814",
+      "caseNumber": "2019/8232/4472",
+      "driveId": "1l4VlDIk5WYZD8OhqxI_ntwQ3jpgXhbqY",
+      "sourceName": "36562.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36559": {
+      "decisionNumber": "1403",
+      "caseNumber": "2020/8205/4940",
+      "driveId": "15gfEAnmaS8rARqMDEVf8SssOAmEiWEpp",
+      "sourceName": "36559.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36558": {
+      "decisionNumber": "2416",
+      "caseNumber": "2020/8206/1693",
+      "driveId": "1i5kDvy-Vi-GXGhe-z5TYR0yZTu2lOBb5",
+      "sourceName": "36558.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36557": {
+      "decisionNumber": "2588",
+      "caseNumber": "2019/8206/2884",
+      "driveId": "1TJ8i0Z-EhNNHntOTxNwCxRC_GAay5GhK",
+      "sourceName": "36557.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36556": {
+      "decisionNumber": "3438",
+      "caseNumber": "2020/8232/2803",
+      "driveId": "1UUmQM-kQJTNO7uS3I54N-9LJzhb7AlGP",
+      "sourceName": "36556.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36555": {
+      "decisionNumber": "968",
+      "caseNumber": "2018/8206/581",
+      "driveId": "1mLFz_SIO9DGk0BbJmlwESYXNWru_BGqH",
+      "sourceName": "36555.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36554": {
+      "decisionNumber": "2940",
+      "caseNumber": "2021/8206/735",
+      "driveId": "1lrKwabGLFf-MtpND8uOgyLHPAVuwe5YW",
+      "sourceName": "36554.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36553": {
+      "decisionNumber": "3438",
+      "caseNumber": "2021/8225/1681",
+      "driveId": "1SvdUw96pmtHCMyzwwwFphcJIs21MkGDt",
+      "sourceName": "36553.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36548": {
+      "decisionNumber": "5407",
+      "caseNumber": "",
+      "driveId": "1RukX_5HMFMM74nns_EGxCwY0KOdilKS6",
+      "sourceName": "36548.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36544": {
+      "decisionNumber": "2435",
+      "caseNumber": "2017/8223/2723",
+      "driveId": "1Ojfvp4UwP59rpwhIu2-XHoPJs-gZjQMN",
+      "sourceName": "36544.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36542": {
+      "decisionNumber": "5378",
+      "caseNumber": "2018/8221/2696",
+      "driveId": "1Dzv2rWjqYzJW572VT8rCnCsuUWjih92N",
+      "sourceName": "36542.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36540": {
+      "decisionNumber": "3323",
+      "caseNumber": "2019/8206/1833",
+      "driveId": "1iqo3dAnifubz1otearCDdnPI8J78CECW",
+      "sourceName": "36540.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36510": {
+      "decisionNumber": "3778",
+      "caseNumber": "2014/8224/2333",
+      "driveId": "1NNPXKudFB6PObrjpHfmbFxSILK2ecvqL",
+      "sourceName": "36510.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36401": {
+      "decisionNumber": "4510",
+      "caseNumber": "2018/8205/2575",
+      "driveId": "1F6pnokqwNghtQDwEzpNmv5WuFacCKrUp",
+      "sourceName": "36401.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36399": {
+      "decisionNumber": "5516",
+      "caseNumber": "2018/8232/3841",
+      "driveId": "1QQIHTL__irEjlCGVfU0JgdlRfSm4bDf2",
+      "sourceName": "36399.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36395": {
+      "decisionNumber": "1978",
+      "caseNumber": "2019/8202/1423",
+      "driveId": "1LkqUFvGGEbHVNGbzwyOqINls_u7fBrHI",
+      "sourceName": "36395.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36394": {
+      "decisionNumber": "3509",
+      "caseNumber": "2019/8202/2811",
+      "driveId": "13_N8uZbJNslp7TvrQ_zVdxPa5mZalDnH",
+      "sourceName": "36394.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36345": {
+      "decisionNumber": "3835",
+      "caseNumber": "2024/8222/1778",
+      "driveId": "1SYqMQ1vaCk6-I3Bm1QxCr5pYIVYyU0CV",
+      "sourceName": "36345.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36344": {
+      "decisionNumber": "3904",
+      "caseNumber": "2024/8218/2884",
+      "driveId": "1Sfzk1Z3Wc1Es_i6EDLxCuJhVrPYrikjr",
+      "sourceName": "36344.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36337": {
+      "decisionNumber": "4062",
+      "caseNumber": "2014/8205/1135",
+      "driveId": "1I6ITlmYJZDhdFXGjQXLp3p4aJkCVVo6S",
+      "sourceName": "36337.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36333": {
+      "decisionNumber": "1440",
+      "caseNumber": "2017/8206/1576",
+      "driveId": "1rvR_aLpePOstyEVHCQjvgpLS8RXryTwd",
+      "sourceName": "36333.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36319": {
+      "decisionNumber": "436",
+      "caseNumber": "2021/8205/49",
+      "driveId": "142QmwwZ2aX__7xzBlaJCLT0x_Kd8lUZk",
+      "sourceName": "36319.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36314": {
+      "decisionNumber": "1725",
+      "caseNumber": "2021/8201/539",
+      "driveId": "1BxRyQQwUiMQ1IniCjn_dD3bBPpjFAwjA",
+      "sourceName": "36314.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36224": {
+      "decisionNumber": "1390",
+      "caseNumber": "2023/8221/3933",
+      "driveId": "1SPwdz-7TNMdtgH2gt3HUrXwjoZoTKtx6",
+      "sourceName": "36224.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36211": {
+      "decisionNumber": "672",
+      "caseNumber": "2014/8232/5324",
+      "driveId": "1HVdORxl3DDraGNd8ljV0s8tH4xJWfd26",
+      "sourceName": "36211.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36209": {
+      "decisionNumber": "1646",
+      "caseNumber": "2015/8232/385",
+      "driveId": "1iAVsbvg76Wm3KZGIzlXmLiLrgSqq7pgV",
+      "sourceName": "36209.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36207": {
+      "decisionNumber": "2230",
+      "caseNumber": "2014/8301/5008",
+      "driveId": "1IleBVa-8AVRhwGwQwpDdE6qFgbAXhELj",
+      "sourceName": "36207.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36206": {
+      "decisionNumber": "2350",
+      "caseNumber": "2014/8232/3807",
+      "driveId": "1pe39pvVyklHTW0oTdxS07yLLebP0einC",
+      "sourceName": "36206.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36205": {
+      "decisionNumber": "2521",
+      "caseNumber": "2015/8202/271",
+      "driveId": "1WhE0UyMyfnikVcavVF25mkvDHV8L478g",
+      "sourceName": "36205.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36204": {
+      "decisionNumber": "4649",
+      "caseNumber": "2014/8206/6276",
+      "driveId": "11IF0c7cQ1wpm5OEGc81Xi_3Sa1tSWvml",
+      "sourceName": "36204.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36203": {
+      "decisionNumber": "5130",
+      "caseNumber": "2015/8205/3041",
+      "driveId": "1l05By9Wz5x2Eb07c8v9xzyTFNJTobZcm",
+      "sourceName": "36203.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36201": {
+      "decisionNumber": "6409",
+      "caseNumber": "2015/8206/4452",
+      "driveId": "15sQVGJmoJM0MAJHTUWpTjMpKAOig6UOk",
+      "sourceName": "36201.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36199": {
+      "decisionNumber": "777",
+      "caseNumber": "2015/8221/2170",
+      "driveId": "1AlYtUQ3Fx3CR-LQp1sXDXy3Cu8ogk7nH",
+      "sourceName": "36199.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36198": {
+      "decisionNumber": "2184",
+      "caseNumber": "2016/8225/501",
+      "driveId": "1D4C3QtyCHIHWiLTL1YAYsYSk3S6GBSbt",
+      "sourceName": "36198.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36197": {
+      "decisionNumber": "2681",
+      "caseNumber": "2015/8232/4232",
+      "driveId": "1DnjrC5DXy5CENWG9Z6XTePpJaP1S837a",
+      "sourceName": "36197.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36196": {
+      "decisionNumber": "3226",
+      "caseNumber": "2016/8202/1039",
+      "driveId": "1_a61npqbtDIBxAWieqOfRt0e4zedrOsl",
+      "sourceName": "36196.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36195": {
+      "decisionNumber": "5305",
+      "caseNumber": "2016/8206/1983",
+      "driveId": "1l9osAY0UV2RCaU_chGj_GSPgaha5LP50",
+      "sourceName": "36195.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36194": {
+      "decisionNumber": "5979",
+      "caseNumber": "2016/8206/4527",
+      "driveId": "1yFcRU9Ca_2csIjsEF99HFfXwzP2oVFOR",
+      "sourceName": "36194.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36191": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1h_pyGoVSrYL9ey3-qQstu8LF9-lF2ytm",
+      "sourceName": "36191.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36184": {
+      "decisionNumber": "4882",
+      "caseNumber": "2016/8202/5880",
+      "driveId": "1LysBu3CKQeABgnfdvIX3btO_zXP6ATkf",
+      "sourceName": "36184.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36183": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1y5cjOa7V-2cr563u8Kr_oYJIM1dXT2hV",
+      "sourceName": "36183.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36182": {
+      "decisionNumber": "5715",
+      "caseNumber": "2017/8206/3904",
+      "driveId": "1tx7_DzUyXJzMjUZvHWifGLxT8EBMqjfL",
+      "sourceName": "36182.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36181": {
+      "decisionNumber": "5743",
+      "caseNumber": "2017/8206/1736",
+      "driveId": "1tYE3oxmsAW_lTDjH5QSLAkp8_8xAI0jV",
+      "sourceName": "36181.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36179": {
+      "decisionNumber": "6329",
+      "caseNumber": "2014/8221/5155",
+      "driveId": "1rXQJRUq3rT61ICaXXuxtYhyDoAPjdhp9",
+      "sourceName": "36179.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36177": {
+      "decisionNumber": "6789",
+      "caseNumber": "2017/8206/2685",
+      "driveId": "1Sq9ppHEj39dwC0gGWCHSW7Bdl-bc_Oh3",
+      "sourceName": "36177.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36176": {
+      "decisionNumber": "68",
+      "caseNumber": "2017/8206/3901",
+      "driveId": "10R4g8h1ELPnP8yioN-3W7_6T6ZTsk51a",
+      "sourceName": "36176.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36174": {
+      "decisionNumber": "312",
+      "caseNumber": "2017/8206/3992",
+      "driveId": "1z7oraD0TiDp378DNLjCEsom4UoWWSsuW",
+      "sourceName": "36174.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36170": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1m1W-8fCe8O3qYYiJ1-dnqtlMpT7aIppo",
+      "sourceName": "36170.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36154": {
+      "decisionNumber": "1472",
+      "caseNumber": "2017/8206/6066",
+      "driveId": "1zGjwaA76S1q6u6HY1OgN0h-4bPKg1pdo",
+      "sourceName": "36154.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36145": {
+      "decisionNumber": "2058",
+      "caseNumber": "2018/8228/560",
+      "driveId": "1_fr0N7vrni5XW64_wXRpJcDGAr3T5NnP",
+      "sourceName": "36145.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36132": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1abnX6CrX7WNP9cF11pn_Ah7DvOV6ckUf",
+      "sourceName": "36132.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36127": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1Xxt9FVLyDavgost9xvw5urOLNHHJaFnQ",
+      "sourceName": "36127.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36122": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1wT2dbU0f6ELA6UXlwWR0T2v7XWRQOLvL",
+      "sourceName": "36122.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36124": {
+      "decisionNumber": "4566",
+      "caseNumber": "2018/8232/2876",
+      "driveId": "112GIyVOMhScsQeazF8Ej0UuitIYYWqVZ",
+      "sourceName": "36124.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36121": {
+      "decisionNumber": "4771",
+      "caseNumber": "2018/8206/3728",
+      "driveId": "1FBPTbnoMCTfUW0Z6-74oxeeSQCoGM7Zk",
+      "sourceName": "36121.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36119": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1xzB7NBL2xsPNXIvRbgm70ASkMLJEjf-I",
+      "sourceName": "36119.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36118": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1GpApNLYM3S-EaI6u2ibBpOt-2Emzbze6",
+      "sourceName": "36118.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36115": {
+      "decisionNumber": "5286",
+      "caseNumber": "2018/8206/5152",
+      "driveId": "1AUSSd5T0N44EOCPEjInuGNuV67_sGHMo",
+      "sourceName": "36115.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36114": {
+      "decisionNumber": "5279",
+      "caseNumber": "2018/8206/3186",
+      "driveId": "1l35a6K986DLHfv9e-OMbClbO_FoxN_Rd",
+      "sourceName": "36114.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36112": {
+      "decisionNumber": "4487",
+      "caseNumber": "2018/8206/2442",
+      "driveId": "166fiMWlJFO3DOkftldaDa8iFog_OyhV3",
+      "sourceName": "36112.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36111": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1FbgP5K8H4DBOggFdulJa0ufNCkZPvMRb",
+      "sourceName": "36111.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36108": {
+      "decisionNumber": "5560",
+      "caseNumber": "2018/8206/1606",
+      "driveId": "1W-vg-uEEY7738inOWVvlxsmccBolWl9o",
+      "sourceName": "36108.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36100": {
+      "decisionNumber": "5994",
+      "caseNumber": "2018/8206/4608",
+      "driveId": "1lEvLi4Nh2MvOaEXjisVD8tQ7GVzi96Eb",
+      "sourceName": "36100.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36098": {
+      "decisionNumber": "6457",
+      "caseNumber": "2018/8202/4657",
+      "driveId": "14cEz23j3VVFkXkz-lgyMIkB87IroP-NU",
+      "sourceName": "36098.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36099": {
+      "decisionNumber": "6521",
+      "caseNumber": "2018/8228/4282",
+      "driveId": "1fW9cwUk4Ey-1PP4SN4E8ceevtl0BNGhi",
+      "sourceName": "36099.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36095": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1K9rFWlN5LfgJsNfakpy50CJkm_lvRDjY",
+      "sourceName": "36095.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36093": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "13CL1NOn_HCbXyf08ew6Fig86hrCZT58-",
+      "sourceName": "36093.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36092": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1d0Esr-LraYfdjKE-_RJRD5rAhA75eLGy",
+      "sourceName": "36092.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36089": {
+      "decisionNumber": "576",
+      "caseNumber": "2019/8206/33",
+      "driveId": "1lYEHotDoB5Zl5R2D4H92r-mznPqOhd8j",
+      "sourceName": "36089.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36087": {
+      "decisionNumber": "841",
+      "caseNumber": "2019/8205/151",
+      "driveId": "1oW2GhWeiw1gZCrAfB7GiGBIzKdHvSf1v",
+      "sourceName": "36087.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36086": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "15J4VZRiKEeAn-JU2tcIYOPaTfLhNt5a4",
+      "sourceName": "36086.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36085": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1siLqU5h7_50vSnS85ZBgP48nlMC0aJwE",
+      "sourceName": "36085.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36082": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1LgkA_KmZdSckvmqLwJ0kbFIqLowzqebQ",
+      "sourceName": "36082.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36080": {
+      "decisionNumber": "1674",
+      "caseNumber": "2018/8206/4638",
+      "driveId": "1evJ6CKUu3wAseSDb-PIoDjuwYGUGaQYn",
+      "sourceName": "36080.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36079": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "11JcYab1-17vyx4Pb7_R_tAGskliuiK0z",
+      "sourceName": "36079.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36078": {
+      "decisionNumber": "2140",
+      "caseNumber": "2019/8232/585",
+      "driveId": "1CBI8LHe_mFnvRu-WoRT_d-vtlniNPYUE",
+      "sourceName": "36078.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36077": {
+      "decisionNumber": "2311",
+      "caseNumber": "2019/8202/685",
+      "driveId": "1VgvkGAOSqZqsiNev23BTRbEBgyK6A5sC",
+      "sourceName": "36077.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36076": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1KgjSV7cii4FP7LCu4P9cDC8u3WbtjBdT",
+      "sourceName": "36076.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36075": {
+      "decisionNumber": "2436",
+      "caseNumber": "2019/8206/1000",
+      "driveId": "1JvyF8_ca063bSO77YHWiDxq0-81X5ctX",
+      "sourceName": "36075.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36074": {
+      "decisionNumber": "2489",
+      "caseNumber": "2019/8232/1506",
+      "driveId": "1sqjg6paIEEzXoBJFSHoBUHeAEfxEcmwI",
+      "sourceName": "36074.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36072": {
+      "decisionNumber": "2854",
+      "caseNumber": "2016/8206/2203",
+      "driveId": "14yXbFI_4dN71XJESZCldYx1HX4EQkDoG",
+      "sourceName": "36072.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36071": {
+      "decisionNumber": "2677",
+      "caseNumber": "2019/8206/1679",
+      "driveId": "1as1aMiQcH9GJl0jO3IodiSSHfWgL096j",
+      "sourceName": "36071.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36069": {
+      "decisionNumber": "2857",
+      "caseNumber": "2019/8232/1850",
+      "driveId": "1gDMA0MZiQ9U-iy1zqxxGxFtHT5MaZvv0",
+      "sourceName": "36069.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36068": {
+      "decisionNumber": "2957",
+      "caseNumber": "2019/8206/1200",
+      "driveId": "1gfAYQgLa1TUikAj_fZdeMABpmDp1I_IN",
+      "sourceName": "36068.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36066": {
+      "decisionNumber": "3088",
+      "caseNumber": "2018/8206/3421",
+      "driveId": "1cbQfoJOijWEqXooELgjvzuHSNIQDUJgY",
+      "sourceName": "36066.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36065": {
+      "decisionNumber": "3234",
+      "caseNumber": "2019/8206/2105",
+      "driveId": "11leLkSbIvtO1V6v-HCVC2G2sCA6205U9",
+      "sourceName": "36065.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36063": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1EkKoEp42raNczf0txtrPkmt2-CtRQAsF",
+      "sourceName": "36063.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36056": {
+      "decisionNumber": "4487",
+      "caseNumber": "2018/8206/5848",
+      "driveId": "1K71iRWz1N-XlvNNS_otWZY459Vf4eRkK",
+      "sourceName": "36056.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36055": {
+      "decisionNumber": "4684",
+      "caseNumber": "2019/8205/4102",
+      "driveId": "1V5OJynckvqbhdQaKQiKcU9pkBQCU9kJX",
+      "sourceName": "36055.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36053": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1WjXVgW0FtVKY7TYZfuDtZCgFk5IwgAKh",
+      "sourceName": "36053.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36052": {
+      "decisionNumber": "4711",
+      "caseNumber": "2018/8221/1151",
+      "driveId": "1JGg8BvcXsAewd7H5L9n3wqBF6X3fb58p",
+      "sourceName": "36052.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36037": {
+      "decisionNumber": "5740",
+      "caseNumber": "2019/8206/4278",
+      "driveId": "1Ze9s7e3oAxerZCh7auTJFSKTfkU4f30U",
+      "sourceName": "36037.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36034": {
+      "decisionNumber": "6096",
+      "caseNumber": "2019/8202/4770",
+      "driveId": "1ucqQKrIrahCxZlO9Isq2zzxbSGjcWHDe",
+      "sourceName": "36034.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36028": {
+      "decisionNumber": "236",
+      "caseNumber": "2019/8206/4168",
+      "driveId": "1W9UlRWsBsQaZ-diJLuluGKCXHIWFe8Kd",
+      "sourceName": "36028.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36024": {
+      "decisionNumber": "344",
+      "caseNumber": "2019/8202/5695",
+      "driveId": "1axg56MlcFJLoctFAhmEOvGeplZs9aRd-",
+      "sourceName": "36024.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36025": {
+      "decisionNumber": "354",
+      "caseNumber": "2016/8221/4027",
+      "driveId": "1mT3T_LJ0M_VQL92-X4m_E2KgJRmgm4Cb",
+      "sourceName": "36025.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36023": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1Se6FOHYslRxiET5MWiUPuNSvtVKnXYds",
+      "sourceName": "36023.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36018": {
+      "decisionNumber": "754",
+      "caseNumber": "2019/8206/5823",
+      "driveId": "1792JkQo6H21TD4-AbMGuIE42ozJM8_YY",
+      "sourceName": "36018.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:36013": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1cBY2UEz0clYF0_EcKPhGXdPVdD1O7GgL",
+      "sourceName": "36013.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35997": {
+      "decisionNumber": "2107",
+      "caseNumber": "2020/8205/1366",
+      "driveId": "1FWtoPqijJWmw_zSxakoGj-OwfZ3WYzwl",
+      "sourceName": "35997.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35996": {
+      "decisionNumber": "2177",
+      "caseNumber": "2019/8202/4684",
+      "driveId": "1NtzLfyUOFOotb35BMoROvOFSTzNqS4Bc",
+      "sourceName": "35996.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35994": {
+      "decisionNumber": "2276",
+      "caseNumber": "2020/8206/1335",
+      "driveId": "1iVN2JejHAJ08Xs9wkh0EeHOjvXxTccYo",
+      "sourceName": "35994.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35992": {
+      "decisionNumber": "2428",
+      "caseNumber": "2020/8205/267",
+      "driveId": "1_cmr5c7NShFnJkEi9iwQFCKJrynP-u57",
+      "sourceName": "35992.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35991": {
+      "decisionNumber": "2410",
+      "caseNumber": "2020/8206/2340",
+      "driveId": "1lfjMOEqH5SVJm_JQIF9wcpe4ZrGanuUa",
+      "sourceName": "35991.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35976": {
+      "decisionNumber": "3422",
+      "caseNumber": "2020/8202/3108",
+      "driveId": "1oGOVdl15sTLBxR-vmnDCn8CyAAjA5gi3",
+      "sourceName": "35976.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35975": {
+      "decisionNumber": "3538",
+      "caseNumber": "2020/8206/2121",
+      "driveId": "1_G6z9xflPW7jd4wQiUKjQY2dalkLyq6p",
+      "sourceName": "35975.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35973": {
+      "decisionNumber": "3582",
+      "caseNumber": "2020/8202/188",
+      "driveId": "19DL8xs4G4nf3ErXthvdIhIaPITKn8XDS",
+      "sourceName": "35973.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35970": {
+      "decisionNumber": "123",
+      "caseNumber": "2020/8228/1630",
+      "driveId": "1ZIEOajdfToJlNSjjoCa1bi4vy1Ph9aAL",
+      "sourceName": "35970.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35968": {
+      "decisionNumber": "191",
+      "caseNumber": "2020/8206/3239",
+      "driveId": "1p98r0f2x48JOniopIyN_19xL72phU4f4",
+      "sourceName": "35968.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35966": {
+      "decisionNumber": "195",
+      "caseNumber": "2020/8206/3044",
+      "driveId": "1SJ4dhSCwGyIGpxNgFtZ04uHlTa8eYfHd",
+      "sourceName": "35966.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35965": {
+      "decisionNumber": "204",
+      "caseNumber": "2020/8202/2260",
+      "driveId": "1ahMNSSnnKoeNZIxn75gB8TYmz98cgnQO",
+      "sourceName": "35965.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35962": {
+      "decisionNumber": "788",
+      "caseNumber": "2019/8202/4880",
+      "driveId": "1lRYKk0aWQF-tTSFB5ZGIjaHV8B4xun16",
+      "sourceName": "35962.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35956": {
+      "decisionNumber": "1688",
+      "caseNumber": "2019/8221/4190",
+      "driveId": "1u8-1IoHf_K3enCK92Eb2JbaXIP4pBmjq",
+      "sourceName": "35956.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35954": {
+      "decisionNumber": "1730",
+      "caseNumber": "2020/8202/3856",
+      "driveId": "15OTJMponjkURLPBAC2NoImBdOVduehh3",
+      "sourceName": "35954.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35952": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1AGb-DqiOmgzGhk0qXZWf3yPFyr2uXHBk",
+      "sourceName": "35952.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35938": {
+      "decisionNumber": "3259",
+      "caseNumber": "2021/8232/1985",
+      "driveId": "1VPb8UdIBVr8E7wONmZ7WCEJpN0UG6h16",
+      "sourceName": "35938.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35937": {
+      "decisionNumber": "3293",
+      "caseNumber": "2021/8232/954",
+      "driveId": "1mm2wJxVqQvtCsTzP_M9c0MJVbyTNiJL6",
+      "sourceName": "35937.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35932": {
+      "decisionNumber": "3806",
+      "caseNumber": "2021/8232/1595",
+      "driveId": "1MyQkq3hRfk4JsJCJsV8BqgJY3IO54aWI",
+      "sourceName": "35932.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35929": {
+      "decisionNumber": "3914",
+      "caseNumber": "2021/8221/2219",
+      "driveId": "1xpaYCDA8l2eTLVq4Eg8_QunvpcOW9qAH",
+      "sourceName": "35929.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35928": {
+      "decisionNumber": "3916",
+      "caseNumber": "2021/8222/2508",
+      "driveId": "1LknfAuhpH1Y1dxShp-ikPNbwpkx20jDC",
+      "sourceName": "35928.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35926": {
+      "decisionNumber": "4357",
+      "caseNumber": "2021/8232/1659",
+      "driveId": "1_PLup6nsgxHOYsyHyOgYZmlJhsvrIg81",
+      "sourceName": "35926.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35925": {
+      "decisionNumber": "4324",
+      "caseNumber": "2021/8232/2370",
+      "driveId": "1Gdt-twE2hngaevvst0kAQ8up5TAV7JTL",
+      "sourceName": "35925.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35916": {
+      "decisionNumber": "3232",
+      "caseNumber": "2021/8206/1482",
+      "driveId": "1GsfKd3qAkAG_vKrin-vEhMpOyRqvbnZ9",
+      "sourceName": "35916.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35904": {
+      "decisionNumber": "212",
+      "caseNumber": "2020/8202/2753",
+      "driveId": "1WUXt6p7JDyJVMHYMT4sGUV7gBU6TXv3g",
+      "sourceName": "35904.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35900": {
+      "decisionNumber": "340",
+      "caseNumber": "2021/8202/5761",
+      "driveId": "1cplkbSdolj6ntfEyggGmuk_VAmdzg4_P",
+      "sourceName": "35900.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35799": {
+      "decisionNumber": "968",
+      "caseNumber": "2023/8229/5049",
+      "driveId": "1eaprcQwsH21QgtCiNyWEdKfIyggokN9p",
+      "sourceName": "35799.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35790": {
+      "decisionNumber": "1598",
+      "caseNumber": "2023/8221/4059",
+      "driveId": "1B63QYM7XsNJUkh8-AhDq0_X8zvOqLT9q",
+      "sourceName": "35790.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35716": {
+      "decisionNumber": "27",
+      "caseNumber": "2023/8222/4213",
+      "driveId": "1x62r0UdKCgAOpUekKaVolVf_NwqY6m-S",
+      "sourceName": "35716.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35712": {
+      "decisionNumber": "91",
+      "caseNumber": "2023/8228/544",
+      "driveId": "1l0UYPwzMJjqscIGI4D6dNwK6VY6sb29h",
+      "sourceName": "35712.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35715": {
+      "decisionNumber": "30",
+      "caseNumber": "2023/8230/3983",
+      "driveId": "19gOe9HtQz119zdBkvr6i5g12KLmeIINv",
+      "sourceName": "35715.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35690": {
+      "decisionNumber": "148",
+      "caseNumber": "2023/8203/5032",
+      "driveId": "1n7p0F-UKOlkFR-EfrSrLUo95qDnKGLcJ",
+      "sourceName": "35690.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35669": {
+      "decisionNumber": "168",
+      "caseNumber": "2023/8229/3873",
+      "driveId": "1ZuO62-Ra7vvOoKFWJmScmH6iBJKsTz8j",
+      "sourceName": "35669.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35689": {
+      "decisionNumber": "135",
+      "caseNumber": "2023/8228/2497",
+      "driveId": "1uY_trK788zkey-q5PJmmiEAd5IskSvrY",
+      "sourceName": "35689.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35662": {
+      "decisionNumber": "233",
+      "caseNumber": "2023/8218/225",
+      "driveId": "1YDkWcPvBj3b1AqmCpurGxkvIyHX-tEXR",
+      "sourceName": "35662.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35651": {
+      "decisionNumber": "378",
+      "caseNumber": "2023/8228/3992",
+      "driveId": "1ltAm73QOiFSVFwmd8aEeWAeR1_mV9WdB",
+      "sourceName": "35651.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35649": {
+      "decisionNumber": "493",
+      "caseNumber": "2024/8231/636",
+      "driveId": "1GyegDwzpIwKH-QFJ9B3llyki3nzLTvMZ",
+      "sourceName": "35649.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35648": {
+      "decisionNumber": "479",
+      "caseNumber": "2024/8231/545",
+      "driveId": "1MFEnAkc3WQmh5BkxBbTqyFRipKNHCLTu",
+      "sourceName": "35648.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35647": {
+      "decisionNumber": "542",
+      "caseNumber": "2024/8231/680",
+      "driveId": "1QbI8uBXzQcvj5M4ydcBuEHCWIJMWtWt-",
+      "sourceName": "35647.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35646": {
+      "decisionNumber": "",
+      "caseNumber": "2023/8228/4716",
+      "driveId": "1_j8gFjptQx-L3FuR6Ru25S1gJfP7aF0E",
+      "sourceName": "35646.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35645": {
+      "decisionNumber": "579",
+      "caseNumber": "2023/8228/1956",
+      "driveId": "1rXDeIL99r3cWFFuh1-wV9MT7291fmhlw",
+      "sourceName": "35645.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35643": {
+      "decisionNumber": "581",
+      "caseNumber": "2023/8222/4501",
+      "driveId": "1ateYGCDQlEYyNHrEXWdfHlCZ2GdWy2g6",
+      "sourceName": "35643.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35639": {
+      "decisionNumber": "619",
+      "caseNumber": "2023/8222/4535",
+      "driveId": "1cZxfUSuMe_pVDb9rHg7P7CKfHO9YY4l4",
+      "sourceName": "35639.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35637": {
+      "decisionNumber": "643",
+      "caseNumber": "2022/8221/5225",
+      "driveId": "126eGYVeBvluCsCPw9cGosliktg2wQYPH",
+      "sourceName": "35637.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35636": {
+      "decisionNumber": "665",
+      "caseNumber": "2023/8228/5065",
+      "driveId": "1uIoyiPJnP9zmrlVbDcggJtt8YlDICA7t",
+      "sourceName": "35636.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35633": {
+      "decisionNumber": "741",
+      "caseNumber": "2024/8231/864",
+      "driveId": "1YslNvUT7qskeSJNPyL6_KJl9avZOXYMB",
+      "sourceName": "35633.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35632": {
+      "decisionNumber": "740",
+      "caseNumber": "2024/8231/747",
+      "driveId": "1qBZVqyjMpsLa8aTHvlT157gSuWVkPjTx",
+      "sourceName": "35632.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35616": {
+      "decisionNumber": "870",
+      "caseNumber": "2024/8231/929",
+      "driveId": "1VvmSQbSWoXiy28wY8ziKHSVjJxc43pA5",
+      "sourceName": "35616.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35613": {
+      "decisionNumber": "884",
+      "caseNumber": "2023/8229/3876",
+      "driveId": "1iB4RNBFyTOc5QH_JVcblqk5yOMr5ElUM",
+      "sourceName": "35613.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35612": {
+      "decisionNumber": "911",
+      "caseNumber": "2023/8222/350",
+      "driveId": "1-2YjBE-XUsO0dL0EC7Veep8Q18_MKZCL",
+      "sourceName": "35612.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35610": {
+      "decisionNumber": "941",
+      "caseNumber": "2024/8231/1082",
+      "driveId": "1Ccj49GpqK1t4m5zBrLMPyCO9jMZm5mVn",
+      "sourceName": "35610.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35608": {
+      "decisionNumber": "530",
+      "caseNumber": "2023/8229/4217",
+      "driveId": "1Dn5NfVbpME8gWrOhxIRlnphLqd0l7KkU",
+      "sourceName": "35608.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35607": {
+      "decisionNumber": "969",
+      "caseNumber": "2023/8229/5276",
+      "driveId": "1MgHEKWygIdchb5uwRHshvWh0HIEYwXOp",
+      "sourceName": "35607.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35606": {
+      "decisionNumber": "965",
+      "caseNumber": "2024/8229/341",
+      "driveId": "1mIOvubZEYO7O8sAiRIxyL1zUyjsGEFXm",
+      "sourceName": "35606.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35605": {
+      "decisionNumber": "970",
+      "caseNumber": "2023/8229/5275",
+      "driveId": "1c-VzxqPx65wFJKDVX52XKQEnIuKV3GVm",
+      "sourceName": "35605.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35604": {
+      "decisionNumber": "966",
+      "caseNumber": "2023/8229/2969",
+      "driveId": "1ZbzjesmnS9-5r9qdQoGSY0NRI18qPDg7",
+      "sourceName": "35604.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35603": {
+      "decisionNumber": "984",
+      "caseNumber": "2023/8221/1692",
+      "driveId": "1rTvhzxK3WPNGLWWtfQ5_iLgJyxT2zPTM",
+      "sourceName": "35603.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35599": {
+      "decisionNumber": "994",
+      "caseNumber": "4501/8222/2022",
+      "driveId": "1YQZE9I1K5q8SjI2K607AYw0EByn9lHTe",
+      "sourceName": "35599.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35596": {
+      "decisionNumber": "1015",
+      "caseNumber": "2024/8231/1304",
+      "driveId": "1GC4hPa4FUdlf8WkF0fOmZZ9deJfSgjW6",
+      "sourceName": "35596.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35593": {
+      "decisionNumber": "1041",
+      "caseNumber": "2024/8231/1265",
+      "driveId": "1Ux5cZqkzrxm1V4xC4VLeoiwWwJmvNKQc",
+      "sourceName": "35593.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35576": {
+      "decisionNumber": "1101",
+      "caseNumber": "2024/8229/342",
+      "driveId": "1idtUHC0pKD6DOAi_lWVlyi0xglPKCh25",
+      "sourceName": "35576.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35575": {
+      "decisionNumber": "1092",
+      "caseNumber": "2024/8229/340",
+      "driveId": "1W_GIYeFYe31yClBpPaa18nn6tiYeEFZU",
+      "sourceName": "35575.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35573": {
+      "decisionNumber": "1083",
+      "caseNumber": "2024/8229/962",
+      "driveId": "1-iCCB4o6H6chrUF-zj8RKH84uczGJG-r",
+      "sourceName": "35573.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35569": {
+      "decisionNumber": "1109",
+      "caseNumber": "2024/8218/133",
+      "driveId": "1QmjORBw0BLB36sHMkm_RlrLM8_EY4nD4",
+      "sourceName": "35569.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35394": {
+      "decisionNumber": "2984",
+      "caseNumber": "2023/8222/689",
+      "driveId": "1sa2S2IivS20kO-1rFzTfb9enSGW6Aw8l",
+      "sourceName": "35394.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35392": {
+      "decisionNumber": "3036",
+      "caseNumber": "2024/8222/2085",
+      "driveId": "1aHEoTacIt_mK0pM4cs7QsoddoCa7rVre",
+      "sourceName": "35392.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35386": {
+      "decisionNumber": "3139",
+      "caseNumber": "2024/8218/1091",
+      "driveId": "1kyurN5fnS-iRG_3EAhv8CQSh9wEZxrny",
+      "sourceName": "35386.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35383": {
+      "decisionNumber": "3150",
+      "caseNumber": "2024/8225/1864",
+      "driveId": "1Dd8OxmYUtL9C9ZZnUhGyvIrl0Y-7aGMW",
+      "sourceName": "35383.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35385": {
+      "decisionNumber": "3154",
+      "caseNumber": "2024/8225/1868",
+      "driveId": "1o8g2nX2fgpkfrsB0IaKBH12DP5VYNX_p",
+      "sourceName": "35385.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35382": {
+      "decisionNumber": "3114",
+      "caseNumber": "2024/8225/2381",
+      "driveId": "1uYcjqUdfw5jVFcSNzM1__fgmNUkx0mg0",
+      "sourceName": "35382.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35381": {
+      "decisionNumber": "3109",
+      "caseNumber": "2024/8225/2228",
+      "driveId": "1o7Ysps7AY0CUYLkKOl--87sTfGnn6FCR",
+      "sourceName": "35381.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35378": {
+      "decisionNumber": "3193",
+      "caseNumber": "2024/8225/581",
+      "driveId": "11m5jFC_c5vpTk8yzcJky2iDKslrWfQV9",
+      "sourceName": "35378.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35377": {
+      "decisionNumber": "3165",
+      "caseNumber": "2024/8225/2420",
+      "driveId": "1oWqsCzIJMJdcBf2LHkGWsqmUg04hlrxe",
+      "sourceName": "35377.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35371": {
+      "decisionNumber": "3303",
+      "caseNumber": "2024/8225/969",
+      "driveId": "1UU_BNg-u-RupyX3CH8FgNEZpUoy5ep09",
+      "sourceName": "35371.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35375": {
+      "decisionNumber": "3221",
+      "caseNumber": "2024/8218/94",
+      "driveId": "13TAMeWniQQKzbCC2kZPB3DiLF396Bbiv",
+      "sourceName": "35375.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35370": {
+      "decisionNumber": "3075",
+      "caseNumber": "2024/8225/2137",
+      "driveId": "1q-plgfQAQJnFmDupG84SvpczKNiPu9tE",
+      "sourceName": "35370.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35369": {
+      "decisionNumber": "581",
+      "caseNumber": "2023/8222/4501",
+      "driveId": "14tWwv9Ei4RTjfhnY1dNDhcgR7vHPsCpl",
+      "sourceName": "35369.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35364": {
+      "decisionNumber": "3376",
+      "caseNumber": "2024/8225/2333",
+      "driveId": "1joMCK4Qqt1RhS9ku3nEa_YvVKfihmvz6",
+      "sourceName": "35364.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35359": {
+      "decisionNumber": "3499",
+      "caseNumber": "2023/8222/3692",
+      "driveId": "1rY21ESB5e3X2nTTQ1eZMsG_n7_5TDKmn",
+      "sourceName": "35359.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35357": {
+      "decisionNumber": "3511",
+      "caseNumber": "2024/8225/2377",
+      "driveId": "1oLD5ELEvEDqGEzczhvlZ39SrcKE9wx9w",
+      "sourceName": "35357.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35356": {
+      "decisionNumber": "3524",
+      "caseNumber": "2024/8225/2864",
+      "driveId": "1ZKQ1jOlShadz5d_MY4rYWgjehFNT3IU_",
+      "sourceName": "35356.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35353": {
+      "decisionNumber": "3588",
+      "caseNumber": "2024/8225/2003",
+      "driveId": "1dMaUtSVgJY4o1lak4nOpsfVDrWB-fKna",
+      "sourceName": "35353.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35352": {
+      "decisionNumber": "3582",
+      "caseNumber": "2024/8222/1320",
+      "driveId": "1mWzraBHSpvTV0Y1CmEs__LAIjNUcTu7z",
+      "sourceName": "35352.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35351": {
+      "decisionNumber": "3611",
+      "caseNumber": "2024/8225/2571",
+      "driveId": "1gjeVECzsEpmttXMI_um7NCtlrS6k7LVy",
+      "sourceName": "35351.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35342": {
+      "decisionNumber": "3644",
+      "caseNumber": "2023/8221/4184",
+      "driveId": "1y39yoHdGY3KtCtnB7q1p_UO5GgHXDujW",
+      "sourceName": "35342.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35343": {
+      "decisionNumber": "3629",
+      "caseNumber": "2024/8222/1075",
+      "driveId": "1oRcRTTnF82YqRPBultkTpsrx5wtZDxSb",
+      "sourceName": "35343.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35340": {
+      "decisionNumber": "3648",
+      "caseNumber": "2024/8222/1755",
+      "driveId": "1PurkzHgq5lSPzSvFRdn7f_jpnBSN6iwl",
+      "sourceName": "35340.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35339": {
+      "decisionNumber": "3663",
+      "caseNumber": "2023/8221/4700",
+      "driveId": "10a3CqYTYOuS6NgsDSjCdmrX6h8n4764H",
+      "sourceName": "35339.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35338": {
+      "decisionNumber": "3650",
+      "caseNumber": "2024/8228/2939",
+      "driveId": "1_l7oczqL5SbLrRp9xVgUxewm1eWkZeVv",
+      "sourceName": "35338.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35327": {
+      "decisionNumber": "3726",
+      "caseNumber": "2024/8222/1760",
+      "driveId": "1Q9LzxI97yJkPips0myaSjEY614kUa0ah",
+      "sourceName": "35327.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35326": {
+      "decisionNumber": "3752",
+      "caseNumber": "2024/8222/2726",
+      "driveId": "1v3rtHNxxtizOfM3S26EjJBtC7be9nKCs",
+      "sourceName": "35326.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35325": {
+      "decisionNumber": "3751",
+      "caseNumber": "2023/8222/346",
+      "driveId": "16r3-yOs24jsHKqCZfznQOVaL3UnYTaZt",
+      "sourceName": "35325.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35322": {
+      "decisionNumber": "3750",
+      "caseNumber": "2024/8221/854",
+      "driveId": "1650VVwepBrlDe-bO3uNJNEVbZcK8Jjya",
+      "sourceName": "35322.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35320": {
+      "decisionNumber": "3722",
+      "caseNumber": "2024/8221/2098",
+      "driveId": "1pxm56JwUy1wgVadpYvvAEsxIuZDUlSsM",
+      "sourceName": "35320.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35319": {
+      "decisionNumber": "3718",
+      "caseNumber": "2024/8221/1975",
+      "driveId": "1tOnnfopIc4atmJHmDACZJH5T9N9XihgR",
+      "sourceName": "35319.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35318": {
+      "decisionNumber": "3737",
+      "caseNumber": "2022/8228/5900",
+      "driveId": "16VNl9a8E534eEiQiXOfhPGeXup2MW2MW",
+      "sourceName": "35318.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35316": {
+      "decisionNumber": "3748",
+      "caseNumber": "2024/8218/2807",
+      "driveId": "17s0cEMzIYMkDvHRDCp05NJH74G-v8R80",
+      "sourceName": "35316.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35312": {
+      "decisionNumber": "",
+      "caseNumber": "2023/8228/5162",
+      "driveId": "1OKMkbt3YK4jvJLqAux8HnM2zhQtH0C6_",
+      "sourceName": "35312.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35309": {
+      "decisionNumber": "",
+      "caseNumber": "2024/8228/2414",
+      "driveId": "1764-ZY7IyedsMBktpCpxoV-fWY0z1TPl",
+      "sourceName": "35309.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35305": {
+      "decisionNumber": "3813",
+      "caseNumber": "2023/8222/3647",
+      "driveId": "1CHXd8HDIPoVsHpdoQxSwNgZc7lfBktNC",
+      "sourceName": "35305.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35306": {
+      "decisionNumber": "3839",
+      "caseNumber": "2023/8222/5212",
+      "driveId": "1Y4Cb-lFdb1JWM01ph5YxseNvmUa-yGEh",
+      "sourceName": "35306.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35291": {
+      "decisionNumber": "3889",
+      "caseNumber": "2024/8228/262",
+      "driveId": "1X9PMPpxVEsRdId6IYKoTNpFwdPL3OGlw",
+      "sourceName": "35291.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35287": {
+      "decisionNumber": "",
+      "caseNumber": "2024/8228/3169",
+      "driveId": "16pFYC9P3y_stsDmlueZgvb-EECoQGm9e",
+      "sourceName": "35287.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35284": {
+      "decisionNumber": "3954",
+      "caseNumber": "2024/8222/3037",
+      "driveId": "10QNQzSRBGpwVlNCUD1434Z0LMGKn70rV",
+      "sourceName": "35284.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35285": {
+      "decisionNumber": "3956",
+      "caseNumber": "2024/8228/2237",
+      "driveId": "1w2KJZGVpOp0qea57rjfqBvKjsn_JWMtJ",
+      "sourceName": "35285.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35283": {
+      "decisionNumber": "3961",
+      "caseNumber": "2024/8221/2461",
+      "driveId": "1DtwkTora5lnfsJ-itwxVw_VVeEYO35jT",
+      "sourceName": "35283.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35282": {
+      "decisionNumber": "3993",
+      "caseNumber": "2024/8221/2196",
+      "driveId": "1N91fJih2I43QQ4wJUoajBJ7-hc_WYmP0",
+      "sourceName": "35282.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35270": {
+      "decisionNumber": "3966",
+      "caseNumber": "2023/8221/297",
+      "driveId": "1eTHItiPHYvh9hH9tnj8RCF1V5e2dENi8",
+      "sourceName": "35270.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35269": {
+      "decisionNumber": "3970",
+      "caseNumber": "2023/8228/2318",
+      "driveId": "1zVg34TbiK0M0O6pvhBLccd1fypRbpV-9",
+      "sourceName": "35269.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35249": {
+      "decisionNumber": "4036",
+      "caseNumber": "2024/8231/3723",
+      "driveId": "1jE4hg-dVGYkeni8cOp8L8st9I6DVXa7J",
+      "sourceName": "35249.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35248": {
+      "decisionNumber": "4020",
+      "caseNumber": "2024/8221/1520",
+      "driveId": "1uwQ8pdCUNzbv4lWn5BFE33RH3EG7zwXc",
+      "sourceName": "35248.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35246": {
+      "decisionNumber": "4065",
+      "caseNumber": "2023/8222/3101",
+      "driveId": "1uq9GTVFV7QlvpNiAqY7wsaIvOf1ue-01",
+      "sourceName": "35246.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35233": {
+      "decisionNumber": "4058",
+      "caseNumber": "2024/8231/3420",
+      "driveId": "1ALYfEv0L35b7MejAj1kXxH-QQ2LafaLC",
+      "sourceName": "35233.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35230": {
+      "decisionNumber": "4093",
+      "caseNumber": "2024/8218/3384",
+      "driveId": "1HCf3Y4YtUWZp-dUwg6F93ZcQ_nJ7Jobv",
+      "sourceName": "35230.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35229": {
+      "decisionNumber": "4147",
+      "caseNumber": "2024/8231/3915",
+      "driveId": "18MoKFLCl7FohDgFrH4iDriFWtLwb-Dmb",
+      "sourceName": "35229.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34981": {
+      "decisionNumber": "1237",
+      "caseNumber": "2024/8218/302",
+      "driveId": "1S0O4uLXAd_SHHLYS75OQOi1aRgcGTD6o",
+      "sourceName": "34981.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34979": {
+      "decisionNumber": "1242",
+      "caseNumber": "2023/8221/4215",
+      "driveId": "1-OSCKRiuRxMAnhdSM8mNynDqHGI3hgXc",
+      "sourceName": "34979.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34966": {
+      "decisionNumber": "1339",
+      "caseNumber": "2023/8229/4776",
+      "driveId": "1aUi0iNd-Te-uCsH1Glyd3tQM5orzhch1",
+      "sourceName": "34966.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34803": {
+      "decisionNumber": "1842",
+      "caseNumber": "2023/8229/5334",
+      "driveId": "1IkTTTkH6KFupWgoR-sp8ELzR5f0davuv",
+      "sourceName": "34803.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34802": {
+      "decisionNumber": "2128",
+      "caseNumber": "2021/8229/2243",
+      "driveId": "1Dek8XIXrqzLFCco7s1kEbtSf7f9Ojlby",
+      "sourceName": "34802.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34801": {
+      "decisionNumber": "2129",
+      "caseNumber": "2021/8229/2244",
+      "driveId": "1_hjismI5I_yXajw2G3jSjilp6KLo9m35",
+      "sourceName": "34801.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34800": {
+      "decisionNumber": "2227",
+      "caseNumber": "2024/8230/295",
+      "driveId": "1cPIA6xmPvtWOyvVQokxuOqSfINTn9h0Z",
+      "sourceName": "34800.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34799": {
+      "decisionNumber": "2334",
+      "caseNumber": "2024/8229/1956",
+      "driveId": "11w42o00xOEKnmClPE_jd7xA1-8n6Ol34",
+      "sourceName": "34799.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34798": {
+      "decisionNumber": "2330",
+      "caseNumber": "2024/8229/1958",
+      "driveId": "1Ttpjf656rM61UjtGNypbSfrN8XDLn5W1",
+      "sourceName": "34798.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34786": {
+      "decisionNumber": "2620",
+      "caseNumber": "2024/8218/853",
+      "driveId": "1XFIBAVZcdAkGN7BBTpLtejg7PqPBERfQ",
+      "sourceName": "34786.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34785": {
+      "decisionNumber": "2780",
+      "caseNumber": "2024/8221/2195",
+      "driveId": "1bXbFSaTdhd3kvYk0h8ElH05NoRwkLA9M",
+      "sourceName": "34785.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34784": {
+      "decisionNumber": "2785",
+      "caseNumber": "2010/8221/3134",
+      "driveId": "1sntXq3N35f5buO-a3qnR2Rq51CBDvcsv",
+      "sourceName": "34784.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34783": {
+      "decisionNumber": "2833",
+      "caseNumber": "2024/8218/2249",
+      "driveId": "13ixBvMChJpSy4nFNC7bbqnoJKwu4sslf",
+      "sourceName": "34783.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34782": {
+      "decisionNumber": "2944",
+      "caseNumber": "2023/8225/5167",
+      "driveId": "1oXto89tEK4MZdjS1UiOgAqpNWkWzHxtx",
+      "sourceName": "34782.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34781": {
+      "decisionNumber": "3050",
+      "caseNumber": "2024/8222/1040",
+      "driveId": "1Z2790sjF55vwKWPLD2D-nf2cffXQiCLl",
+      "sourceName": "34781.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34779": {
+      "decisionNumber": "3126",
+      "caseNumber": "2024/8225/1332",
+      "driveId": "1PhzEGl-mcs738LAK9Wm78SZZmDqhCgNl",
+      "sourceName": "34779.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34778": {
+      "decisionNumber": "3181",
+      "caseNumber": "2024/8230/1896",
+      "driveId": "18brESAfV_0MfVBVvK8XIIAj-YvrM6sq-",
+      "sourceName": "34778.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34766": {
+      "decisionNumber": "3331",
+      "caseNumber": "2024/8225/2384",
+      "driveId": "1-uvWIlxYgsGrLn7IRLzXydNK_lA7Z1er",
+      "sourceName": "34766.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34765": {
+      "decisionNumber": "3312",
+      "caseNumber": "2024/8225/2380",
+      "driveId": "1zij32OxcCl-PYLZGA-E6zKwPoURt01TR",
+      "sourceName": "34765.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34762": {
+      "decisionNumber": "3536",
+      "caseNumber": "2024/8230/1859",
+      "driveId": "1ugI2NtYQf9cJh8GC5EkDFREBroo3QbUw",
+      "sourceName": "34762.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34761": {
+      "decisionNumber": "3555",
+      "caseNumber": "2024/8225/1202",
+      "driveId": "1ehMDorWXJOrKCnOCSZkDUv89sR30d2QL",
+      "sourceName": "34761.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34747": {
+      "decisionNumber": "3681",
+      "caseNumber": "2024/8228/1995",
+      "driveId": "11en3-2X19NdklJJYW63MUPfeHfSJPMdi",
+      "sourceName": "34747.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34746": {
+      "decisionNumber": "3738",
+      "caseNumber": "2024/8228/2066",
+      "driveId": "11QFJoRg7KnSmwHtqG5WFyJHuSrMSzzsq",
+      "sourceName": "34746.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34741": {
+      "decisionNumber": "4022",
+      "caseNumber": "2024/8222/2069",
+      "driveId": "1RtMlw0JexEV8VkkrX4W6QMfB1Taiznmb",
+      "sourceName": "34741.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34739": {
+      "decisionNumber": "4044",
+      "caseNumber": "2024/8229/2881",
+      "driveId": "13jTA-0L-GsJiR5v61aKCOnlGAhxuvp8j",
+      "sourceName": "34739.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:34738": {
+      "decisionNumber": "4259",
+      "caseNumber": "2024/8229/2182",
+      "driveId": "1ArJFaqD2-hAaEqB_zemh0c3p9teBB-UO",
+      "sourceName": "34738.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:35234": {
+      "decisionNumber": "2525",
+      "caseNumber": "2020/8202/1919",
+      "driveId": "1OOXBi-USrl34rjlWwYySkAlFU1iwITpB",
+      "sourceName": "35234.pdf",
+      "sourceFolder": "casablanca"
+    },
+    "jc:37276": {
+      "decisionNumber": "1437",
+      "caseNumber": "2017/8206/1877",
+      "driveId": "12Njw0eIbgl0ToFdFDXmJriJL1Bscs7vu",
+      "sourceName": "37276.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:37271": {
+      "decisionNumber": "1293",
+      "caseNumber": "2021/8222/271",
+      "driveId": "1U8jrsqSC6RpkooE4PEEWJcTOnsF2LxRa",
+      "sourceName": "37271.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:37269": {
+      "decisionNumber": "475",
+      "caseNumber": "2021/8201/809",
+      "driveId": "1E1Eprf-r95pWSOxu62GBOhjwitsdmo3v",
+      "sourceName": "37269.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36827": {
+      "decisionNumber": "1388",
+      "caseNumber": "",
+      "driveId": "1YFNHR0HBudy4VhkXRLq5DsjMciLEM7H3",
+      "sourceName": "36827.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36829": {
+      "decisionNumber": "840",
+      "caseNumber": "2020/8206/899",
+      "driveId": "1F2IvUa9iiPZxkMw99hfAMEL7tbk7_KFN",
+      "sourceName": "36829.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36826": {
+      "decisionNumber": "1725",
+      "caseNumber": "",
+      "driveId": "1p_zvbkPwi6lW8SZgis7jVhUSUv_mzW-U",
+      "sourceName": "36826.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36825": {
+      "decisionNumber": "1745",
+      "caseNumber": "2020/8206/224",
+      "driveId": "1qCtC8cZ0UdPE3NF19FN8ndQ0oQExc43X",
+      "sourceName": "36825.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36824": {
+      "decisionNumber": "2137",
+      "caseNumber": "2021/8201/1926",
+      "driveId": "17pRjIOuhn52thJK6DHEaDfARjOJgdSbg",
+      "sourceName": "36824.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36822": {
+      "decisionNumber": "536",
+      "caseNumber": "2022/8201/328",
+      "driveId": "1BHh-Sd1Wvv4RzMjXIpcseo70McRCYPyI",
+      "sourceName": "36822.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36821": {
+      "decisionNumber": "660",
+      "caseNumber": "2021/8231/2464",
+      "driveId": "1UehLLOeAT7XEBwDcXCtdRWQqNCPIz329",
+      "sourceName": "36821.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36820": {
+      "decisionNumber": "1486",
+      "caseNumber": "",
+      "driveId": "1CbCP6vNUBnmb8u9uNakwj7OFvAe3n5AZ",
+      "sourceName": "36820.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36819": {
+      "decisionNumber": "3109",
+      "caseNumber": "2022/8218/2408",
+      "driveId": "1QTXgNEKbDwulPVUwOHB-j9bKW27RZ09Q",
+      "sourceName": "36819.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36816": {
+      "decisionNumber": "617",
+      "caseNumber": "2023/8232/201",
+      "driveId": "1HbGv1YBOBl6ZGYnvhhBo9KGJdwGfpGfC",
+      "sourceName": "36816.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36815": {
+      "decisionNumber": "630",
+      "caseNumber": "2023/8228/207",
+      "driveId": "1KsWRLerrtNkD35_r8sqBYNtDLOzWUkXv",
+      "sourceName": "36815.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36790": {
+      "decisionNumber": "1544",
+      "caseNumber": "2022/8319/1108",
+      "driveId": "1Nkqr2JBFwcNhyj1duFSPkSKB64XOfQqi",
+      "sourceName": "36790.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36563": {
+      "decisionNumber": "1885",
+      "caseNumber": "",
+      "driveId": "18aBwobU700_IKhVbg0XPXi6QcoMd5dAd",
+      "sourceName": "36563.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36561": {
+      "decisionNumber": "2157",
+      "caseNumber": "2019/8220/1636",
+      "driveId": "1Xs5wG6OoG-Odd6yb3DhE2AOeIbTjPy3S",
+      "sourceName": "36561.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36560": {
+      "decisionNumber": "151",
+      "caseNumber": "2019/8206/1146",
+      "driveId": "1tgPQwFAeoVeszpFYhGpE698tXY_vjHFJ",
+      "sourceName": "36560.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36552": {
+      "decisionNumber": "451",
+      "caseNumber": "2021/8201/1762",
+      "driveId": "1JY_dAbcIOnjxLvZJLT3fvkEd_Pb6Xs0V",
+      "sourceName": "36552.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36550": {
+      "decisionNumber": "2887",
+      "caseNumber": "2022/8201/2190",
+      "driveId": "1X6pTdeLi5FeMc5fgt8ukGsNrskXNvay7",
+      "sourceName": "36550.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36551": {
+      "decisionNumber": "",
+      "caseNumber": "2022/8201/1191",
+      "driveId": "1q0o8s8BwPaeojARUcRAnQ201KcpSXdAy",
+      "sourceName": "36551.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36538": {
+      "decisionNumber": "917",
+      "caseNumber": "2021/8204/311",
+      "driveId": "1-qlfcrOiXzoSRnweKFgXdIH4Rv6gZ32O",
+      "sourceName": "36538.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36539": {
+      "decisionNumber": "1694",
+      "caseNumber": "1310/8206/2019",
+      "driveId": "1_SCzUwpwIpIRo4KpxfcUTar8yhrAoB0m",
+      "sourceName": "36539.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36537": {
+      "decisionNumber": "44",
+      "caseNumber": "2022/8218/2636",
+      "driveId": "1dl4nZeE9wsKv1GnGOCzomg_fs_vblBRe",
+      "sourceName": "36537.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36536": {
+      "decisionNumber": "798",
+      "caseNumber": "2021/8222/529",
+      "driveId": "1k3619lV7XTG7zQSrWonAPHzv7i1KUEYJ",
+      "sourceName": "36536.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36535": {
+      "decisionNumber": "1874",
+      "caseNumber": "2019/8222/145",
+      "driveId": "1xQr8N6aWykDEpNuIDdzKBbubrbWyjlTF",
+      "sourceName": "36535.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36534": {
+      "decisionNumber": "2477",
+      "caseNumber": "2021/82220/1991",
+      "driveId": "1gxX34PTQBEkcW-d_j3k2C1yGkuO5HT11",
+      "sourceName": "36534.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36524": {
+      "decisionNumber": "1350",
+      "caseNumber": "2022/8201/2791",
+      "driveId": "1mf9tK3r9zrD0IUXnzbAIXWGMZCuxSjqO",
+      "sourceName": "36524.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36396": {
+      "decisionNumber": "201",
+      "caseNumber": "2017/8206/2031",
+      "driveId": "1SBIs52KaK0KqTnz2PNhLzUoRyMgdyjev",
+      "sourceName": "36396.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36389": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1Y9eC0Xd55xzBQ6jZ6ot-QzLnvipDBO1_",
+      "sourceName": "36389.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36385": {
+      "decisionNumber": "693",
+      "caseNumber": "2021/8218/114",
+      "driveId": "1ned-Ko0YV2JdUHFB4Co8ZaesjSsVouuf",
+      "sourceName": "36385.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36384": {
+      "decisionNumber": "908",
+      "caseNumber": "1659/8227/2019",
+      "driveId": "1h3FfeLkWiPW-Lm04x232UVMS4QUQ1fy_",
+      "sourceName": "36384.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36373": {
+      "decisionNumber": "1511",
+      "caseNumber": "2022/8220/1027",
+      "driveId": "162raFZMe2kQVN06lJ6s1sJQU2bTv3_KT",
+      "sourceName": "36373.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36370": {
+      "decisionNumber": "2599",
+      "caseNumber": "2022/8220/1588",
+      "driveId": "1zWrdU3RugULTbaierV2jiReSXGRts3Yc",
+      "sourceName": "36370.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36366": {
+      "decisionNumber": "118",
+      "caseNumber": "2022/8219/2533",
+      "driveId": "1Pz2KUJaXhRxMfIdGZ55q2Eqn-e-s-AqY",
+      "sourceName": "36366.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36361": {
+      "decisionNumber": "1398",
+      "caseNumber": "2023/8201/138",
+      "driveId": "1_ajmbSSQDzjAZobwy2Oc4m2fkS2zvp1J",
+      "sourceName": "36361.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36358": {
+      "decisionNumber": "2247",
+      "caseNumber": "2023/8201/1495",
+      "driveId": "1Rxsi3n5ztpEd9Uzx-qOzYLxEFo6owyq2",
+      "sourceName": "36358.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36359": {
+      "decisionNumber": "2190",
+      "caseNumber": "2023/8201/2030",
+      "driveId": "1x3YfvFo_L72QKRkWsU6uTU1DDSvb4dYn",
+      "sourceName": "36359.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36357": {
+      "decisionNumber": "2379",
+      "caseNumber": "2023/8221/1266",
+      "driveId": "1ksMHqJnnCIB6LzMDIdowGL1x4xRCXtpQ",
+      "sourceName": "36357.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36353": {
+      "decisionNumber": "344",
+      "caseNumber": "2023/8201/2571",
+      "driveId": "16BnDnq0Auerl2GY_pZiYsZSrjBy1HKjZ",
+      "sourceName": "36353.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36324": {
+      "decisionNumber": "2137",
+      "caseNumber": "2019/8206/1857",
+      "driveId": "1Shhy4jpJK2-kknMgGgQWEU1NUlYXiczz",
+      "sourceName": "36324.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36322": {
+      "decisionNumber": "123",
+      "caseNumber": "2019/8232/1482",
+      "driveId": "1jY8ybO0diVy2FKaJJUZ1JG_1apffW7a2",
+      "sourceName": "36322.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36312": {
+      "decisionNumber": "",
+      "caseNumber": "2021/8313/652",
+      "driveId": "1LdOfkZvWIuDqMtu_I2uT1H3562VtoKnk",
+      "sourceName": "36312.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36310": {
+      "decisionNumber": "452",
+      "caseNumber": "2021/8201/1779",
+      "driveId": "1UAlSgQzTcAZKwHghpys0Seuv6krZpD6Y",
+      "sourceName": "36310.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36308": {
+      "decisionNumber": "1834",
+      "caseNumber": "2022/8221/1179",
+      "driveId": "1MKZ9RETvTQu5Coj1BencTi8DSW2LL0aj",
+      "sourceName": "36308.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36306": {
+      "decisionNumber": "2349",
+      "caseNumber": "2022/8201/1097",
+      "driveId": "1itMidXI89MH3LT1bZgeVRfpHl3w_t27P",
+      "sourceName": "36306.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36303": {
+      "decisionNumber": "2983",
+      "caseNumber": "2022/8201/998",
+      "driveId": "119xdUW3bkvLEhxIp7-RkF0yM61z0uuiy",
+      "sourceName": "36303.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36290": {
+      "decisionNumber": "567",
+      "caseNumber": "2024/8222/483",
+      "driveId": "1upsjfaq47QomyZVKCo7Aq_E0RISGFzEN",
+      "sourceName": "36290.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36202": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1jrq2pxnPvrd9XmjekBZ8HtZhl7D6jL-J",
+      "sourceName": "36202.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36192": {
+      "decisionNumber": "54",
+      "caseNumber": "2016/8313/1099",
+      "driveId": "16Y7aE8HRZCwAGp2cOYtDQKk0OabwDWuF",
+      "sourceName": "36192.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36186": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1Gt_4C6_g7dezWa2I7YbF0Mwlrmf_Zmkg",
+      "sourceName": "36186.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36185": {
+      "decisionNumber": "1250",
+      "caseNumber": "2017/8220/956",
+      "driveId": "1xr-F-udv562xsdt-rF57UdaLnNxWIiBn",
+      "sourceName": "36185.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36178": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1sbn8IBp8o3LHm_aaoqFXpdm4eFo1WPDn",
+      "sourceName": "36178.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36168": {
+      "decisionNumber": "211",
+      "caseNumber": "2017/8201/870",
+      "driveId": "1WZgecYtEUdBEoqfc4d1yaFFdrwl_vyor",
+      "sourceName": "36168.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36157": {
+      "decisionNumber": "626",
+      "caseNumber": "2018/8221/1321",
+      "driveId": "1oaiwd3LkUGLjpLAIYuVsVRQab1fZm5MR",
+      "sourceName": "36157.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36136": {
+      "decisionNumber": "1112",
+      "caseNumber": "2018/8206/742",
+      "driveId": "1IBlUtZpzkkxJkUQKsRV2JNbT2nnpUsjr",
+      "sourceName": "36136.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36107": {
+      "decisionNumber": "1843",
+      "caseNumber": "",
+      "driveId": "1U7s4O7YTK8i0-AO3cWzveTB0j0E3TRtP",
+      "sourceName": "36107.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36097": {
+      "decisionNumber": "",
+      "caseNumber": "2016/8222/1672",
+      "driveId": "1iMntdd4OX4i1XiHvJtlFBKvl46SMcaGB",
+      "sourceName": "36097.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36094": {
+      "decisionNumber": "106",
+      "caseNumber": "2018/8204/1265",
+      "driveId": "1kwreJ27PWYBojtg2HOBjKIRTxRqK9Ooa",
+      "sourceName": "36094.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36091": {
+      "decisionNumber": "223",
+      "caseNumber": "2278/8206/2018",
+      "driveId": "11TXMi9MP9WpLBsMlJLq_dVpzdnoXsp1C",
+      "sourceName": "36091.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36084": {
+      "decisionNumber": "476",
+      "caseNumber": "2019/8206/289",
+      "driveId": "1NEjh3veVc2Z7DmsHCkuxd-7NXTKp_2on",
+      "sourceName": "36084.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36083": {
+      "decisionNumber": "583",
+      "caseNumber": "2019/8206/232",
+      "driveId": "1FiPcRGLiE2fUUx-BF1KfdvCEcJntsjcO",
+      "sourceName": "36083.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36081": {
+      "decisionNumber": "626",
+      "caseNumber": "2018/8221/1321",
+      "driveId": "168fzE544Kzru4XzV6i7GoKqdngNfVVsA",
+      "sourceName": "36081.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36073": {
+      "decisionNumber": "950",
+      "caseNumber": "2016/8206/1388",
+      "driveId": "1w6jbUksnPnZ9ao4iqiiZv5BbKysZ7kj_",
+      "sourceName": "36073.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36070": {
+      "decisionNumber": "999",
+      "caseNumber": "",
+      "driveId": "1AVE0oYZB5rbcX8VjThpN_Q1bA1qoipXf",
+      "sourceName": "36070.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36067": {
+      "decisionNumber": "1034",
+      "caseNumber": "2018/8205/1353",
+      "driveId": "1MTwapE35bYAG5ngveTzivEu8DEoWmvU3",
+      "sourceName": "36067.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36059": {
+      "decisionNumber": "1403",
+      "caseNumber": "2019/8206/1313",
+      "driveId": "1c10iQc5tcATjsUO7Uxl-JifoNFRxSsaC",
+      "sourceName": "36059.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36033": {
+      "decisionNumber": "2132",
+      "caseNumber": "2019/8205/1726",
+      "driveId": "1Xl-D77HSSOwVnbpl80GLOai_SX1rhMKj",
+      "sourceName": "36033.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36029": {
+      "decisionNumber": "82",
+      "caseNumber": "2019/8222/1856",
+      "driveId": "114cg02-PIUh5YOjqpjSNEqZyd0XorPRV",
+      "sourceName": "36029.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36020": {
+      "decisionNumber": "292",
+      "caseNumber": "2019/8222/2063",
+      "driveId": "1dp7WvXTCh0i5B-fZTIPE4Fi-zkWdovBF",
+      "sourceName": "36020.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36019": {
+      "decisionNumber": "343",
+      "caseNumber": "2018/8206/827",
+      "driveId": "1xChTzJsR66fRuKWBD0SwuLfEcR07TF6i",
+      "sourceName": "36019.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36015": {
+      "decisionNumber": "384",
+      "caseNumber": "2018/8204/2349",
+      "driveId": "1Z-v4HanA56RjOpLTwp5sGbxoFkD1zE09",
+      "sourceName": "36015.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36014": {
+      "decisionNumber": "422",
+      "caseNumber": "2019/8201/1038",
+      "driveId": "1eVprptIqEfFkFUe4SiYbG-DURqSBhGJD",
+      "sourceName": "36014.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36010": {
+      "decisionNumber": "429",
+      "caseNumber": "2019/8211/2129",
+      "driveId": "1cgHf6LtEx1sx_7EDl3gOL60_uHp5p7wc",
+      "sourceName": "36010.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36008": {
+      "decisionNumber": "495",
+      "caseNumber": "2019/8230/212",
+      "driveId": "1cpIYby7zDaB4urzmLtiBAKeX4BdBgZ-g",
+      "sourceName": "36008.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36007": {
+      "decisionNumber": "501",
+      "caseNumber": "2019/8206/834",
+      "driveId": "1USYusX8-R7-2GKYKlJts7vuqKkl3151W",
+      "sourceName": "36007.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36006": {
+      "decisionNumber": "507",
+      "caseNumber": "2019/8202/1396",
+      "driveId": "1ywCwuySm2l88NfIGUbrFqlICdV_Tzab7",
+      "sourceName": "36006.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36003": {
+      "decisionNumber": "603",
+      "caseNumber": "2020/8216/731",
+      "driveId": "1_lRxKHBj55xSDv26A1ByEc-p15K3RM9D",
+      "sourceName": "36003.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36001": {
+      "decisionNumber": "713",
+      "caseNumber": "2018/8206/2149",
+      "driveId": "1VKp8PPpLfxGWdOziy5EBUmHewSXjwv5X",
+      "sourceName": "36001.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35998": {
+      "decisionNumber": "750",
+      "caseNumber": "2019/8221/2323",
+      "driveId": "1sbIP0UaaJAsjo8zC-Si2vNvu4Hvvbavu",
+      "sourceName": "35998.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35990": {
+      "decisionNumber": "980",
+      "caseNumber": "2020/8216/20",
+      "driveId": "1jqCyIK0BeVNhrdaclL1z0PGB2BWPGgbG",
+      "sourceName": "35990.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35989": {
+      "decisionNumber": "1000",
+      "caseNumber": "2020/8206/982",
+      "driveId": "1XpEv1pfP5ZYSqaLXV-en3TjchoRxfjS7",
+      "sourceName": "35989.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35987": {
+      "decisionNumber": "1057",
+      "caseNumber": "2020/8206/664",
+      "driveId": "1BpafZof8YNgW1UpbbzYD-ze4aOZZP2Cz",
+      "sourceName": "35987.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35986": {
+      "decisionNumber": "1197",
+      "caseNumber": "2019/8232/215",
+      "driveId": "1jQcPUs8C7ykrtMlVtZnqdPgpRS8n_2ou",
+      "sourceName": "35986.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35982": {
+      "decisionNumber": "1357",
+      "caseNumber": "2020/8206/53",
+      "driveId": "1dNAXYCxmm9tP79ylU0nOQ38M8bPLAeoS",
+      "sourceName": "35982.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35985": {
+      "decisionNumber": "1215",
+      "caseNumber": "2020/8225/1209",
+      "driveId": "1kvJxj5bbJBHwz5G__l2VCUqYBiKT9nt4",
+      "sourceName": "35985.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35980": {
+      "decisionNumber": "1368",
+      "caseNumber": "2020/8206/407",
+      "driveId": "17HW_--7ABi3KXEPDLT_VYL633soyiX2W",
+      "sourceName": "35980.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35979": {
+      "decisionNumber": "1355",
+      "caseNumber": "2020/8211/23",
+      "driveId": "1eQw89ICJGuWuntHer495_MaoHHxttL5A",
+      "sourceName": "35979.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35972": {
+      "decisionNumber": "1471",
+      "caseNumber": "2020/8206/596",
+      "driveId": "1cZJZdxZD1c1ekwvAmvW4pB2aHVpgxptr",
+      "sourceName": "35972.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35969": {
+      "decisionNumber": "53",
+      "caseNumber": "2019/8204/2127",
+      "driveId": "14jQcdxQpP8i_d8XcmPyXONAyH5R27bUd",
+      "sourceName": "35969.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35964": {
+      "decisionNumber": "92",
+      "caseNumber": "2019/8206/724",
+      "driveId": "1CEr_JUMkXVrPLa8tiD7DRoU7O1hSlTYU",
+      "sourceName": "35964.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35963": {
+      "decisionNumber": "172",
+      "caseNumber": "2020/8204/1141",
+      "driveId": "1ClIawYpcibBm9CuLFxvtzBzv5tDl6hoc",
+      "sourceName": "35963.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35961": {
+      "decisionNumber": "342",
+      "caseNumber": "1433/8206/2020",
+      "driveId": "1yc30aK_FxMIcs3Hl7MbAG8CMfGYvkBk0",
+      "sourceName": "35961.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35960": {
+      "decisionNumber": "356",
+      "caseNumber": "2020/8206/1289",
+      "driveId": "1jsbBFK9lAQ56UjUqrPDETNU7bIguWizc",
+      "sourceName": "35960.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35959": {
+      "decisionNumber": "390",
+      "caseNumber": "2018/8222/1014",
+      "driveId": "1KZRsdACt6zGGVNK0hWMYZt-DLbOqSn2j",
+      "sourceName": "35959.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35957": {
+      "decisionNumber": "588",
+      "caseNumber": "2020/8206/1564",
+      "driveId": "1ew0djjObkLm1us2gOEfQ0Fx-tFmZJdIc",
+      "sourceName": "35957.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35958": {
+      "decisionNumber": "528",
+      "caseNumber": "2020/8206/1195",
+      "driveId": "16ZT6AdsezFQ7Rek8Dig-pBK9zvETp0Sr",
+      "sourceName": "35958.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35955": {
+      "decisionNumber": "598",
+      "caseNumber": "2021/8211/263",
+      "driveId": "1U1hLSPi-q35yMuayqSdJwIo_FPzAOjEc",
+      "sourceName": "35955.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35953": {
+      "decisionNumber": "670",
+      "caseNumber": "2021/8201/48",
+      "driveId": "1Chnsx62DDBolcuT3PabpjKaKQxL_Oy7X",
+      "sourceName": "35953.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35951": {
+      "decisionNumber": "782",
+      "caseNumber": "2019/8206/2282",
+      "driveId": "1s3OoanUKcSJ78N7GmCOTuShcNz2rGuWL",
+      "sourceName": "35951.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35950": {
+      "decisionNumber": "793",
+      "caseNumber": "2021/8206/255",
+      "driveId": "1Pfg2F3vS2Dpk-C0vR-yCfCwxP9WECuDK",
+      "sourceName": "35950.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35948": {
+      "decisionNumber": "857",
+      "caseNumber": "2018/8216/948",
+      "driveId": "1N7_D_D6_gyorxhhIb22rhX1gstx50AKR",
+      "sourceName": "35948.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35945": {
+      "decisionNumber": "889",
+      "caseNumber": "2020/8221/1526",
+      "driveId": "1qsMWD7hjfg7BoFj_bS_TLa0OMyNAhKvO",
+      "sourceName": "35945.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35943": {
+      "decisionNumber": "956",
+      "caseNumber": "2021/8206/795",
+      "driveId": "1WIXIa-nNT1svF2S4WL2xNHRKK5m7a52A",
+      "sourceName": "35943.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35944": {
+      "decisionNumber": "900",
+      "caseNumber": "2019/8216/207",
+      "driveId": "1SsCQ09-RFq-Twtr1GzcZjUpGDgf81Qx6",
+      "sourceName": "35944.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35942": {
+      "decisionNumber": "949",
+      "caseNumber": "2021/8206/444",
+      "driveId": "1v7DIicktobKPdV4ZtskfLRlqg1Hr7iVU",
+      "sourceName": "35942.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35941": {
+      "decisionNumber": "1021",
+      "caseNumber": "2021/8205/332",
+      "driveId": "1GKDAtonKCFaAtJZ72N5PyRZyLY7EgoBs",
+      "sourceName": "35941.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35940": {
+      "decisionNumber": "1022",
+      "caseNumber": "2021/8204/428",
+      "driveId": "1ufwsiRJMJpWrADeMQ_X_eYeGyD5JrNvF",
+      "sourceName": "35940.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35939": {
+      "decisionNumber": "",
+      "caseNumber": "2019/8201/481",
+      "driveId": "1LGI10mc3D1XseyHyQvuhJT0KLGJzbLn1",
+      "sourceName": "35939.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35935": {
+      "decisionNumber": "1189",
+      "caseNumber": "2021/8204/105",
+      "driveId": "1_tiXUOVoK2xsSHby5uRNzlh-at0u0Je3",
+      "sourceName": "35935.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35934": {
+      "decisionNumber": "1197",
+      "caseNumber": "2021/8232/304",
+      "driveId": "1wt9xvDH1Rx610kOlVQmMizEEHKpdE5w5",
+      "sourceName": "35934.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35931": {
+      "decisionNumber": "1304",
+      "caseNumber": "2021/8204/559",
+      "driveId": "1JZWAMRLERFj_7Or9ds6SGHJ14BmxMTJ_",
+      "sourceName": "35931.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35927": {
+      "decisionNumber": "1441",
+      "caseNumber": "2021/8206/663",
+      "driveId": "15_8mMfcDzbvZbXrF1Xe0JX7RfFbc0lje",
+      "sourceName": "35927.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35924": {
+      "decisionNumber": "1512",
+      "caseNumber": "2020/8202/931",
+      "driveId": "1D6iKW6RzapoWHjtDbEbLCWPalAAC8cff",
+      "sourceName": "35924.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35923": {
+      "decisionNumber": "1572",
+      "caseNumber": "2021/8222/755",
+      "driveId": "130ZzulJE3-DOw0QRQ39bVMy_RZWMN6uq",
+      "sourceName": "35923.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35922": {
+      "decisionNumber": "1633",
+      "caseNumber": "2020/8206/503",
+      "driveId": "1IfB-uCqsx4TPh6GIqt9ZxZp-OSvo8MjQ",
+      "sourceName": "35922.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35921": {
+      "decisionNumber": "1777",
+      "caseNumber": "2021/8206/1542",
+      "driveId": "1eEPN2P-4H7dalYV92d4RVwlsCffkAyFY",
+      "sourceName": "35921.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35919": {
+      "decisionNumber": "1894",
+      "caseNumber": "2021/8202/1071",
+      "driveId": "1_I26qHBWzIRY4Jx99hIbzXSjZ-6eWIaa",
+      "sourceName": "35919.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35918": {
+      "decisionNumber": "1912",
+      "caseNumber": "2021/8206/1170",
+      "driveId": "1FeTyGmjEEKgXppSV7BRx6c7nqaHnU2Yr",
+      "sourceName": "35918.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35917": {
+      "decisionNumber": "2039",
+      "caseNumber": "2021/8206/1474",
+      "driveId": "1MhmCENVe-nI2p28bWognpuHYEqsypGf-",
+      "sourceName": "35917.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35915": {
+      "decisionNumber": "2133",
+      "caseNumber": "2021/8201/1910",
+      "driveId": "11R-BIY16SV-GOQj3c3D4Cf9358dud70x",
+      "sourceName": "35915.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35914": {
+      "decisionNumber": "2122",
+      "caseNumber": "2021/8206/1342",
+      "driveId": "1YdJiOzO65vrT48V2lwVGDRlOFhFWjtIJ",
+      "sourceName": "35914.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35912": {
+      "decisionNumber": "2139",
+      "caseNumber": "2021/8232/2031",
+      "driveId": "1jHhAUuo-gzXtbWCp6rWGlsNtm-Y1tb1M",
+      "sourceName": "35912.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35909": {
+      "decisionNumber": "2288",
+      "caseNumber": "2021/8206/2039",
+      "driveId": "1PkWamUDU51q3xVd5p63tEy4r4cOHeUKt",
+      "sourceName": "35909.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35911": {
+      "decisionNumber": "2201",
+      "caseNumber": "2021/8206/1253",
+      "driveId": "1atDgBod8XOoGSZiJwf5etncQ2CVXN-_Z",
+      "sourceName": "35911.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35910": {
+      "decisionNumber": "2208",
+      "caseNumber": "2021/8206/1417",
+      "driveId": "1mLQ2ZtjgXm7CWjP6qb_4bqgZe4Rtg6AT",
+      "sourceName": "35910.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35908": {
+      "decisionNumber": "2482",
+      "caseNumber": "2021/8219/2129",
+      "driveId": "1KFTcuZmRBtfhZCsdRJ5F6hg3--Kw7dNN",
+      "sourceName": "35908.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35907": {
+      "decisionNumber": "19",
+      "caseNumber": "2021/8303/1757",
+      "driveId": "1VBjzb7ECyL95r80mSjMH9jl6pSwW2uwP",
+      "sourceName": "35907.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35905": {
+      "decisionNumber": "35",
+      "caseNumber": "2019/8204/624",
+      "driveId": "1laeBQE47v1UeljvoR7CInewP41lsRet6",
+      "sourceName": "35905.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35906": {
+      "decisionNumber": "1530",
+      "caseNumber": "2022/8219/890",
+      "driveId": "1ihClXy7dHWpTpl2M-OZm_jwq4JdnqRxn",
+      "sourceName": "35906.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35903": {
+      "decisionNumber": "108",
+      "caseNumber": "2021/8201/2490",
+      "driveId": "18sp1Rlnl2ta39mT_O0WH2RaFK-dF2bYy",
+      "sourceName": "35903.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35902": {
+      "decisionNumber": "105",
+      "caseNumber": "2021/8201/2087",
+      "driveId": "1U-fzGujVzctut1Z4RvyafSi1hoY8A0FK",
+      "sourceName": "35902.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35901": {
+      "decisionNumber": "103",
+      "caseNumber": "2021/8204/1427",
+      "driveId": "1Z2vEP9PKnl8_NSge5BOTQNVZ-EAz-HmS",
+      "sourceName": "35901.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35897": {
+      "decisionNumber": "400",
+      "caseNumber": "2021/8219/2294",
+      "driveId": "1Ywpl72MvKxDUWKq7RYYZctk7r0zBmf35",
+      "sourceName": "35897.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35896": {
+      "decisionNumber": "391",
+      "caseNumber": "2021/8219/2270",
+      "driveId": "1cLvUp75lTWIIYScQUIuF34vFs8RnId2w",
+      "sourceName": "35896.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35892": {
+      "decisionNumber": "579",
+      "caseNumber": "2022/8219/217",
+      "driveId": "1wYvZTel2kwOlRpdBsgbec9yYUbYdKVIJ",
+      "sourceName": "35892.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35888": {
+      "decisionNumber": "813",
+      "caseNumber": "2022/8204/179",
+      "driveId": "1_X03F2vZLisMc0JHYNvx59sBxGJH9rPQ",
+      "sourceName": "35888.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35886": {
+      "decisionNumber": "821",
+      "caseNumber": "2022/8225/374",
+      "driveId": "1-_ys8uaIIMzwGuK1Jr2T0UidVdU2MLFh",
+      "sourceName": "35886.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35882": {
+      "decisionNumber": "883",
+      "caseNumber": "",
+      "driveId": "18C9J602xURy-Yq1-gt9K9oqv5Vn0vVeX",
+      "sourceName": "35882.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35884": {
+      "decisionNumber": "835",
+      "caseNumber": "2021/8206/1834",
+      "driveId": "1Pm38TPLzq8nOPCS_j4iMdbhUAgWcWRWa",
+      "sourceName": "35884.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35880": {
+      "decisionNumber": "892",
+      "caseNumber": "2021/8201/1903",
+      "driveId": "1v8Rdm-UXD2pkQ-rd5AKKOEHYSq2LQ1sZ",
+      "sourceName": "35880.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35876": {
+      "decisionNumber": "977",
+      "caseNumber": "2019/8232/2172",
+      "driveId": "1CkPQGBko0jFIYFSmZoHlA3_SHYjxcfOR",
+      "sourceName": "35876.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35879": {
+      "decisionNumber": "910",
+      "caseNumber": "2021/8204/1313",
+      "driveId": "1OeVEuIdfN3erh4hmI8A4WmH-bI73mLMG",
+      "sourceName": "35879.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35874": {
+      "decisionNumber": "1065",
+      "caseNumber": "2021/8232/1512",
+      "driveId": "1hle9aAVmmpmlDXlGX8HTU9xtGWRggI_P",
+      "sourceName": "35874.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35873": {
+      "decisionNumber": "",
+      "caseNumber": "2021/8202/1448",
+      "driveId": "113j4pm-tNGy4DDGM-DNCTKrYy46h7918",
+      "sourceName": "35873.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35872": {
+      "decisionNumber": "1063",
+      "caseNumber": "2021/8221/1079",
+      "driveId": "14WTrsByZ9OHxDd9oPt58FMf-5yP-Bf4A",
+      "sourceName": "35872.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35871": {
+      "decisionNumber": "1148",
+      "caseNumber": "2022/8216/894",
+      "driveId": "1l6zIYrD3ko4xkJ_T9cAbVPE-yJKq_ZI9",
+      "sourceName": "35871.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35870": {
+      "decisionNumber": "1176",
+      "caseNumber": "2022/8204/181",
+      "driveId": "1B2APbDvijy_z97pnBZsjQtO2oktxg1UR",
+      "sourceName": "35870.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35869": {
+      "decisionNumber": "2022",
+      "caseNumber": "2022/8201/664",
+      "driveId": "14PQAMqsf8NU5k3ep83BCvldgA_oIkGBF",
+      "sourceName": "35869.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35868": {
+      "decisionNumber": "",
+      "caseNumber": "2021/8216/530",
+      "driveId": "1wTFGIpl3VniUHo4b1RF_KzLq9_qSn-jE",
+      "sourceName": "35868.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35860": {
+      "decisionNumber": "1559",
+      "caseNumber": "2022/8211/673",
+      "driveId": "1C9hafGp2ImhHQrkY3U8n7fcJT98XLoFe",
+      "sourceName": "35860.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35850": {
+      "decisionNumber": "",
+      "caseNumber": "2022/8201/1256",
+      "driveId": "1ruO2MAj5-gSsF6CYvb2CrLmOkaEBaAxf",
+      "sourceName": "35850.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35848": {
+      "decisionNumber": "2091",
+      "caseNumber": "2021/8201/1982",
+      "driveId": "11RG4gET0gMsQJUftg8vkTQWl73SUc1Ui",
+      "sourceName": "35848.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35846": {
+      "decisionNumber": "2240",
+      "caseNumber": "2022/8222/1810",
+      "driveId": "1LaxYTICWd--98eJTcx6pTMPRLlo89WGz",
+      "sourceName": "35846.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35845": {
+      "decisionNumber": "2233",
+      "caseNumber": "2022/8201/1620",
+      "driveId": "1WsAhIAovp0_3_Da60Ipk8LjzfFYb7Kg0",
+      "sourceName": "35845.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35844": {
+      "decisionNumber": "2295",
+      "caseNumber": "2022/8216/1999",
+      "driveId": "1aeRYhgpvfUh6hPT9OhHTWYtehmWxUzq3",
+      "sourceName": "35844.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35843": {
+      "decisionNumber": "2348",
+      "caseNumber": "2022/8201/761",
+      "driveId": "123qnC4OrdHnHWdrF4pTQmJgPh6kI5xhP",
+      "sourceName": "35843.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35842": {
+      "decisionNumber": "2384",
+      "caseNumber": "2020/8230/953",
+      "driveId": "1_mFx-cnrvlo1-SCU_v-a8tRjq08JZz_9",
+      "sourceName": "35842.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35840": {
+      "decisionNumber": "2406",
+      "caseNumber": "2022/8313/1505",
+      "driveId": "1gPsfQozvJw2h6AFZTuecXLZDNtP6nbDn",
+      "sourceName": "35840.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35839": {
+      "decisionNumber": "2408",
+      "caseNumber": "2022/8222/1582",
+      "driveId": "1fZspNp7M2fkyatJfNuv8pXDLJWVJWuAX",
+      "sourceName": "35839.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35838": {
+      "decisionNumber": "2451",
+      "caseNumber": "2022/8218/1981",
+      "driveId": "1B4lRFOIcLsf6sBl7I2iuXar3Gib6a3MD",
+      "sourceName": "35838.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35837": {
+      "decisionNumber": "2473",
+      "caseNumber": "2022/8228/2037",
+      "driveId": "15u4HEJz0q5O0BEXgHGsaP-SIKw1LyN5h",
+      "sourceName": "35837.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35835": {
+      "decisionNumber": "2460",
+      "caseNumber": "2021/8228/1545",
+      "driveId": "1adanHtJoFLsDKeeKX4FZSBp9XroYIlQ3",
+      "sourceName": "35835.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35831": {
+      "decisionNumber": "2536",
+      "caseNumber": "2022/8313/1826",
+      "driveId": "1RdViBqOAG9w5j-cNzdk0L1S_5T3LIFWI",
+      "sourceName": "35831.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35830": {
+      "decisionNumber": "2597",
+      "caseNumber": "2022/8232/1273",
+      "driveId": "1PhXiPLkNrgfg8x592FxFYeNRgfB7UqEo",
+      "sourceName": "35830.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35829": {
+      "decisionNumber": "2653",
+      "caseNumber": "2022/8222/1805",
+      "driveId": "1l4v2xqX1xzhSBqumBvXs0XnGa4vf0aAF",
+      "sourceName": "35829.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35822": {
+      "decisionNumber": "3070",
+      "caseNumber": "2022/8202/2343",
+      "driveId": "1U8t2Xw5oBmILGy8H9x3saK509JKdqaJE",
+      "sourceName": "35822.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35828": {
+      "decisionNumber": "2702",
+      "caseNumber": "2022/8220/2377",
+      "driveId": "1W71bKZZuf8Gbn260dKxzvwOiuZxTzJGx",
+      "sourceName": "35828.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35827": {
+      "decisionNumber": "2730",
+      "caseNumber": "2022/8204/1512",
+      "driveId": "1grzFlTLQDwWW0g8NufGCiYg5hlfK0RmV",
+      "sourceName": "35827.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35821": {
+      "decisionNumber": "3160",
+      "caseNumber": "2022/8226/2690",
+      "driveId": "1mdBjBJbwFiczRCzfm8SH02pSxf3l9jDr",
+      "sourceName": "35821.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35816": {
+      "decisionNumber": "71",
+      "caseNumber": "2022/8201/2745",
+      "driveId": "1lE9wH20WDh5HtgylxljrZdd5JAhXqryq",
+      "sourceName": "35816.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35815": {
+      "decisionNumber": "13",
+      "caseNumber": "2022/8225/2780",
+      "driveId": "1qn_dxqwZeXOMmsfevrv-OAD_xndJfLLm",
+      "sourceName": "35815.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35814": {
+      "decisionNumber": "13",
+      "caseNumber": "2022/8225/2780",
+      "driveId": "1YzYr4iRukuhYF38hyB_jSq7e8m4rTOPd",
+      "sourceName": "35814.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35808": {
+      "decisionNumber": "307",
+      "caseNumber": "2022/8211/2761",
+      "driveId": "1eT5akdQ1dw_uhFlfqoLb5PqFN_UWlLUg",
+      "sourceName": "35808.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35807": {
+      "decisionNumber": "371",
+      "caseNumber": "2023/8228/8",
+      "driveId": "1JK7Ek36QDXTiI2v-7_3aJtVCXlpOr0oQ",
+      "sourceName": "35807.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35806": {
+      "decisionNumber": "449",
+      "caseNumber": "2022/8204/2879",
+      "driveId": "11oBUVZCGTeT1fh8h3PO3Eno339L1aeHn",
+      "sourceName": "35806.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35795": {
+      "decisionNumber": "310",
+      "caseNumber": "2022/8216/2430",
+      "driveId": "1pquo-m7IZPw0RCsgIO1STLjywRiz-YJN",
+      "sourceName": "35795.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35794": {
+      "decisionNumber": "609",
+      "caseNumber": "2022/8216/2429",
+      "driveId": "1cZjiUDZdvvAoFHZuo80oaHWOj2ZRsF5q",
+      "sourceName": "35794.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35793": {
+      "decisionNumber": "608",
+      "caseNumber": "2022/8216/2426",
+      "driveId": "1VHycDX9gsjeGdN-a1QoLVf_-HN9M8yFj",
+      "sourceName": "35793.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35792": {
+      "decisionNumber": "607",
+      "caseNumber": "2022/8216/2425",
+      "driveId": "1_Lij8gaOTvDrDm9D7iRiwBmV_nq946mJ",
+      "sourceName": "35792.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35791": {
+      "decisionNumber": "697",
+      "caseNumber": "2023/8201/28",
+      "driveId": "1ZPZaRqmqwdAOV_FxmJbinm8m_46vC27D",
+      "sourceName": "35791.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35787": {
+      "decisionNumber": "743",
+      "caseNumber": "2022/8221/2014",
+      "driveId": "1l-UTd4NBmIPO1EpQEQcD7K-ggdORZbCp",
+      "sourceName": "35787.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35785": {
+      "decisionNumber": "802",
+      "caseNumber": "2023/8222/154",
+      "driveId": "1ylAo7sJRMZNVLlVLnLHqpt6F7qc_zFBR",
+      "sourceName": "35785.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35788": {
+      "decisionNumber": "755",
+      "caseNumber": "2023/8202/363",
+      "driveId": "1QfnavAE-S5grD2IyhCho3WIASfowpk3v",
+      "sourceName": "35788.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35779": {
+      "decisionNumber": "1021",
+      "caseNumber": "2023/8222/355",
+      "driveId": "1H-PWvgwuAjxAVNPdM5wG2AEHKpqOkibu",
+      "sourceName": "35779.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35776": {
+      "decisionNumber": "1121",
+      "caseNumber": "",
+      "driveId": "1zcuOB5oYuvOEmaXF7rsaMrR9z0ly5nKN",
+      "sourceName": "35776.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35769": {
+      "decisionNumber": "1271",
+      "caseNumber": "2023/8201/801",
+      "driveId": "1ZylW8Q09bf64VOvWyYufJDEV1GU6Keaw",
+      "sourceName": "35769.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35763": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1slo99btGruhtSW4lZ__tMaOqk98dJi40",
+      "sourceName": "35763.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35762": {
+      "decisionNumber": "1456",
+      "caseNumber": "2023/8225/1117",
+      "driveId": "1FzYU4kUcjKLLQIAfgHP47R8rl9Qc46pE",
+      "sourceName": "35762.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35753": {
+      "decisionNumber": "1608",
+      "caseNumber": "2023/8232/1215",
+      "driveId": "1cwYz7m06GuqZxiafFka0RDlJ9p5BjfBF",
+      "sourceName": "35753.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35748": {
+      "decisionNumber": "1776",
+      "caseNumber": "2023/8222/1554",
+      "driveId": "1Z7MBuksUtOR87aWkZriUiP_KpBVSkuwc",
+      "sourceName": "35748.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35747": {
+      "decisionNumber": "1881",
+      "caseNumber": "2023/8304/1680",
+      "driveId": "1WkUdIsJOUmFwdcACUq1vmtmu7bSvAXBb",
+      "sourceName": "35747.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35746": {
+      "decisionNumber": "1878",
+      "caseNumber": "2023/8304/1677",
+      "driveId": "17_9fin188Vkq_DgLXshcqIlS-HNWr71w",
+      "sourceName": "35746.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35745": {
+      "decisionNumber": "2007",
+      "caseNumber": "2023/8201/1589",
+      "driveId": "1YgXNB93r5t8irPtVmgR_5GJeHFhCRn5c",
+      "sourceName": "35745.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35741": {
+      "decisionNumber": "2172",
+      "caseNumber": "2023/8216/1868",
+      "driveId": "1UJCx030kop1v5DLpgmW_-jl7EIpu80kK",
+      "sourceName": "35741.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35739": {
+      "decisionNumber": "2209",
+      "caseNumber": "2023/8202/1155",
+      "driveId": "1a60eyIJ4gPIAaQXIWeHQnxWlA6cvnYRA",
+      "sourceName": "35739.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35737": {
+      "decisionNumber": "2259",
+      "caseNumber": "2022/8228/2003",
+      "driveId": "1U1tpg3S2bOBGudsQ4jYSNuWhub8lDK9w",
+      "sourceName": "35737.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35733": {
+      "decisionNumber": "2439",
+      "caseNumber": "2023/8232/1705",
+      "driveId": "1WxZlP0-WUWTaG9NAa82vJ_n7zD1S7BYH",
+      "sourceName": "35733.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35726": {
+      "decisionNumber": "2639",
+      "caseNumber": "2023/8201/2482",
+      "driveId": "1oTPYp0tG3mxM107IF_hQFU4v5y1MVFqo",
+      "sourceName": "35726.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35725": {
+      "decisionNumber": "2622",
+      "caseNumber": "2023/8201/2481",
+      "driveId": "1VrPrU7kAeOMW1KoGpMbsJ-hUwoNnL76m",
+      "sourceName": "35725.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35724": {
+      "decisionNumber": "",
+      "caseNumber": "2023/8201/2483",
+      "driveId": "1oeHCgf2NLiyJv9c4Sqo2y19ix_b56RsV",
+      "sourceName": "35724.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35723": {
+      "decisionNumber": "2628",
+      "caseNumber": "2023/8201/2370",
+      "driveId": "1ld9735mztMf7bOUldxM6qbgPtrENibLZ",
+      "sourceName": "35723.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35721": {
+      "decisionNumber": "2706",
+      "caseNumber": "2023/8222/2235",
+      "driveId": "1U20AyngvJHlyceUzpSZyncXdHZ4kKABE",
+      "sourceName": "35721.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35655": {
+      "decisionNumber": "68",
+      "caseNumber": "2023/8222/2164",
+      "driveId": "1bhRnw80zpg6g-H2oY1C2OKm8v69STckX",
+      "sourceName": "35655.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35654": {
+      "decisionNumber": "122",
+      "caseNumber": "2023/8205/1649",
+      "driveId": "1h3P9IDu4vxYExVgiQnt_5q4N8clYptpH",
+      "sourceName": "35654.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:35883": {
+      "decisionNumber": "840",
+      "caseNumber": "2022/8222/55",
+      "driveId": "1Llt1kEy2gBiUKqitQHLrnMoimtrUAUkW",
+      "sourceName": "35883.pdf",
+      "sourceFolder": "marrakech"
+    },
+    "jc:36090": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1mTGmTXjpdKhjTJcpjaMpMTB7wkuheGeB",
+      "sourceName": "36090.pdf",
+      "sourceFolder": "fes"
+    },
+    "jc:36088": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "138rfCJ0UNra1BGXAWdbuK_lhD3jtefQW",
+      "sourceName": "36088.pdf",
+      "sourceFolder": "fes"
+    },
+    "jc:36061": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1vENkFr3zUMWw4YgNuzv4gdKWzKSZ4W_f",
+      "sourceName": "36061.pdf",
+      "sourceFolder": "fes"
+    },
+    "jc:36026": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "12svxeMHtkzsd9lOLvf6vgUc-kdC8dGSA",
+      "sourceName": "36026.pdf",
+      "sourceFolder": "fes"
+    },
+    "jc:36017": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "15B66rwRfXw3MhoIwdd6qkZTDuZsH3FqR",
+      "sourceName": "36017.pdf",
+      "sourceFolder": "fes"
+    },
+    "jc:36011": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1FPdy43wvCYpPFnsHCkn589EEQH6zXrpG",
+      "sourceName": "36011.pdf",
+      "sourceFolder": "fes"
+    },
+    "jc:36807": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1q-UzGYIlaL4szYBttDeoXksV4KDQ1vLe",
+      "sourceName": "36807.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36573": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1cH3wsq_IdCtFoaX0b9PnXS6J-ED6-9QM",
+      "sourceName": "36573.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36321": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1Gm8pIuKx_RacP4gJqtB7P693Z_tPQ3jA",
+      "sourceName": "36321.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36105": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1rnl_hn7hHIavnLADetLFaTWm6rqSH0m2",
+      "sourceName": "36105.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36096": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "18N92xE8lr8iQhzeyUIHBGap2yeAPZ1yU",
+      "sourceName": "36096.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36060": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1WuTbFcPt5mnb6Qh5VXnkVnxJfQ1Ya9yh",
+      "sourceName": "36060.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36058": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1gDWhgH245Dc6CIkXlcwowavsuSfFz8dg",
+      "sourceName": "36058.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36035": {
+      "decisionNumber": "52",
+      "caseNumber": "",
+      "driveId": "12CKtPnzpW2c0TZSkmtCSG6chYoSil7_K",
+      "sourceName": "36035.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:36004": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "1wgkgE1ABKFI-pPqcGn8sVe7p0wBubFRO",
+      "sourceName": "36004.pdf",
+      "sourceFolder": "taza"
+    },
+    "jc:35913": {
+      "decisionNumber": "",
+      "caseNumber": "",
+      "driveId": "18SeZbRlQioMharCZUoYprp9W1IUSCCqO",
+      "sourceName": "35913.pdf",
+      "sourceFolder": "taza"
+    }
+  }
+}
