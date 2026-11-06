@@ -43,5 +43,8 @@ document.querySelector('#registerForm').addEventListener('submit',async event=>{
     const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.querySelector('#registerEmail').value})});
     const result=await response.json();if(!response.ok)throw new Error(result.error||'تعذر طلب الحساب.');
     message.textContent=result.message||'تحقق من بريدك الإلكتروني لتفعيل الحساب.';
+    // رابط مباشر لوثيقة بعينها (?doc=) يُحفظ هنا حتى يعود المستخدم إليها بعد تفعيل حسابه وتسجيل الدخول لاحقاً، ولو في المتصفح نفسه فقط.
+    const docId=new URLSearchParams(location.search).get('doc');
+    if(docId){try{sessionStorage.setItem('qalam.library.pendingDoc',docId);}catch{}}
   }catch(error){message.textContent=error.message;}
 });
