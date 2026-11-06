@@ -18,7 +18,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveJudicialDrivePdf } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf } from './src/drive.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -405,6 +405,10 @@ const server=http.createServer(async(req,res)=>{
       if(!document||document.type!=='juriscassation')return send(req,res,404,{error:'القرار غير موجود في الفهرس القضائي.'});
       try{const match=await resolveJudicialDrivePdf(documentId,document.category),{item,response}=await openDrivePdf(match.id),mode=url.searchParams.get('mode')==='download'?'attachment':'inline',safeName=encodeURIComponent(String(item.name||'decision.pdf').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':'application/pdf','Content-Disposition':`${mode}; filename="decision.pdf"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,404,{error:error.message||'لم يُعثر على أصل القرار في Drive.'});}
     }
+    if(p==='/api/drive/document-source'&&req.method==='GET'){
+      const documentId=(url.searchParams.get('id')||'').slice(0,160);if(!documentId)return send(req,res,400,{error:'معرف الوثيقة مطلوب.'});
+      try{const match=await resolveDocumentSourcePdf(documentId),{item,response}=await openDriveSourceFile(match.id),mode=url.searchParams.get('mode')==='download'?'attachment':'inline',safeName=encodeURIComponent(String(item.name||'document.pdf').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':item.mimeType||'application/pdf','Content-Disposition':`${mode}; filename="document"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,404,{error:error.message||'لم يُعثر على أصل الوثيقة.'});}
+    }
     if(p==='/api/drive/file'&&req.method==='GET'){
       const id=(url.searchParams.get('id')||'').slice(0,200),mode=url.searchParams.get('mode')==='download'?'attachment':'inline';if(!id)return send(req,res,400,{error:'معرف ملف Drive مطلوب.'});
       try{const {item,response}=await openDriveSourceFile(id);const safeName=encodeURIComponent(String(item.name||'document').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':item.mimeType||'application/octet-stream','Content-Disposition':`${mode}; filename="document"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
@@ -598,4 +602,6 @@ server.on('error',error=>{console.error(error.code==='EADDRINUSE'?'المنفذ 
 server.listen(PORT,HOST,()=>console.log(`Qalam Smart ${library.meta.version}: http://localhost:${PORT} — ${library.meta.documents} records; PDF-independent; PID ${process.pid}`));
 function stop(){server.close(()=>{library.close();process.exit(0);});setTimeout(()=>process.exit(0),1500).unref();}
 process.on('SIGINT',stop);process.on('SIGTERM',stop);
+
+export { server, library };
 

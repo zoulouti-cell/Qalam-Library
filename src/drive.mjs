@@ -1,5 +1,7 @@
 import { createSign } from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
+import { Readable } from 'node:stream';
 import { brotliDecompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
@@ -23,7 +25,92 @@ const JUDICIAL_FOLDERS=new Map([
 const judicialFileCache=new Map();
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K';
+const LOCAL_ORIGINALS_ROOT = String(process.env.QALAM_LOCAL_ORIGINALS_ROOT || '').trim();
+const LOCAL_LIBRARY_FOLDERS = new Set([
+  'الأبحاث و الدراسات', 'الأبحات و الدراسات', 'الاتفاقيات و المعاهدات', 'الاجتهادات القضائية',
+  'القوانين المنظمة للمؤسسات والهيئات', 'المادة الدستورية', 'المواد القانونية',
+]);
 let tokenCache = { value: '', expiresAt: 0 };
+
+function localRoot() {
+  if (!LOCAL_ORIGINALS_ROOT) return null;
+  const root = path.resolve(LOCAL_ORIGINALS_ROOT);
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new Error('تعذر العثور على مجلد الأصول المحلي المحدد للمكتبة.');
+  return root;
+}
+
+function safeLocalPath(relativePath) {
+  const root = localRoot();
+  if (!root) throw new Error('وضع الأصول المحلية غير مفعّل.');
+  const rel = String(relativePath || '').replaceAll('\\', '/').replace(/^\/+/, '');
+  const segments = rel.split('/');
+  if (!segments.length || segments.some(part => !part || part === '.' || part === '..') || !LOCAL_LIBRARY_FOLDERS.has(segments[0])) throw new Error('مسار ملف غير صالح أو خارج مجلدات المكتبة على USB.');
+  const absolute = path.resolve(root, ...segments);
+  const within = path.relative(root, absolute);
+  if (!within || within.startsWith('..' + path.sep) || within === '..' || path.isAbsolute(within)) throw new Error('مسار الملف خارج مجلد الأصول المسموح.');
+  const realRoot = fs.realpathSync(root), realAbsolute = fs.realpathSync(absolute), realRelative = path.relative(realRoot, realAbsolute);
+  if (!realRelative || realRelative.startsWith('..' + path.sep) || realRelative === '..' || path.isAbsolute(realRelative)) throw new Error('مسار الملف يتجاوز مجلد الأصول المحلي.');
+  const stat = fs.statSync(realAbsolute);
+  if (!stat.isFile()) throw new Error('الملف المحلي غير موجود أو غير صالح.');
+  return { root, absolute: realAbsolute, relative: segments.join('/'), stat };
+}
+
+function localItem(relativePath) {
+  const file = safeLocalPath(relativePath), ext = path.extname(file.absolute).toLowerCase();
+  const mimeType = ext === '.pdf' ? 'application/pdf' : ext === '.doc' ? 'application/msword' : ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : '';
+  if (!mimeType) throw new Error('نوع ملف المصدر المحلي غير مدعوم.');
+  return { id: `local:${file.relative}`, name: path.basename(file.absolute), mimeType, size: file.stat.size, modifiedTime: file.stat.mtime.toISOString(), localPath: file.absolute, path: path.dirname(file.relative).split(path.sep).join(' / ') };
+}
+
+function localResponse(item) {
+  return { headers: new Headers({ 'content-length': String(item.size) }), body: Readable.toWeb(fs.createReadStream(item.localPath)) };
+}
+
+function localFolderPath(folderId) {
+  if (!String(folderId || '').startsWith('local-folder:')) throw new Error('معرف مجلد محلي غير صالح.');
+  const relative = String(folderId).slice('local-folder:'.length).replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+  if (!relative) return { root: localRoot(), relative: '', absolute: localRoot() };
+  const segments = relative.split('/');
+  if (segments.some(part => !part || part === '.' || part === '..') || !LOCAL_LIBRARY_FOLDERS.has(segments[0])) throw new Error('المجلد خارج مجلدات المكتبة المحلية.');
+  const root = localRoot(), absolute = path.resolve(root, ...segments);
+  const within = path.relative(root, absolute);
+  if (!within || within.startsWith('..' + path.sep) || within === '..' || path.isAbsolute(within) || !fs.statSync(absolute).isDirectory()) throw new Error('المجلد المحلي غير موجود.');
+  return { root, relative: segments.join('/'), absolute };
+}
+
+function listLocalFolder(folderId) {
+  const folder = localFolderPath(folderId), items = fs.readdirSync(folder.absolute, { withFileTypes: true }).filter(item => !item.isSymbolicLink()).flatMap(item => {
+    const relative = [folder.relative, item.name].filter(Boolean).join('/');
+    if (item.isDirectory()) return [{ id: `local-folder:${relative}`, name: item.name, mimeType: 'application/vnd.google-apps.folder', size: 0, modifiedTime: '' }];
+    if (!item.isFile() || !/\.(?:pdf|docx?)$/i.test(item.name)) return [];
+    try { const file = localItem(relative); return [{ id: file.id, name: file.name, mimeType: file.mimeType, size: file.size, modifiedTime: file.modifiedTime }]; } catch { return []; }
+  });
+  if (!folder.relative) {
+    const allowed = items.filter(item => item.mimeType === 'application/vnd.google-apps.folder' && LOCAL_LIBRARY_FOLDERS.has(item.name));
+    return { folder: { id: 'local-folder:', name: 'أصول المكتبة على USB' }, parentId: '', files: allowed };
+  }
+  items.sort((a, b) => Number(b.mimeType === 'application/vnd.google-apps.folder') - Number(a.mimeType === 'application/vnd.google-apps.folder') || a.name.localeCompare(b.name, 'ar'));
+  return { folder: { id: folderId, name: path.basename(folder.absolute) }, parentId: folder.relative.includes('/') ? `local-folder:${path.dirname(folder.relative).split(path.sep).join('/')}` : 'local-folder:', files: items };
+}
+
+function localLibraryPdfs() {
+  const root = localRoot(), files = [], queue = [];
+  for (const name of LOCAL_LIBRARY_FOLDERS) { const absolute = path.join(root, name); if (fs.existsSync(absolute) && fs.statSync(absolute).isDirectory()) queue.push({ absolute, relative: name, depth: 0 }); }
+  while (queue.length && files.length < 60000) {
+    const folder = queue.pop();
+    if (folder.depth > 12) continue;
+    let entries; try { entries = fs.readdirSync(folder.absolute, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const absolute = path.join(folder.absolute, entry.name), relative = `${folder.relative}/${entry.name}`;
+      if (entry.isDirectory()) { queue.push({ absolute, relative, depth: folder.depth + 1 }); continue; }
+      if (!entry.isFile() || !/\.pdf$/i.test(entry.name)) continue;
+      try { const item = localItem(relative); files.push({ id: item.id, name: item.name, size: item.size, modifiedTime: item.modifiedTime, md5Checksum: '', path: path.dirname(relative).split(path.sep).join(' / '), webViewLink: '', officialUrl: '' }); } catch {}
+      if (files.length >= 60000) break;
+    }
+  }
+  return files;
+}
 
 function base64url(value) { return Buffer.from(value).toString('base64url'); }
 
@@ -76,7 +163,8 @@ async function metadata(id) {
 }
 
 async function withinLibrary(id) {
-  if (!id || id.length > 200) throw new Error('معرف ملف Drive غير صالح.');
+  if (!id || id.length > (LOCAL_ORIGINALS_ROOT && String(id).startsWith('local:') ? 1200 : 200)) throw new Error('معرف ملف Drive غير صالح.');
+  if (LOCAL_ORIGINALS_ROOT && String(id).startsWith('local:')) return localItem(String(id).slice('local:'.length));
   const target = await metadata(id);
   let item = target;
   const seen = new Set();
@@ -90,7 +178,8 @@ async function withinLibrary(id) {
   throw new Error('هذا العنصر خارج مجلد أصول المكتبة.');
 }
 
-export async function listDriveFolder(folderId = DRIVE_ROOT_FOLDER_ID, includeSourceMetadata = false) {
+export async function listDriveFolder(folderId = LOCAL_ORIGINALS_ROOT ? 'local-folder:' : DRIVE_ROOT_FOLDER_ID, includeSourceMetadata = false) {
+  if (LOCAL_ORIGINALS_ROOT) return listLocalFolder(folderId || 'local-folder:');
   const folder = await withinLibrary(folderId);
   if (folder.mimeType !== 'application/vnd.google-apps.folder') throw new Error('المجلد المحدد غير صالح.');
   const files = [];
@@ -113,6 +202,7 @@ export async function listDriveFolder(folderId = DRIVE_ROOT_FOLDER_ID, includeSo
 export async function openDrivePdf(id) {
   const item = await withinLibrary(id);
   if (item.mimeType !== 'application/pdf') throw new Error('المعاينة والتحميل متاحان لملفات PDF في الأرشيف فقط.');
+  if (item.localPath) return { item, response: localResponse(item) };
   const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
   return { item, response };
 }
@@ -121,6 +211,7 @@ export async function openDriveSourceFile(id) {
   const item = await withinLibrary(id);
   const allowed = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
   if (!allowed.has(item.mimeType)) throw new Error('نوع ملف المصدر غير مدعوم للفتح من المكتبة.');
+  if (item.localPath) return { item, response: localResponse(item) };
   const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
   return { item, response };
 }
@@ -139,6 +230,11 @@ async function allLibraryPdfs(force=false) {
   if (!force && pdfIndexCache.files.length && Date.now()-pdfIndexCache.at < 15*60_000) return pdfIndexCache.files;
   if (pdfIndexCache.promise) return pdfIndexCache.promise;
   pdfIndexCache.promise=(async()=>{
+    if (LOCAL_ORIGINALS_ROOT) {
+      const files = localLibraryPdfs();
+      pdfIndexCache={at:Date.now(),promise:null,files};
+      return files;
+    }
     const files=[],queue=[{id:DRIVE_ROOT_FOLDER_ID,depth:0,path:''}],seen=new Set();
     async function children(folder){const found=[];let token='';do{const query=new URLSearchParams({q:`'${folder.id}' in parents and trashed = false`,pageSize:'1000',fields:`nextPageToken,files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});if(token)query.set('pageToken',token);const response=await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`),data=await response.json();found.push(...(data.files||[]));token=data.nextPageToken||'';}while(token);return found;}
     while(queue.length&&files.length<60000){const batch=queue.splice(0,4).filter(folder=>!seen.has(folder.id)&&folder.depth<=8);if(!batch.length)continue;batch.forEach(folder=>seen.add(folder.id));const pages=await Promise.all(batch.map(async folder=>({folder,items:await children(folder)})));for(const {folder,items} of pages)for(const item of items){if(item.mimeType==='application/pdf')files.push({id:item.id,name:item.name||'',size:Number(item.size)||0,md5Checksum:item.md5Checksum||'',modifiedTime:item.modifiedTime||'',path:folder.path||'',webViewLink:item.webViewLink||'',officialUrl:officialSourceFromDescription(item.description)});else if(item.mimeType==='application/vnd.google-apps.folder')queue.push({id:item.id,depth:folder.depth+1,path:[folder.path,item.name||''].filter(Boolean).join(' / ')});}}    pdfIndexCache={at:Date.now(),promise:null,files};return files;
@@ -238,7 +334,28 @@ export function driveSourceForDocument(id) {
   return judicial?{name:judicial.name,path:'الاجتهادات القضائية/'+courtPath,judicialIndex:true,status:judicialDriveIds.has(String(id))?'verified':'unverified'}:sourceDocumentIndex[String(id||'')]||null;
 }
 
+export async function resolveDocumentSourcePdf(documentId) {
+  const source = driveSourceForDocument(documentId);
+  if (!source?.name) throw new Error('لا يتوفر اسم موثوق لملف الأصل في فهرس المكتبة.');
+  let result = await matchDrivePdf('', '', source.name, source.path || '');
+  if (LOCAL_ORIGINALS_ROOT && !result.match && !result.candidates?.length) result = await matchDrivePdf('', '', source.name, '');
+  if (result.match) return result.match;
+  if (result.candidates?.length) throw new Error('وُجدت ملفات متشابهة؛ راجع الاسم والمجلد لتحديد الأصل الصحيح.');
+  throw new Error(LOCAL_ORIGINALS_ROOT ? 'لم يُعثر على ملف الأصل في مجلده المحدد على USB.' : 'لم يُعثر على ملف الأصل المطابق في Drive.');
+}
+
 export async function resolveJudicialDrivePdf(documentId,court){
+  if (LOCAL_ORIGINALS_ROOT) {
+    const expected=judicialById.get(documentId)?.name||sourceDocumentIndex[documentId]?.name||'';
+    const actualCourt=judicialById.get(documentId)?.court||court;
+    if (!expected) throw new Error('لا يتوفر اسم أصل موثوق لهذا القرار في الفهرس المحلي.');
+    const files=await allLibraryPdfs(),expectedKey=normalizeDriveName(expected),courtKey=normalizeDriveName(actualCourt);
+    const exact=files.filter(file=>normalizeDriveName(file.name)===expectedKey&&normalizeDriveName(file.path).includes(courtKey));
+    const matches=exact.length?exact:files.filter(file=>normalizeDriveName(file.name)===expectedKey);
+    if(matches.length===1)return localItem(matches[0].id.slice('local:'.length));
+    if(matches.length>1)throw new Error('وُجدت أصول محلية متعددة بالاسم نفسه؛ راجع مجلد المحكمة قبل فتح القرار.');
+    throw new Error('لم يُعثر على أصل القرار في مجلد المحكمة المحدد على USB.');
+  }
   const numeric=String(documentId||'').match(/^jc:(\d+)$/)?.[1],folderId=JUDICIAL_FOLDERS.get(court);
   if(!numeric||!folderId)throw new Error('لم يثبت مجلد أصل هذا القرار في Drive.');
   const cached=judicialFileCache.get(documentId);if(cached&&cached.until>Date.now()&&cached.court===court)return cached.item;
@@ -269,4 +386,4 @@ export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {
   return { item, buffer: Buffer.concat(chunks) };
 }
 
-export function libraryDriveRoot() { return DRIVE_ROOT_FOLDER_ID; }
+export function libraryDriveRoot() { return LOCAL_ORIGINALS_ROOT ? 'local-folder:' : DRIVE_ROOT_FOLDER_ID; }

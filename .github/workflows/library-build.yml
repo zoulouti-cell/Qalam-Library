@@ -108,6 +108,7 @@ jobs:
           set NODE_ENV=development
           set HOST=127.0.0.1
           set PORT=4188
+          set QALAM_LOCAL_ORIGINALS_ROOT=%~dp0..
           start "Qalam Library" /min cmd /c "timeout /t 2 >nul & start http://127.0.0.1:4188"
           node.exe server.mjs
           pause
@@ -122,9 +123,47 @@ jobs:
           5. لإيقاف الخادم أغلق نافذة التشغيل.
           '@ | Set-Content -Encoding utf8 "$out\اقرأني.txt"
           Compress-Archive -Path "$out\*" -DestinationPath (Join-Path $root 'release\qalam-library-offline-windows.zip') -CompressionLevel Optimal -Force
+      - name: Build the Windows desktop application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = (Get-Location).Path
+          $offline = Join-Path $root 'release\qalam-library-offline'
+          $desktop = Join-Path $root 'release\qalam-library-desktop-build'
+          $output = Join-Path $root 'release\qalam-library-desktop'
+          New-Item -ItemType Directory -Force -Path $desktop, "$desktop\library", "$output" | Out-Null
+          Copy-Item 'desktop\main.cjs', 'desktop\package.json' -Destination $desktop
+          Copy-Item "$offline\*" -Destination "$desktop\library" -Recurse
+          Remove-Item -LiteralPath "$desktop\library\data\library.sqlite" -Force
+          foreach ($runtimeFile in @('node.exe','msvcp140.dll','msvcp140_1.dll','msvcp140_2.dll','msvcp140_atomic_wait.dll','msvcp140_codecvt_ids.dll','vcruntime140.dll','vcruntime140_1.dll','vcruntime140_threads.dll')) {
+            $runtimePath = Join-Path "$desktop\library" $runtimeFile
+            if (Test-Path -LiteralPath $runtimePath) { Remove-Item -LiteralPath $runtimePath -Force }
+          }
+          Push-Location $desktop
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Installing the Windows desktop build tools failed.' }
+          npm run package:windows
+          if ($LASTEXITCODE -ne 0) { throw 'Packaging the Windows desktop application failed.' }
+          Pop-Location
+          Copy-Item "$desktop\dist\win-unpacked\*" -Destination $output -Recurse
+          @'
+          المكتبة الرقمية — برنامج Windows محمول
+
+          هذه نسخة برنامج بواجهة Windows مستقلة، ولا تحتاج إلى تثبيت Node.js أو فتح المتصفح يدوياً.
+          استخرج محتويات الحزمة داخل مجلد نسخة المكتبة المحلية القائم، مع إبقاء مجلد data\library.sqlite والملفات الأصلية على USB كما هي.
+          ضع مجلدات الأصول الأصلية بجانب مجلد البرنامج في جذر USB. يعمل البرنامج على Windows 64-bit، وتتوقف خدمته المحلية عند إغلاق نافذته.
+          لا تحتوي هذه الحزمة على ملفات PDF الأصلية أو قاعدة المكتبة؛ فهي تبقى في النسخة المحلية الموجودة على USB.
+          '@ | Set-Content -Encoding utf8 "$output\اقرأني-البرنامج.txt"
+          Compress-Archive -Path "$output\*" -DestinationPath (Join-Path $root 'release\qalam-library-windows-desktop.zip') -CompressionLevel Optimal -Force
       - uses: actions/upload-artifact@v4
         with:
           name: qalam-library-offline-windows
           path: release/qalam-library-offline-windows.zip
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qalam-library-windows-desktop
+          path: release/qalam-library-windows-desktop.zip
           if-no-files-found: error
           retention-days: 30

@@ -1,0 +1,47 @@
+{
+  "name": "qalam-digital-library-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Windows desktop shell for the offline Qalam Digital Library",
+  "main": "main.cjs",
+  "scripts": {
+    "package:windows": "electron-builder --win dir --x64"
+  },
+  "devDependencies": {
+    "electron": "45.2.2",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "ma.qalam.digital-library",
+    "productName": "المكتبة الرقمية",
+    "executableName": "QalamDigitalLibrary",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "library",
+        "to": "library",
+        "filter": [
+          "**/*",
+          "!data/library.sqlite"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "asar": true
+  }
+}
