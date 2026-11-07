@@ -70,3 +70,29 @@ h2,h3,h4,.result-open,.outline-title,.ingestion-top strong{font-family:CalibriLo
 .topbar-actions #logoutButton{font-size:21px;line-height:1}
 html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"] #logoutButton,html[data-qalam-desktop="true"] #accountDialog,html[data-qalam-desktop="true"] #installAppBtn{display:none!important}
 
+
+/* خانة بحث داخل القائمة الجانبية على الهاتف: زر «الأشرطة الثلاثة» يتحوّل بصرياً أمام العين
+   (عنصر .menu-morph زائف) إلى هذه الخانة لحظة فتح القائمة، متزامناً مع انزلاقها. عند الكتابة
+   فيها يختفي عنوان «المجالات القانونية» ويحل محله مربع الاقتراحات التلقائية المشترك نفسه
+   (#suggestions) الذي يُنقل إليه عبر جافاسكربت. مخفية على الحاسوب، حيث القائمة ثابتة دوماً. */
+.sidebar-search{display:none}
+@media(max-width:720px){
+  .sidebar-search{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:3px 12px;min-height:46px;flex:none;border-radius:13px;border:1px solid #b4935880;background:#ffffff14;color:#f7f7eb}
+  .sidebar-search svg{flex:none;color:#d8c89a}
+  .sidebar-search input{flex:1;min-width:0;background:none;border:0;color:inherit;font:16px CalibriLocal,Calibri,Tahoma,sans-serif}
+  .sidebar-search input::placeholder{color:currentColor;opacity:.65}
+  .sidebar-search:focus-within{outline:2px solid var(--gold);outline-offset:1px}
+  .sidebar-search button{display:grid;place-items:center;width:30px;height:30px;flex:none;color:inherit}
+  .sidebar.is-searching .category-heading,.sidebar.is-searching .sidebar-introduction,.sidebar.is-searching .category-list{display:none}
+  /* حين يُنقل #suggestions إلى داخل القائمة الجانبية الداكنة يحتاج هوية بصرية مغايرة لنسخته
+     الفاتحة الأصلية (بطاقة بيضاء)، فيأخذ شكلاً داكناً منسجماً مع خلفية القائمة. */
+  .sidebar .suggestions{position:static;margin:0 0 10px;padding:6px;max-height:none;flex:1 1 auto;min-height:0;overflow:auto;box-shadow:none;border:1px solid #ffffff1f;border-radius:12px;background:#ffffff0a}
+  .sidebar .suggestion-button{color:#f0ece0}
+  .sidebar .suggestion-button:hover,.sidebar .suggestion-button.active{background:#ffffff16}
+  .sidebar .suggestion-button small{color:#b9c7bd}
+}
+.menu-morph{position:fixed;top:0;left:0;z-index:150;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #b4935880;background:var(--green);color:#f7f7eb;opacity:0;will-change:transform,width,height,border-radius,opacity}
+.menu-morph-icon{position:absolute;transition:opacity .16s ease .06s}
+.menu-morph-icon-search{opacity:0}
+.menu-morph[data-phase="end"] .menu-morph-icon-menu{opacity:0}
+.menu-morph[data-phase="end"] .menu-morph-icon-search{opacity:1}

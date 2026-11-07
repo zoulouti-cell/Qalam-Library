@@ -384,13 +384,13 @@
     $('query').value = $('queryBottom').value = String(query || '').slice(0, 300); state.page = 1; closeSuggestions(); rememberQuery($('query').value.trim());
     if (state.view !== 'library') setView('library'); else runSearch();
   }
-  function clearSearchQuery() { $('query').value = $('queryBottom').value = ''; state.page = 1; closeSuggestions(); updateFilterState(); runSearch(); $('query').focus(); }
+  function clearSearchQuery() { $('query').value = $('queryBottom').value = $('querySidebar').value = ''; $('sidebar').classList.remove('is-searching'); state.page = 1; closeSuggestions(); updateFilterState(); runSearch(); activeQuery().focus(); }
   function clearFilters() {
     $('query').value = $('queryBottom').value = ''; state.type = 'all'; state.scope = 'all'; state.scopeTouched = false; state.topic = ''; state.category = ''; state.page = 1; $('qualityFilter').value = 'all'; $('dateFrom').value = ''; $('dateTo').value = '';
     document.querySelectorAll('[data-scope]').forEach(button => { const active = button.dataset.scope === 'all'; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); renderCategories(); closeSuggestions(); runSearch();
   }
   function activeQuery() { return $(state.activeQueryId) || $('query'); }
-  function closeSuggestions() { $('suggestions').hidden = true; for (const id of ['query','queryBottom']) { $(id).setAttribute('aria-expanded','false'); $(id).removeAttribute('aria-activedescendant'); } state.selectedSuggestion = -1; }
+  function closeSuggestions() { $('suggestions').hidden = true; for (const id of ['query','queryBottom','querySidebar']) { $(id).setAttribute('aria-expanded','false'); $(id).removeAttribute('aria-activedescendant'); } state.selectedSuggestion = -1; }
   function renderSuggestions(suggestions) {
     state.suggestions = suggestions.slice(0, 9); state.selectedSuggestion = -1;
     $('suggestions').hidden = !state.suggestions.length;
@@ -865,7 +865,25 @@
     } catch (error) { stream?.getTracks().forEach(track => track.stop()); try { await context?.close(); } catch {} state.mic = null; state.recording = false; micStatus(error.name === 'NotAllowedError' ? 'لم يُمنح إذن الميكروفون.' : 'تعذّر بدء تسجيل الصوت المحلي.'); }
   }
 
-  function closeSidebar() { $('sidebar').classList.remove('open'); $('sidebarScrim').hidden = true; $('menuToggle').setAttribute('aria-expanded', 'false'); }
+  function closeSidebar() { $('sidebar').classList.remove('open'); $('sidebarScrim').hidden = true; $('menuToggle').setAttribute('aria-expanded', 'false'); $('bottomSearchForm').appendChild($('suggestions')); }
+  function runMenuMorph() {
+    const overlay = $('menuMorph'), btn = $('menuToggle'), wrap = $('sidebarSearchWrap');
+    if (!overlay || !btn || !wrap) return;
+    const start = btn.getBoundingClientRect(), end = wrap.getBoundingClientRect();
+    overlay.hidden = false; overlay.style.transition = 'none'; overlay.style.opacity = '1';
+    overlay.style.width = start.width + 'px'; overlay.style.height = start.height + 'px';
+    overlay.style.borderRadius = '50%'; overlay.style.transform = 'translate(' + start.left + 'px,' + start.top + 'px)';
+    overlay.dataset.phase = 'start';
+    void overlay.offsetWidth;
+    requestAnimationFrame(() => {
+      overlay.style.transition = 'transform .22s cubic-bezier(.22,.8,.26,1), width .22s cubic-bezier(.22,.8,.26,1), height .22s cubic-bezier(.22,.8,.26,1), border-radius .22s cubic-bezier(.22,.8,.26,1), opacity .14s ease .16s';
+      overlay.style.width = end.width + 'px'; overlay.style.height = end.height + 'px';
+      overlay.style.borderRadius = '13px'; overlay.style.transform = 'translate(' + end.left + 'px,' + end.top + 'px)';
+      overlay.style.opacity = '0'; overlay.dataset.phase = 'end';
+    });
+    clearTimeout(overlay._hideTimer);
+    overlay._hideTimer = setTimeout(() => { overlay.hidden = true; }, 420);
+  }
   function wireEvents() {
     document.addEventListener('click', event => {
       const button = event.target.closest('button');
@@ -917,7 +935,7 @@
       if (button.dataset.heading !== undefined) { const id = 'doc-heading-' + button.dataset.heading; const heading = $(id); heading?.scrollIntoView({ block: 'start', behavior: 'smooth' }); $('outline').querySelectorAll('button').forEach(b => b.classList.toggle('active', b === button)); if (window.innerWidth <= 720) { document.querySelector('.reader-outline').classList.remove('open'); $('mobileOutline').setAttribute('aria-expanded', 'false'); } return; }
       if (button.dataset.sourceOpen) { openDocument(button.dataset.sourceOpen); return; }
       if (button.hasAttribute('data-translate-answer')) { translateAssistantAnswer(button); return; }
-      if (button.id === 'clearTopQuery' || button.id === 'clearBottomQuery') { clearSearchQuery(); return; }
+      if (button.id === 'clearTopQuery' || button.id === 'clearBottomQuery' || button.id === 'clearSidebarQuery') { clearSearchQuery(); return; }
       if (button.hasAttribute('data-remove-context')) { state.askDocument = null; renderAssistantContext(); return; }
       if (button.dataset.ask) { $('askInput').value = button.dataset.ask; $('askInput').focus(); return; }
       if (button.dataset.action === 'settings') openSettings();
@@ -927,9 +945,9 @@
     });
     const submitSearch = event => { event.preventDefault(); if (state.selectedSuggestion >= 0 && !$('suggestions').hidden) pickSuggestion(state.selectedSuggestion); else { closeSuggestions(); state.page = 1; rememberQuery($('query').value.trim()); runSearch(); } };
     $('searchForm').addEventListener('submit',event=>{event.preventDefault();if(state.selectedSuggestion>=0&&!$('suggestions').hidden){const selected=state.suggestions[state.selectedSuggestion];if(selected?.text)$('query').value=$('queryBottom').value=selected.text;}closeSuggestions();state.page=1;rememberQuery($('query').value.trim());runSearch().then(()=>requestAnimationFrame(()=>$('resultsTitle').scrollIntoView({block:'start',behavior:'smooth'})));}); $('bottomSearchForm').addEventListener('submit', submitSearch);
-    for (const id of ['query','queryBottom']) {
+    for (const id of ['query','queryBottom','querySidebar']) {
       const input = $(id);
-      input.addEventListener('input', () => { $('query').value = $('queryBottom').value = input.value; $('clearTopQuery').hidden = $('clearBottomQuery').hidden = !input.value.trim(); state.activeQueryId = id; scheduleSearch(); clearTimeout(state.suggestTimer); state.suggestTimer = setTimeout(suggest, 80); });
+      input.addEventListener('input', () => { $('query').value = $('queryBottom').value = $('querySidebar').value = input.value; $('clearTopQuery').hidden = $('clearBottomQuery').hidden = $('clearSidebarQuery').hidden = !input.value.trim(); $('sidebar').classList.toggle('is-searching', !!input.value.trim()); state.activeQueryId = id; scheduleSearch(); clearTimeout(state.suggestTimer); state.suggestTimer = setTimeout(suggest, 80); });
       input.addEventListener('keydown', event => { if (event.key === 'ArrowDown') { event.preventDefault(); navigateSuggestions(1); } if (event.key === 'ArrowUp') { event.preventDefault(); navigateSuggestions(-1); } if (event.key === 'Escape') closeSuggestions(); });
       input.addEventListener('focus', () => { state.activeQueryId = id; if (input.value.trim().length >= 2) suggest(); });
     }
@@ -957,7 +975,7 @@
     $('voiceTestBtn').addEventListener('click',testReadingVoice);
     $('spellReferences').addEventListener('change', event => { prefs.spellReferences = event.target.checked; stopReading(); persistPrefs(); });
     $('readRate').addEventListener('change', event => { prefs.rate = event.target.value; persistPrefs(); if (state.reading) { stopReading(); audioStatus('تغيّرت السرعة. اضغط استمع لبدء القراءة بالسرعة الجديدة.'); } });
-    $('menuToggle').addEventListener('click', () => { const open = $('sidebar').classList.toggle('open'); $('sidebarScrim').hidden = !open; $('menuToggle').setAttribute('aria-expanded', String(open)); }); $('sidebarScrim').addEventListener('click', closeSidebar);
+    $('menuToggle').addEventListener('click', () => { const open = $('sidebar').classList.toggle('open'); $('sidebarScrim').hidden = !open; $('menuToggle').setAttribute('aria-expanded', String(open)); if (open) { $('sidebarSearchWrap').after($('suggestions')); if (window.innerWidth <= 720) runMenuMorph(); } else { $('bottomSearchForm').appendChild($('suggestions')); } }); $('sidebarScrim').addEventListener('click', closeSidebar);
     $('fullscreenBtn').addEventListener('click', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { toast('تعذر تفعيل ملء الشاشة في هذا المتصفح.'); } });
     document.addEventListener('fullscreenchange', () => { const active=!!document.fullscreenElement; $('fullscreenBtn').title=active?'إنهاء ملء الشاشة':'ملء الشاشة'; $('fullscreenBtn').setAttribute('aria-label',$('fullscreenBtn').title); $('fullscreenBtn').innerHTML=active?ICONS.minimize:ICONS.maximize; });
     window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstallPrompt=event; toast('يمكنك تثبيت المكتبة الرقمية على جهازك من الإعدادات.'); });
