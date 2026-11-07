@@ -73,7 +73,7 @@ export function renderEmailHtml({ tone = 'neutral', badgeAr, badgeFr, headingAr,
 <tr><td dir="rtl" lang="ar" style="padding:10px 26px 4px;font-family:Tahoma,Arial,sans-serif">
   <h1 style="margin:0 0 10px;font-size:19px;color:#163428">${esc(headingAr)}</h1>
   ${bodyHtmlAr}
-  <p style="margin:16px 0 0;font-family:Georgia,'Times New Roman',serif;font-style:italic;color:#8a6a2d;font-size:16px">بقلم — ZOULOUTI الزلوطي</p>
+  <p style="margin:16px 0 0;font-family:Georgia,'Times New Roman',serif;font-style:italic;color:#8a6a2d;font-size:16px">بقلم — الزلوطي</p>
 </td></tr>
 <tr><td style="padding:16px 26px 0"><div style="border-top:1px solid #e3e1cf"></div></td></tr>
 <tr><td style="padding:14px 26px 2px">
@@ -100,7 +100,7 @@ export function renderEmailText({ headingAr, bodyLinesAr, headingFr, bodyLinesFr
     '',
     ...bodyLinesAr.filter(Boolean),
     '',
-    'بقلم — ZOULOUTI الزلوطي',
+    'بقلم — الزلوطي',
     '',
     '―――――――――――――――――――',
     '',
