@@ -455,3 +455,6 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 .reader-content-label{flex-wrap:nowrap;flex:0 0 auto}
 @media(max-width:480px){.assistant-source-indicator{width:100%;margin-left:0}.assistant-tool{flex:1}}
 
+/* شريط البحث العلوي (فوق صورة الغلاف) يُخفى على الهاتف لأن القائمة الجانبية أصبحت تحتوي
+   شريط بحث خاصاً بها (#sidebarSearchWrap) يغني عنه، فلا داعٍ لتكراره. لا يمسّ شاشة الحاسوب. */
+@media(max-width:720px){.identity-header .search-panel{display:none!important}}
