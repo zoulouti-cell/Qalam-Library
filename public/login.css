@@ -44,3 +44,5 @@ body.dark .art-panel{background:#04120d}body.dark .art-panel::after{background:l
 .features .feature-icon svg{display:block}
 @media(max-height:700px) and (min-width:801px){.features{gap:6px}}
 .panel-controls button{display:grid;place-items:center}.panel-controls button svg{width:18px;height:18px}
+/* زر المظهر في أقصى يسار الشاشة فعليًا، بمعزل عن حاشية لوحة النموذج */
+.panel-controls{position:fixed;left:8px;top:8px;z-index:5}
