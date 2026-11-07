@@ -11,6 +11,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { PDFDocument } from 'pdf-lib';
 import { Library } from './src/library.mjs';
 import { answerQuestion,aiCapability,GROQ_CHAT_MODELS,selectedGroqModel } from './src/assistant.mjs';
+import { answerFromWeb } from './src/websearch.mjs';
 import { geminiApiKey,geminiModel,geminiOcrApiKey,geminiOcrModel,geminiOcrEnabled } from './src/gemini.mjs';
 import { deeplApiKey,translateWithDeepL } from './src/deepl.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
@@ -91,7 +92,7 @@ async function assistantPolicy(){
   const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{assistant:1}}):null;
   const config=saved?.assistant||{};
   const configuredModel=selectedGroqModel();
-  return {aiEnabled:config.aiEnabled!==false,translationEnabled:config.translationEnabled!==false,translationEngine:config.translationEngine==='local'?'local':'deepl',processingLevel:['fast','balanced','deep'].includes(config.processingLevel)?config.processingLevel:'balanced',groqModel:GROQ_CHAT_MODELS.includes(config.groqModel)?config.groqModel:GROQ_CHAT_MODELS.includes(configuredModel)?configuredModel:GROQ_CHAT_MODELS[0]};
+  return {aiEnabled:config.aiEnabled!==false,translationEnabled:config.translationEnabled!==false,webSearchEnabled:config.webSearchEnabled!==false,translationEngine:config.translationEngine==='local'?'local':'deepl',processingLevel:['fast','balanced','deep'].includes(config.processingLevel)?config.processingLevel:'balanced',groqModel:GROQ_CHAT_MODELS.includes(config.groqModel)?config.groqModel:GROQ_CHAT_MODELS.includes(configuredModel)?configuredModel:GROQ_CHAT_MODELS[0]};
 }
 async function configuredOwnerEmail(){const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{ownerEmail:1}}):null;return String(saved?.ownerEmail||ownerEmail()).trim().toLowerCase();}
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
@@ -465,10 +466,10 @@ const server=http.createServer(async(req,res)=>{
       if(req.method==='GET')return send(req,res,200,{...await assistantPolicy(),groqConfigured:!!process.env.GROQ_API_KEY,deeplConfigured:!!deeplApiKey(),models:GROQ_CHAT_MODELS});
       if(req.method!=='POST')return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
       let body;try{body=await jsonBody(req,2000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
-      if(!GROQ_CHAT_MODELS.includes(body.groqModel)||!['local','deepl'].includes(body.translationEngine)||!['fast','balanced','deep'].includes(body.processingLevel)||typeof body.aiEnabled!=='boolean'||typeof body.translationEnabled!=='boolean')return send(req,res,400,{error:'إعدادات المساعد غير صالحة.'});
-      const assistant={aiEnabled:body.aiEnabled,translationEnabled:body.translationEnabled,translationEngine:body.translationEngine,processingLevel:body.processingLevel,groqModel:body.groqModel};
+      if(!GROQ_CHAT_MODELS.includes(body.groqModel)||!['local','deepl'].includes(body.translationEngine)||!['fast','balanced','deep'].includes(body.processingLevel)||typeof body.aiEnabled!=='boolean'||typeof body.translationEnabled!=='boolean'||typeof body.webSearchEnabled!=='boolean')return send(req,res,400,{error:'إعدادات المساعد غير صالحة.'});
+      const assistant={aiEnabled:body.aiEnabled,translationEnabled:body.translationEnabled,webSearchEnabled:body.webSearchEnabled,translationEngine:body.translationEngine,processingLevel:body.processingLevel,groqModel:body.groqModel};
       await adminStore.settings.updateOne({_id:'library'},{$set:{assistant,updatedAt:new Date()},$setOnInsert:{createdAt:new Date()}},{upsert:true});
-      await recordAudit(adminStore,auditActor(req),'assistant_settings_updated','library',{aiEnabled:assistant.aiEnabled,translationEnabled:assistant.translationEnabled,translationEngine:assistant.translationEngine,processingLevel:assistant.processingLevel,groqModel:assistant.groqModel});
+      await recordAudit(adminStore,auditActor(req),'assistant_settings_updated','library',{aiEnabled:assistant.aiEnabled,translationEnabled:assistant.translationEnabled,webSearchEnabled:assistant.webSearchEnabled,translationEngine:assistant.translationEngine,processingLevel:assistant.processingLevel,groqModel:assistant.groqModel});
       return send(req,res,200,{ok:true,...assistant,groqConfigured:!!process.env.GROQ_API_KEY,deeplConfigured:!!deeplApiKey(),models:GROQ_CHAT_MODELS});
     }
     if(p==='/api/admin/content'&&req.method==='GET'){
@@ -561,7 +562,7 @@ const server=http.createServer(async(req,res)=>{
       const d=library.document((url.searchParams.get('id')||'').slice(0,120));return send(req,res,d?200:404,d||{error:'الوثيقة غير موجودة في هذه النسخة.'});
     }
     if(p==='/api/capabilities'){
-      const [ai,speech,policy]=await Promise.all([aiCapability(),speechCapabilities(),assistantPolicy()]);return send(req,res,200,{pdfFree:true,ai:{...ai,available:policy.aiEnabled&&ai.available,mode:policy.aiEnabled?ai.mode:'extractive',model:policy.groqModel,enabled:policy.aiEnabled},translation:{available:policy.translationEnabled&&(policy.translationEngine==='local'||!!deeplApiKey()),enabled:policy.translationEnabled,engine:policy.translationEngine,target:'français',provider:policy.translationEngine==='local'?'محلي':'DeepL'},speech});
+      const [ai,speech,policy]=await Promise.all([aiCapability(),speechCapabilities(),assistantPolicy()]);return send(req,res,200,{pdfFree:true,ai:{...ai,available:policy.aiEnabled&&ai.available,mode:policy.aiEnabled?ai.mode:'extractive',model:policy.groqModel,enabled:policy.aiEnabled},translation:{available:policy.translationEnabled&&(policy.translationEngine==='local'||!!deeplApiKey()),enabled:policy.translationEnabled,engine:policy.translationEngine,target:'français',provider:policy.translationEngine==='local'?'محلي':'DeepL'},webSearch:{available:policy.webSearchEnabled,enabled:policy.webSearchEnabled},speech});
     }
     if(p==='/api/translate'){
       if(req.method!=='POST')return send(req,res,405,{error:'أرسل النص عبر POST.'});
@@ -574,6 +575,7 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/ask'){
       if(req.method!=='POST')return send(req,res,405,{error:'أرسل السؤال عبر POST.'});
       const body=await jsonBody(req),policy=await assistantPolicy();
+      if(body.analysisMode==='web'&&policy.webSearchEnabled)return send(req,res,200,await answerFromWeb(body.question));
       body.analysisMode=policy.aiEnabled&&body.analysisMode==='groq'?'groq':'sources';body.groqModel=policy.groqModel;body.processingLevel=policy.processingLevel;
       const initial=await answerQuestion(library,{...body,retrieveOnly:true});
       const canAnalyze=initial.canAnalyze;delete initial.canAnalyze;

@@ -603,11 +603,13 @@
     const active=groqReady&&prefs.assistantEngine==='groq';
     $('assistantGroq').disabled=!groqReady; $('assistantGroq').classList.toggle('active',active); $('assistantGroq').setAttribute('aria-pressed',String(active)); $('assistantGroq').setAttribute('aria-checked',String(active)); $('assistantGroq').querySelector('.qalam-switch')?.classList.toggle('is-on',active);
     $('assistantGroq').title=groqReady?(active?'إيقاف التحليل الذكي والاكتفاء بالمصادر':'تفعيل التحليل الذكي المسند'):'التحليل الذكي غير متاح وفق إعدادات المكتبة';
-    $('assistantSourceMode').textContent=active?'◈ بحث محلي + Groq':'◈ بحث محلي في المصادر';
-    const translation=state.capabilities.translation||{},translating=!!(translation.available&&prefs.autoTranslate);$('assistantLocalTranslate').hidden=!translation.available;$('assistantLocalTranslate').disabled=!translation.available;$('assistantTranslateLabel').textContent=translation.engine==='local'?'الترجمة المحلية':'الترجمة (DeepL)';$('assistantLocalTranslate').title=translating?'إيقاف ترجمة الإجابات إلى الفرنسية':'ترجمة الإجابات إلى الفرنسية تلقائياً';$('assistantLocalTranslate').setAttribute('aria-checked',String(translating));$('assistantLocalTranslate').querySelector('.qalam-switch')?.classList.toggle('is-on',translating);
+    const translation=state.capabilities.translation||{},translating=!!(translation.available&&prefs.autoTranslate);$('assistantLocalTranslate').hidden=!translation.available;$('assistantLocalTranslate').disabled=!translation.available;$('assistantTranslateLabel').textContent=translation.engine==='local'?'الترجمة المحلية':'الترجمة (DeepL)';$('assistantLocalTranslate').title=translating?'إيقاف الترجمة المباشرة':'ترجمة ما تكتبه مباشرة دون سؤال المكتبة';$('assistantLocalTranslate').setAttribute('aria-checked',String(translating));$('assistantLocalTranslate').querySelector('.qalam-switch')?.classList.toggle('is-on',translating);
+    const webReady=!!state.capabilities.webSearch?.available;
+    $('assistantSourceMode').textContent=translating?'◈ ترجمة محلية مباشرة':active?'◈ بحث محلي + Groq':webReady?'◈ بحث خارجي في الإنترنت':'◈ بحث محلي في المصادر';
+    $('navAssistant').classList.toggle('assistant-ready',assistantAvailable());
   }
   function renderAssistantAnswer(element,result) {
-    const modes={extractive:'استرجاع من المصادر · دون توليد بنموذج',local_model:'تحليل بمساعد محلي',remote_model:'تحليل بمساعد متصل',gemini_model:'تحليل Gemini · مرتبط بمصادر المكتبة',groq_model:'تحليل Groq · مرتبط بمصادر المكتبة'};
+    const modes={extractive:'استرجاع من المصادر · دون توليد بنموذج',local_model:'تحليل بمساعد محلي',remote_model:'تحليل بمساعد متصل',gemini_model:'تحليل Gemini · مرتبط بمصادر المكتبة',groq_model:'تحليل Groq · مرتبط بمصادر المكتبة',web_search:'بحث آلي · مرتبط بمصادر خارجية'};
     const sources=result.sources||[];
     element.innerHTML='<span class="chat-mode">'+esc(modes[result.mode]||'مساعدة مرتبطة بالمصادر')+'</span><div class="chat-answer">'+answerMarkup(result.answer)+'</div>'+(result.answer&&state.capabilities.translation?.available?'<div class="chat-translation-actions"><button type="button" class="secondary-button" data-translate-answer>'+translationIcon+' ترجمة إلى الفرنسية</button><div class="chat-translation" hidden></div></div>':'')+(sources.length?'<div class="chat-source-list">'+sources.map((s,i)=>'<div class="chat-source-row"><button class="chat-source" data-source-open="'+esc(s.id)+'"><b>'+fmt(i+1)+'</b>'+esc(s.title)+'<small>'+esc(s.label||kindNames[s.textKind]||'محتوى مسترجع')+(s.excerpt?' · '+esc(s.excerpt.slice(0,160)):'')+'</small></button>'+(s.officialUrl?'<a class="chat-source-official" href="'+esc(s.officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي" title="المصدر الرسمي">↗</a>':'')+'</div>').join('')+'</div>':'')+((result.limitations||[]).length?'<div class="chat-limitations">'+result.limitations.map(esc).join('<br>')+'</div>':'')+(result.analysisPending?'<div class="chat-pending"><span></span> المصادر أمامك؛ جارٍ إعداد التحليل المسند…</div>':'');
     if(prefs.autoTranslate&&result.answer&&!result.analysisPending){const button=element.querySelector('[data-translate-answer]');if(button)translateAssistantAnswer(button);}
@@ -633,9 +635,26 @@
     const question = $('askInput').value.trim(); if (!question || state.busyAsk) return;
     if (question.length > 3000) { toast('اختصر السؤال إلى 3000 حرف.'); return; }
     await stopMic(true); state.busyAsk = true; $('askSubmit').disabled = true; appendChat('user', question); $('askInput').value = '';
-    const pending = appendChat('assistant', '<div class="chat-pending"><span></span> جارٍ البحث في النصوص وإعداد المساعدة…</div>');
+    const translation=state.capabilities.translation||{};
+    if (prefs.autoTranslate && translation.available) {
+      const pending = appendChat('assistant', '<div class="chat-pending"><span></span> جارٍ الترجمة…</div>');
+      const local = translation.engine === 'local';
+      try {
+        const translated = local
+          ? await translateWithDevice(question, 'ar', 'fr', (progress, done, total) => { pending.innerHTML = '<div class="chat-pending"><span></span> ' + esc(progress !== null && progress < 100 ? 'جارٍ تنزيل نموذج الترجمة على هذا الجهاز: ' + progress + '٪' : done !== undefined ? 'جارٍ ترجمة الجزء ' + done + ' من ' + total + '…' : 'جارٍ تجهيز الترجمة المحلية…') + '</div>'; })
+          : (await api('/api/translate', { method: 'POST', body: JSON.stringify({ text: question, language: 'français' }), signal: AbortSignal.timeout(45000) })).translation;
+        pending.innerHTML = '<span class="chat-mode">ترجمة محلية مباشرة · دون سؤال المكتبة</span><div class="chat-answer">' + esc(translated || 'لم تصل ترجمة.') + '</div>';
+        state.chat.push({ role: 'user', content: question }, { role: 'assistant', content: translated || '' }); state.chat = state.chat.slice(-12);
+      } catch (error) {
+        pending.innerHTML = '<div class="chat-answer">' + esc(local ? 'تعذرت الترجمة المحلية. قد يتطلب النموذج تنزيله أول مرة.' : 'تعذرت ترجمة DeepL: ' + (error.message || '')) + '</div>';
+      } finally { state.busyAsk = false; $('askSubmit').disabled = false; $('chatMessages').scrollTop = $('chatMessages').scrollHeight; }
+      return;
+    }
+    const groqActive = prefs.assistantEngine === 'groq' && state.capabilities.ai?.mode === 'groq_model';
+    const webMode = !groqActive && !!state.capabilities.webSearch?.available;
+    const pending = appendChat('assistant', '<div class="chat-pending"><span></span> ' + (webMode ? 'جارٍ البحث في الإنترنت…' : 'جارٍ البحث في النصوص وإعداد المساعدة…') + '</div>');
     try {
-      let result = await api('/api/ask', { method: 'POST', body: JSON.stringify({ question, history: state.chat.slice(-6), analysisMode: prefs.assistantEngine==='groq'&&state.capabilities.ai?.mode==='groq_model'?'groq':'sources', ...(state.askDocument ? { documentId: state.askDocument.id } : {}) }), signal: AbortSignal.timeout(15000) });
+      let result = await api('/api/ask', { method: 'POST', body: JSON.stringify({ question, history: state.chat.slice(-6), analysisMode: groqActive?'groq':(webMode?'web':'sources'), ...(state.askDocument ? { documentId: state.askDocument.id } : {}) }), signal: AbortSignal.timeout(webMode?20000:15000) });
       renderAssistantAnswer(pending,result);
       if(result.analysisPending&&result.jobId){
         const until=Date.now()+125000;let finished=false;
@@ -674,8 +693,6 @@
     const utterance=new SpeechSynthesisUtterance('هذا اختبار للصوت العربي في مكتبة قلم.');utterance.voice=voice;utterance.lang=voice.lang;utterance.rate=Number(prefs.rate)||1;utterance.onend=()=>{status.textContent='اكتمل الاختبار بواسطة '+voice.name+'.';button.disabled=false;};utterance.onerror=()=>{status.textContent='تعذر تشغيل صوت المتصفح.';button.disabled=false;};speechSynthesis.cancel();speechSynthesis.speak(utterance);
   }
   function refreshSettings() {
-    $('translationAvailability').textContent=state.capabilities.translation?.available?'الترجمة متاحة بالطريقة التي حددها مدير المكتبة.':'الترجمة غير متاحة حالياً.';
-    $('groqAvailability').textContent=state.capabilities.ai?.mode==='groq_model'?'التحليل الذكي متاح؛ فعّله أو أوقفه داخل المساعد.':'يعمل المساعد حالياً بالبحث في المصادر فقط.';
     $('personalize').checked = !!prefs.personalize; $('searchHistoryEnabled').checked = !!prefs.searchHistory; $('dictationEngine').value = prefs.dictationEngine; $('readingEngine').value = prefs.readingEngine; $('readRate').value = prefs.rate;
     $('allowNetworkVoices').checked = !!prefs.allowNetworkVoices; $('networkVoiceWarning').hidden = !prefs.allowNetworkVoices;
     $('browserSpeechWarning').hidden = prefs.dictationEngine !== 'browser';
@@ -683,6 +700,14 @@
     $('dictationAvailability').textContent = prefs.dictationEngine === 'local' ? (state.capabilities.speech?.sttAvailable ? 'المحرك المحلي متاح: ' + (state.capabilities.speech.sttEngine || 'تعرف صوتي محلي') + '. لن ينتقل الإملاء إلى الشبكة تلقائياً.' : 'المحرك المحلي غير متاح حالياً. يمكنك ربطه أو اختيار خدمة المتصفح صراحة.') : Recognition ? 'يدعم هذا المتصفح خدمة التعرف الصوتي. اختيارك يجيز استخدام هذه الخدمة عند الضغط على الميكروفون.' : 'خدمة التعرف الصوتي غير مدعومة في هذا المتصفح.';
     if (prefs.readingEngine === 'local'){$('voiceSelect').innerHTML='<option value="piper-local">كريم · العربية الأردنية · Piper محلي</option>';$('voiceSelect').value='piper-local';$('voiceSelect').disabled=true;$('voiceAvailability').textContent=state.capabilities.speech?.piperAvailable?'محرك Piper المحلي جاهز. جودة الصوت متوسطة، وليس بلهجة مغربية.':'محرك القراءة المحلي غير متاح حالياً.';$('voiceTestBtn').disabled=!state.capabilities.speech?.piperAvailable;}
     else{$('voiceSelect').disabled=false;populateVoices();$('voiceTestBtn').disabled=false;}
+    const assistantReady=assistantAvailable();
+    $('settingsAssistantStatus').classList.toggle('is-ready',assistantReady);
+    $('settingsAssistantStatusText').textContent=assistantReady?'المساعد مهيأ ومتاح الآن (تحليل ذكي أو ترجمة أو بحث خارجي).':'المساعد غير مهيأ حالياً وفق إعدادات المكتبة.';
+  }
+  /* يُعتبر المساعد «متاحاً» إذا أتاح مدير المكتبة تحليلاً ذكياً متصلاً أو ترجمة أو بحثاً خارجياً */
+  function assistantAvailable(){
+    const c=state.capabilities||{};
+    return !!(c.ai?.available||c.translation?.available||c.webSearch?.available);
   }
   function openSettings() { if (state.mic) stopMic(true); refreshSettings();if (!$('settings').open) $('settings').showModal(); }
   function audioStatus(text, settingsLink = false) {
@@ -906,7 +931,7 @@
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
     $('themeToggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
     $('logoutButton').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
-    $('accountNav').addEventListener('click',openAccount); $('accountIdentity')?.addEventListener('click',openAccount); $('accountClose').addEventListener('click',()=>$('accountDialog').close()); $('accountLogout').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
+    $('accountIdentity')?.addEventListener('click',openAccount); $('accountClose').addEventListener('click',()=>$('accountDialog').close()); $('accountLogout').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('accountDialog').addEventListener('click',event=>{if(event.target===$('accountDialog'))$('accountDialog').close();});
     $('accountPasswordForm').addEventListener('submit',async event=>{event.preventDefault();const status=$('accountPasswordStatus');status.textContent='جارٍ الحفظ…';try{const response=await fetch('/api/account/password',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('accountCurrentPassword').value,newPassword:$('accountNewPassword').value})}),data=await response.json();if(!response.ok)throw new Error(data.error||'تعذر تغيير كلمة المرور.');event.target.reset();status.textContent='حُفظت كلمة المرور الجديدة.';}catch(error){status.textContent=error.message;}});
     $('settingsClose').addEventListener('click', () => $('settings').close());$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
@@ -914,8 +939,8 @@
     $('personalize').addEventListener('change', event => { prefs.personalize = event.target.checked; persistPrefs(); toast(prefs.personalize ? 'فُعّل السجل والتخصيص على هذا الجهاز فقط.' : 'توقف حفظ القراءات وعمليات البحث الجديدة.'); });
     $('searchHistoryEnabled').addEventListener('change', event => { prefs.searchHistory = event.target.checked; if (!prefs.searchHistory) { state.queries = []; store.set('queries', []); } persistPrefs(); toast(prefs.searchHistory ? 'فُعّل سجل البحث؛ ستُحفظ عمليات البحث التالية محلياً.' : 'أُوقف سجل البحث وحُذفت العبارات المحفوظة محلياً.'); });
     $('dictationEngine').addEventListener('change', event => { stopMic(true); prefs.dictationEngine = event.target.value; persistPrefs(); refreshSettings(); });
-    $('assistantGroq').addEventListener('click',()=>{if(state.capabilities.ai?.mode!=='groq_model')return;prefs.assistantEngine=prefs.assistantEngine==='groq'?'sources':'groq';persistPrefs();refreshAssistantTools();});
-    $('assistantLocalTranslate').addEventListener('click',()=>{prefs.autoTranslate=!prefs.autoTranslate;persistPrefs();refreshAssistantTools();if(!prefs.autoTranslate)return;const button=[...$('chatMessages').querySelectorAll('.chat-message.assistant [data-translate-answer]')].at(-1);if(button&&!button.disabled)translateAssistantAnswer(button);});
+    $('assistantGroq').addEventListener('click',()=>{if(state.capabilities.ai?.mode!=='groq_model')return;const turningOn=prefs.assistantEngine!=='groq';prefs.assistantEngine=turningOn?'groq':'sources';if(turningOn)prefs.autoTranslate=false;persistPrefs();refreshAssistantTools();});
+    $('assistantLocalTranslate').addEventListener('click',()=>{const turningOn=!prefs.autoTranslate;prefs.autoTranslate=turningOn;if(turningOn)prefs.assistantEngine='sources';persistPrefs();refreshAssistantTools();});
     $('readingEngine').addEventListener('change', event => { stopReading(); prefs.readingEngine = event.target.value; persistPrefs(); refreshSettings(); });
     $('allowNetworkVoices').addEventListener('change', event => { stopReading(); prefs.allowNetworkVoices = event.target.checked; prefs.voice = ''; persistPrefs(); populateVoices(); refreshSettings(); });
     $('voiceSelect').addEventListener('change', event => { stopReading(); prefs.voice = event.target.value; persistPrefs(); });
