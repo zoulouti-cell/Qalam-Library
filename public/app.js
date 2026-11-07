@@ -16,17 +16,27 @@
   };
   let deferredInstallPrompt = null;
   /* أيقونات التحكم بنفس رسم أيقونات المكتب الرقمي وقياسها */
-  const ICONS = { sun: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>', moon: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>', maximize: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>', minimize: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>' };
+  const ICONS = { sun: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>', moon: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path></svg>', contrast: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" stroke="none"></path></svg>', maximize: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>', minimize: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>' };
+  /* ثلاثة أوضاع الآن بدل اثنين: hybrid (شريطان علوي وجانبي داكنان ثابتان + محتوى فاتح، وهو ما كان يُسمّى "فاتح" من قبل
+     ولم يتغيّر شيء في تصميمه)، light (الجديد: كل شيء فاتح، الشريط العلوي والجانبي أيضًا)، وdark كما كان (كل شيء داكن) */
+  const THEME_ORDER = ['light', 'hybrid', 'dark'];
+  const THEME_META = {
+    light: { icon: 'sun', title: 'الوضع الفاتح' },
+    hybrid: { icon: 'contrast', title: 'الوضع الهجين' },
+    dark: { icon: 'moon', title: 'الوضع الداكن' },
+  };
   function applyTheme(theme) {
-    const dark = theme === 'dark';
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    try { localStorage.setItem('qalam.theme', dark ? 'dark' : 'light'); } catch {}
+    const resolved = THEME_ORDER.includes(theme) ? theme : 'hybrid';
+    document.documentElement.dataset.theme = resolved;
+    try { localStorage.setItem('qalam.theme', resolved); localStorage.setItem('qalam.theme.v2', '1'); } catch {}
     const button = $('themeToggle');
     if (button) {
-      button.innerHTML = dark ? ICONS.moon : ICONS.sun;
-      button.title = dark ? 'تفعيل الألوان الفاتحة' : 'تفعيل الألوان الداكنة';
+      const meta = THEME_META[resolved];
+      const next = THEME_META[THEME_ORDER[(THEME_ORDER.indexOf(resolved) + 1) % THEME_ORDER.length]];
+      button.innerHTML = ICONS[meta.icon];
+      button.title = `المظهر: ${meta.title} — اضغط للانتقال إلى ${next.title}`;
       button.setAttribute('aria-label', button.title);
-      button.setAttribute('aria-pressed', String(dark));
+      button.setAttribute('aria-pressed', String(resolved !== 'light'));
     }
   }
   applyTheme(document.documentElement.dataset.theme);
@@ -929,7 +939,7 @@
     $('clearTopQuery').addEventListener('click', clearSearchQuery); $('clearBottomQuery').addEventListener('click', clearSearchQuery);
     $('clearHistory').addEventListener('click', () => { state.history = []; store.set('history', []); renderLocalView(); toast('مُسح سجل القراءة على هذا الجهاز.'); });
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
-    $('themeToggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    $('themeToggle').addEventListener('click', () => { const cur = document.documentElement.dataset.theme; const i = THEME_ORDER.indexOf(cur); applyTheme(THEME_ORDER[(i < 0 ? 0 : i + 1) % THEME_ORDER.length]); });
     $('logoutButton').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('accountIdentity')?.addEventListener('click',openAccount); $('accountClose').addEventListener('click',()=>$('accountDialog').close()); $('accountLogout').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('accountDialog').addEventListener('click',event=>{if(event.target===$('accountDialog'))$('accountDialog').close();});

@@ -9,7 +9,10 @@
   <title>قلم — المكتبة القانونية المغربية</title>
   <link rel="icon" href="/assets/qaf-favicon.svg" type="image/svg+xml">
   <link rel="preload" as="image" href="/assets/qalam-calligraphy-banner.jpg?v=20261104">
-  <script>try{document.documentElement.dataset.theme=localStorage.getItem('qalam.theme')==='dark'?'dark':'light'}catch{document.documentElement.dataset.theme='light'}</script>
+  <!-- كان الوضع يُحفظ بقيمتين فقط: light و dark. أصبح الآن ثلاثة: hybrid (الواجهة الحالية نفسها دون أي تغيير)،
+       light (الجديد: كل شيء فاتح، الشريط العلوي والجانبي أيضًا)، وdark كما كان. القيمة القديمة المحفوظة "light"
+       كانت تعني ما يُسمّى الآن hybrid، فتُحوَّل إليه تلقائيًا مرة واحدة فقط عبر علامة qalam.theme.v2 -->
+  <script>try{var s=localStorage.getItem('qalam.theme');var v=(s==='light'&&!localStorage.getItem('qalam.theme.v2'))?'hybrid':(s==='light'||s==='hybrid'||s==='dark')?s:'hybrid';document.documentElement.dataset.theme=v}catch{document.documentElement.dataset.theme='hybrid'}</script>
   <link rel="stylesheet" href="/app.css">
   <link rel="stylesheet" href="/identity.css">
   <link rel="stylesheet" href="/reader.css">
