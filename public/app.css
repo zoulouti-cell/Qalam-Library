@@ -77,19 +77,19 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
    (#suggestions) الذي يُنقل إليه عبر جافاسكربت. مخفية على الحاسوب، حيث القائمة ثابتة دوماً. */
 .sidebar-search{display:none}
 @media(max-width:720px){
-  .sidebar-search{display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:3px 6px 3px 3px;min-height:46px;flex:none;border-radius:13px;border:1px solid #b4935880;background:#ffffff14;color:#f7f7eb}
+  .sidebar-search{display:flex;align-items:center;gap:6px;margin:0 0 14px;padding:3px 3px 3px 6px;min-height:46px;flex:none;border-radius:13px;border:1px solid #b4935880;background:#ffffff14;color:#f7f7eb}
   .sidebar-search svg{flex:none;color:#d8c89a}
   .sidebar-search input{flex:1;min-width:0;background:none;border:0;color:inherit;font:16px CalibriLocal,Calibri,Tahoma,sans-serif}
   .sidebar-search input::placeholder{color:currentColor;opacity:.65}
   .sidebar-search button{display:grid;place-items:center;width:30px;height:30px;flex:none;color:inherit}
-  /* زر البحث المربّع: نفس التدرّج الذهبي لزر «بحث ←» في الشريط العلوي (.search-submit)،
-     بدل أيقونة البحث العادية — وبجانبه زر الإملاء الصوتي (ميكروفون). */
+  /* زر البحث المربّع: نفس التدرّج الذهبي لزر «بحث ←» في الشريط العلوي (.search-submit)، في نهاية
+     الخانة (يسارها) بدل أيقونة البحث العادية — لا زر إملاء صوتي بجانبه بعد الآن. */
   .sidebar-search-submit{width:38px;height:38px;border-radius:10px;color:#133d30;border:1px solid #f2d391;background:linear-gradient(135deg,#f2d994,#d3a54f 65%,#b98430);box-shadow:inset 0 1px #fff6d477,0 2px 8px #001e1826}
   .sidebar-search-submit:hover{background:linear-gradient(135deg,#fae7b0,#e0b661 65%,#c59138)}
   .sidebar-search-submit svg{color:inherit}
-  .sidebar-search-mic{color:#e5c67f}
-  .sidebar-search-mic:hover{color:#fff1be}
-  .sidebar-search-mic.recording{color:#ffd19e}
+  /* يبقى الإطار الذهبي العام الخاص بالتركيز (:focus-visible) بعيداً عن خانة البحث هذه تحديداً:
+     حدودها وزر البحث الذهبي كافيان بصرياً، ولا حاجة لإطار إضافي يحيط بالخانة كاملة. */
+  #querySidebar:focus-visible{outline:none}
   .sidebar.is-searching .category-heading,.sidebar.is-searching .sidebar-introduction,.sidebar.is-searching .category-list{display:none}
   /* حين يُنقل #suggestions إلى داخل القائمة الجانبية الداكنة يحتاج هوية بصرية مغايرة لنسخته
      الفاتحة الأصلية (بطاقة بيضاء)، فيأخذ شكلاً داكناً منسجماً مع خلفية القائمة. */

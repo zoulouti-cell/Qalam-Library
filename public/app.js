@@ -799,7 +799,6 @@
     $('askMicStatus').hidden = !message || !inAssistant; $('askMicStatus').textContent = message;
     $('searchMic').classList.toggle('recording', recording); $('searchMic').setAttribute('aria-label', recording ? 'إيقاف الإملاء الصوتي' : 'الإملاء الصوتي للبحث');
     $('bottomSearchMic').classList.toggle('recording', recording);
-    $('sidebarSearchMic').classList.toggle('recording', recording);
     $('askMic').classList.toggle('recording', recording); $('askMic').title = recording ? 'إيقاف الإملاء' : 'إملاء السؤال';
     if (recording) { const stop = document.createElement('button'); stop.textContent = 'إيقاف'; stop.addEventListener('click', () => stopMic()); (inAssistant ? $('askMicStatus') : $('micStatus')).append(stop); }
   }
@@ -1002,7 +1001,7 @@
     $('askAboutDoc').addEventListener('click', () => { if (state.document) openAssistant(state.document); });
     $('askForm').addEventListener('submit', event => { event.preventDefault(); askQuestion(); }); $('askInput').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); askQuestion(); } });
     $('listenBtn').addEventListener('click', startReading); $('pauseReadBtn').addEventListener('click', pauseReading); $('stopReadBtn').addEventListener('click', () => { stopReading(); audioStatus('توقفت القراءة.'); });
-    $('searchMic').addEventListener('click', () => startMic($('query'))); $('bottomSearchMic').addEventListener('click', () => startMic($('queryBottom'))); $('sidebarSearchMic').addEventListener('click', () => startMic($('querySidebar'))); $('askMic').addEventListener('click', () => startMic($('askInput')));
+    $('searchMic').addEventListener('click', () => startMic($('query'))); $('bottomSearchMic').addEventListener('click', () => startMic($('queryBottom'))); $('askMic').addEventListener('click', () => startMic($('askInput')));
     $('sidebarSearchSubmit').addEventListener('click', () => { closeSuggestions(); state.page = 1; rememberQuery($('querySidebar').value.trim()); if (state.view !== 'library') setView('library'); else closeSidebar(); runSearch().then(() => requestAnimationFrame(() => $('resultsTitle').scrollIntoView({ block: 'start', behavior: 'smooth' }))); });
     document.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if ($('reader').open) closeReader(); if ($('assistant').open) $('assistant').close(); $('query').focus(); $('query').select(); } if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && $('reader').open && window.innerWidth > 720) { event.preventDefault(); $('readerFind').focus(); $('readerFind').select(); } });
     document.addEventListener('visibilitychange', () => { if (document.hidden) stopMic(true); }); window.addEventListener('pagehide', () => { stopMic(true); stopReading(); });
