@@ -719,7 +719,7 @@
     const c=state.capabilities||{};
     return !!(c.ai?.available||c.translation?.available||c.webSearch?.available);
   }
-  function openSettings() { if (state.mic) stopMic(true); refreshSettings();if (!$('settings').open) $('settings').showModal(); }
+  function openSettings() { if (state.mic) stopMic(true); refreshSettings();if (!$('settings').open) $('settings').showModal(); api('/api/account/profile').then(data => { $('opsGuideCard').hidden = data.role !== 'admin'; }).catch(() => { $('opsGuideCard').hidden = true; }); }
   function audioStatus(text, settingsLink = false) {
     $('readerAudioStatus').hidden = !text; $('readerAudioStatus').textContent = text;
     if (settingsLink) { const button = document.createElement('button'); button.textContent = 'تفضيلات الصوت'; button.addEventListener('click', openSettings); $('readerAudioStatus').append(button); }

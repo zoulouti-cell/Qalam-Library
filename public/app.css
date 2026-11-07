@@ -70,3 +70,19 @@ h2,h3,h4,.result-open,.outline-title,.ingestion-top strong{font-family:CalibriLo
 .topbar-actions #logoutButton{font-size:21px;line-height:1}
 html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"] #logoutButton,html[data-qalam-desktop="true"] #accountDialog,html[data-qalam-desktop="true"] #installAppBtn{display:none!important}
 
+
+/* دليل الإدارة والتشغيل: عناصر details/summary قابلة للطي داخل نافذة الإعدادات */
+.ops-guide{display:grid;gap:8px}
+.ops-guide .ops-item{border:1px solid var(--line);border-radius:10px;background:#fafcf5;overflow:hidden}
+.ops-guide .ops-item summary{cursor:pointer;list-style:none;padding:11px 14px;font-size:12.5px;font-weight:700;color:#1f4932}
+.ops-guide .ops-item summary::-webkit-details-marker{display:none}
+.ops-guide .ops-item summary::before{content:'›';display:inline-block;margin-left:7px;color:#b7963e;transition:transform .15s}
+.ops-guide .ops-item[open] summary::before{transform:rotate(90deg)}
+.ops-guide .ops-item p,.ops-guide .ops-item ul{padding:0 14px;font-size:11.5px;line-height:1.95;color:#5e7568}
+.ops-guide .ops-item p{margin:0 0 10px}
+.ops-guide .ops-item ul{margin:0 0 12px;padding-inline-start:28px}
+.ops-guide .ops-item li{margin-bottom:6px}
+.ops-guide .ops-item code{direction:ltr;unicode-bidi:isolate;background:#eef1e4;border-radius:4px;padding:1px 5px;font-size:11px;color:#2c5c3f;font-family:ui-monospace,Consolas,monospace}
+:root[data-theme="dark"] .ops-guide .ops-item{background:#16251d;border-color:#3a4d44}
+:root[data-theme="dark"] .ops-guide .ops-item summary{color:#eedcae}
+:root[data-theme="dark"] .ops-guide .ops-item code{background:#223228;color:#cfe3bf}
