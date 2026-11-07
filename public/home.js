@@ -11,6 +11,14 @@ try {
   }
 } catch (e) {}
 
+// تسجيل عامل الخدمة من أول صفحة تُفتح (الترحيب)، لا من لوحة القراءة فقط، حتى يتيح
+// المتصفح تنصيب المكتبة قبل تسجيل الدخول أيضاً.
+try {
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+  }
+} catch (e) {}
+
 // رابط مباشر لوثيقة بعينها (?doc=) يصل هنا قبل تسجيل الدخول؛ يُحفظ عبر رابط المكتبة وزر التخطي ليعود المستخدم إليها بعد الدخول.
 try {
   var docId = new URLSearchParams(location.search).get('doc');

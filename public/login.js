@@ -1,3 +1,6 @@
+// تسجيل عامل الخدمة هنا أيضاً: يُتيح للمتصفح تنصيب المكتبة من شاشة الدخول قبل أي تسجيل دخول.
+try{if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});}catch(e){}
+
 document.querySelector('#login').addEventListener('submit',async event=>{
   event.preventDefault();
   const message=document.querySelector('#message');
