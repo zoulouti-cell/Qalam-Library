@@ -10,7 +10,7 @@
 .identity-header .breadcrumb strong{color:#fff5d9;overflow:hidden;text-overflow:ellipsis}
 .identity-header .breadcrumb span{color:#a7bea5}
 .identity-header .topbar-actions{margin-right:auto}
-.topbar-description{position:absolute;inset-inline:20%;margin:0;text-align:center;white-space:nowrap;font-family:CalibriLocal,Calibri,Tahoma,sans-serif;font-size:clamp(8px,.9vw,12px);font-weight:400;line-height:1.8;color:#ebf0db;pointer-events:none}
+.topbar-description{position:absolute;inset-inline-start:20%;inset-inline-end:max(20%,215px);margin:0;text-align:center;white-space:nowrap;font-family:CalibriLocal,Calibri,Tahoma,sans-serif;font-size:clamp(8px,.9vw,12px);font-weight:400;line-height:1.8;color:#ebf0db;pointer-events:none}
 .identity-header .connection-pill{color:#d1dfc9;font-size:12px}
 .identity-header .connection-pill i{background:#b2c99a}
 .identity-header .icon-button{color:#f9edc5}

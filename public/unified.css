@@ -4,9 +4,12 @@
 :root[data-theme="dark"]{--q-cream:#101b16;--q-line:#2a3d34;--q-ink:#e7eee8;--q-muted:#a8b8ae;--q-card:#13241d;--q-forest-50:#142019}
 
 /* ———— أيقونات التحكم في الشريط العلوي (المظهر، الإعدادات، ملء الشاشة) بقياس المكتب وسمكه ———— */
-.identity-header .topbar-actions{gap:4px}
-.identity-header .topbar-actions .header-control{display:grid;place-items:center;width:36px;height:40px;padding:0;margin:0;border:0;border-radius:10px;background:transparent;color:#f2d790;font-size:0;line-height:0;transition:background .15s,color .15s}
-.identity-header .topbar-actions .header-control:hover{background:#ffffff14;color:#ffe9b0}
+/* الأيقونات في أقصى يسار الصفحة، بمعزل عن حاشية الشريط العلوي، كما في المكتب الرقمي */
+.identity-header .topbar-actions{gap:4px;margin-right:0;position:absolute;left:8px;top:50%;transform:translateY(-50%)}
+.identity-header .topbar-actions .header-control{display:grid;place-items:center;width:36px;height:40px;padding:0;margin:0;border:0;border-radius:10px;background:transparent;color:#194f39;font-size:0;line-height:0;transition:background .15s,color .15s}
+.identity-header .topbar-actions .header-control:hover{background:#ffffff14;color:#123a29}
+:root[data-theme="dark"] .identity-header .topbar-actions .header-control{color:#e1c372}
+:root[data-theme="dark"] .identity-header .topbar-actions .header-control:hover{color:#ffe9b0}
 .identity-header .topbar-actions .header-control:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
 .identity-header .topbar-actions .header-control svg{display:block;width:18px;height:18px}
 .identity-header .connection-pill{margin-inline-start:6px}
