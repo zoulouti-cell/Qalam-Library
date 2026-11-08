@@ -20,13 +20,36 @@ import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verify
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
 import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf } from './src/drive.mjs';
+import { clientIp } from './src/client-ip.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
 const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
 const adminPassword=process.env.LIBRARY_ADMIN_PASSWORD||'';
 const registrationLimits=new Map();
-function registrationAllowed(req){const key=String(req.socket.remoteAddress||'unknown'),now=Date.now(),item=registrationLimits.get(key)||{start:now,count:0};if(now-item.start>3600000){item.start=now;item.count=0;}item.count++;registrationLimits.set(key,item);return item.count<=5;}
+function registrationAllowed(req){const key=clientIp(req),now=Date.now(),item=registrationLimits.get(key)||{start:now,count:0};if(now-item.start>3600000){item.start=now;item.count=0;}item.count++;registrationLimits.set(key,item);return item.count<=5;}
+
+/* brute-force throttling for /api/login and /api/admin/login, mirroring the office app's pattern:
+   per-IP and per-account counters so neither switching address nor targeting one account bypasses it. */
+const loginAttemptsByIp=new Map(),loginAttemptsByAccount=new Map();
+function loginThrottled(ip,account=''){
+  const byIp=loginAttemptsByIp.get(ip);
+  if(byIp&&byIp.until>Date.now()&&byIp.count>=8)return true;
+  const byAccount=account?loginAttemptsByAccount.get(account):null;
+  return Boolean(byAccount&&byAccount.until>Date.now()&&byAccount.count>=10);
+}
+function recordLoginFailure(ip,account=''){
+  const byIp=loginAttemptsByIp.get(ip);
+  if(!byIp||byIp.until<=Date.now())loginAttemptsByIp.set(ip,{count:1,until:Date.now()+10*60_000});
+  else byIp.count+=1;
+  if(account){
+    const byAccount=loginAttemptsByAccount.get(account);
+    if(!byAccount||byAccount.until<=Date.now())loginAttemptsByAccount.set(account,{count:1,until:Date.now()+15*60_000});
+    else byAccount.count+=1;
+  }
+}
+function clearLoginFailures(ip,account=''){loginAttemptsByIp.delete(ip);if(account)loginAttemptsByAccount.delete(account);}
+setInterval(()=>{const now=Date.now();for(const table of [loginAttemptsByIp,loginAttemptsByAccount])for(const [key,value] of table)if(value.until<=now)table.delete(key);},10*60_000).unref();
 async function inviteUser(email,role,createdBy){
   const token=activationToken(),now=new Date(),user={email,role,active:false,accountStatus:'pending',activationTokenHash:tokenDigest(token),activationExpiresAt:new Date(now.getTime()+24*3600000),createdAt:now,createdBy,loginCount:0};
   await adminStore.users.insertOne(user);
@@ -262,16 +285,23 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/login'&&req.method==='POST'){
       if(!accessPassword||!sessionSecret)return send(req,res,503,{error:'تسجيل الدخول غير مهيأ بعد.'});
+      const ip=clientIp(req);
+      if(loginThrottled(ip))return send(req,res,429,{error:'محاولات كثيرة. أعد المحاولة بعد عشر دقائق.'});
       const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),password=String(body.password||'');
-      if(email&&!adminStore)return send(req,res,503,{error:'تسجيل الدخول بالحسابات الفردية غير متاح الآن؛ قاعدة MongoDB غير متصلة.'});
-      if(email&&adminStore){const user=await adminStore.users.findOne({email});if(user?.active&&verifyPassword(password,user.passwordSalt,user.passwordHash)){const now=new Date();await adminStore.users.updateOne({email},{$set:{lastLoginAt:now,lastSeenAt:now},$inc:{loginCount:1}});issueSession(res,user.role,Buffer.from(user.email).toString('base64url'));return send(req,res,200,{authenticated:true,role:user.role,mustChangePassword:!!user.mustChangePassword});}}
-      if(!email){const given=Buffer.from(password),expected=Buffer.from(accessPassword);if(given.length===expected.length&&timingSafeEqual(given,expected)){issueSession(res,'reader');return send(req,res,200,{authenticated:true,role:'reader'});}}
+      if(loginThrottled(ip,email))return send(req,res,429,{error:'محاولات كثيرة لهذا الحساب. أعد المحاولة بعد ربع ساعة.'});
+      if(email&&!adminStore){recordLoginFailure(ip,email);return send(req,res,503,{error:'تسجيل الدخول بالحسابات الفردية غير متاح الآن؛ قاعدة MongoDB غير متصلة.'});}
+      if(email&&adminStore){const user=await adminStore.users.findOne({email});if(user?.active&&verifyPassword(password,user.passwordSalt,user.passwordHash)){const now=new Date();await adminStore.users.updateOne({email},{$set:{lastLoginAt:now,lastSeenAt:now},$inc:{loginCount:1}});clearLoginFailures(ip,email);issueSession(res,user.role,Buffer.from(user.email).toString('base64url'));return send(req,res,200,{authenticated:true,role:user.role,mustChangePassword:!!user.mustChangePassword});}}
+      if(!email){const given=Buffer.from(password),expected=Buffer.from(accessPassword);if(given.length===expected.length&&timingSafeEqual(given,expected)){clearLoginFailures(ip);issueSession(res,'reader');return send(req,res,200,{authenticated:true,role:'reader'});}}
+      recordLoginFailure(ip,email);
       return send(req,res,401,{error:'البريد الإلكتروني أو كلمة المرور غير صحيحة، أو أن الحساب غير مفعّل.'});
     }
     if(p==='/api/admin/login'&&req.method==='POST'){
       if(!adminPassword||!sessionSecret)return send(req,res,503,{error:'دخول المدير غير مهيأ.'});
+      const ip=clientIp(req);
+      if(loginThrottled(ip,'__admin__'))return send(req,res,429,{error:'محاولات كثيرة. أعد المحاولة بعد عشر دقائق.'});
       const body=await jsonBody(req),given=Buffer.from(String(body.password||'')),expected=Buffer.from(adminPassword);
-      if(given.length!==expected.length||!timingSafeEqual(given,expected))return send(req,res,401,{error:'كلمة مرور الإدارة غير صحيحة.'});
+      if(given.length!==expected.length||!timingSafeEqual(given,expected)){recordLoginFailure(ip,'__admin__');return send(req,res,401,{error:'كلمة مرور الإدارة غير صحيحة.'});}
+      clearLoginFailures(ip,'__admin__');
       issueSession(res,'admin','env');return send(req,res,200,{authenticated:true,role:'admin'});
     }
     if(p==='/api/change-password'&&req.method==='POST'){
