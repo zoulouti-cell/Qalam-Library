@@ -103,3 +103,5 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .menu-morph-icon-search{opacity:0}
 .menu-morph[data-phase="end"] .menu-morph-icon-menu{opacity:0}
 .menu-morph[data-phase="end"] .menu-morph-icon-search{opacity:1}
+/* زر ملء الشاشة لا جدوى منه على الهاتف (لا يدعمه أغلب المتصفحات بالشكل نفسه، والواجهة تملأ الشاشة أصلاً). */
+@media(max-width:720px){#fullscreenBtn{display:none}}
