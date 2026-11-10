@@ -34,7 +34,7 @@ export function lawNumber(title, text = '') {
 }
 const ordinal = new Map(Object.entries({ 'الأولى':1,'الأول':1,'الثانية':2,'الثاني':2,'الثالثة':3,'الثالث':3,'الرابعة':4,'الرابع':4,'الخامسة':5,'الخامس':5,'السادسة':6,'السادس':6,'السابعة':7,'السابع':7,'الثامنة':8,'الثامن':8,'التاسعة':9,'التاسع':9,'العاشرة':10,'العاشر':10 }).map(([k,v]) => [normalizeSearch(k), v]));
 export function headingsOf(text) {
-  const rx = /^(?:[ \t]*)(المادة|الفصل|الباب|القسم|الكتاب|الجزء|الفرع|الملحق|الديباجة|البند)[ \t]+([^\n]{1,160})/gm;
+  const rx = /^(?:[ \t]*)(المادة|الفصل|الباب|القسم|الكتاب|الجزء|الفرع|الملحق|الديباجة|البند)[ \t]+([^\n]{1,4000})/gm;
   const out = [];
   for (const match of text.matchAll(rx)) {
     const tail = match[2].trim();
@@ -43,9 +43,12 @@ export function headingsOf(text) {
     const n = normalizeSearch(first);
     const number = /^\d+(?:[.\/-]\d+)*$/.test(n) ? n : ordinal.has(n) ? String(ordinal.get(n)) : '';
     const start=match.index+match[0].indexOf(match[1]);
-    out.push({key: String(start),marker:match[1],label:match[0].trim().slice(0,160),number,start,end:text.length});
+    /* طول السطر الفعلي كاملاً دون قطع تعسفي عند 160 حرفاً (كان يقطع عناوين طويلة وسط الكلمة)؛
+       label تبقى نسخة مختصرة للعرض في الفهرس الجانبي فقط، ولا تُستعمل لتحديد نهاية العنوان عند العرض. */
+    const full=match[0].trim();
+    out.push({key: String(start),marker:match[1],label:full.slice(0,160),titleEnd:start+full.length,number,start,end:text.length});
   }
-  for(const match of text.matchAll(/^[ \t]*(الديباجة|تصدير)[ \t]*$/gm)){const start=match.index+match[0].indexOf(match[1]);if(!out.some(h=>h.start===start))out.push({key:String(start),marker:match[1],label:match[1],number:'',start,end:text.length});}
+  for(const match of text.matchAll(/^[ \t]*(الديباجة|تصدير)[ \t]*$/gm)){const start=match.index+match[0].indexOf(match[1]);if(!out.some(h=>h.start===start))out.push({key:String(start),marker:match[1],label:match[1],titleEnd:start+match[1].length,number:'',start,end:text.length});}
   out.sort((a,b)=>a.start-b.start);
   for (let i=0;i<out.length-1;i++) out[i].end=out[i+1].start;
   return out;
