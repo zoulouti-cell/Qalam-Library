@@ -491,12 +491,11 @@
     headings.forEach((heading, index) => {
       if (heading.start < cursor) return;
       if (heading.start > cursor) html += paragraphs(text.slice(cursor, heading.start));
-      let length = String(heading.label || '').length;
-      if (!length || text.slice(heading.start, heading.start + length).trim() !== String(heading.label).trim()) {
-        const lineEnd = text.indexOf('\n', heading.start); length = Math.min(160, (lineEnd < 0 ? text.length : lineEnd) - heading.start);
-      }
-      html += '<h3 id="doc-heading-' + index + '" data-read-block>' + textRun(text.slice(heading.start, heading.start + length), needle) + '</h3>';
-      cursor = heading.start + length;
+      /* نهاية سطر العنوان كاملاً (من الخادم)، لا طول label المختصر للعرض؛ يمنع قطع العناوين الطويلة وسط الكلمة */
+      let end = Number.isInteger(heading.titleEnd) && heading.titleEnd > heading.start ? Math.min(heading.titleEnd, text.length) : NaN;
+      if (!Number.isInteger(end)) { const lineEnd = text.indexOf('\n', heading.start); end = lineEnd < 0 ? text.length : lineEnd; }
+      html += '<h3 id="doc-heading-' + index + '" data-read-block>' + textRun(text.slice(heading.start, end), needle) + '</h3>';
+      cursor = end;
     });
     if (cursor < text.length) html += paragraphs(text.slice(cursor));
     $('readerBody').innerHTML = html;
