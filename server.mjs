@@ -178,6 +178,9 @@ function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||proces
 function sessionRole(req){return sessionInfo(req)?.role||null;}
 function auditActor(req){const account=sessionInfo(req)?.account||'admin';if(account==='env'||account==='legacy')return'admin';try{return Buffer.from(account,'base64url').toString('utf8').slice(0,160)||'admin';}catch{return'admin';}}
 function validSession(req){return !!sessionInfo(req);}
+/* طلب موثّق بالمفتاح السري المشترك مع منصة قلم (خادم إلى خادم، لا جلسة متصفح). منصة قلم تتحقق هي نفسها
+   من أن المستخدم مسجّل لديها قبل أي استدعاء بهذا المفتاح؛ هنا نثبت فقط أن الطلب صادر من تلك المنصة. */
+function partnerAuthorized(req){const partnerSecret=process.env.QALAM_PARTNER_SECRET||'';if(!partnerSecret)return false;const given=Buffer.from(String(req.headers['x-qalam-partner-secret']||'')),expected=Buffer.from(partnerSecret);return given.length===expected.length&&timingSafeEqual(given,expected);}
 function issueSession(res,role,account='legacy'){const expiry=String(Date.now()+7*86400000),payload=expiry+'.'+role+'.'+account,signature=createHmac('sha256',sessionSecret).update(payload).digest('hex');res.setHeader('Set-Cookie',`qalam_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`);}
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
 function ingestionSnapshot(progress){const age=Date.now()-Date.parse(progress.lastUpdate||'');const stale=progress.running===true&&Number.isFinite(age)&&age>300000;return stale?{...progress,running:false,status:'stalled',stale:true}:progress;}
@@ -191,10 +194,8 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/health')return send(req,res,200,{ok:true});
     if(p==='/api/partner/account-status'&&req.method==='GET'){
       // نقطة ربط بين منصة قلم والمكتبة الرقمية: تتحقق من وجود حساب فعّال بهذا البريد دون كشف أي بيانات أخرى عنه.
-      const partnerSecret=process.env.QALAM_PARTNER_SECRET||'';
-      if(!partnerSecret)return send(req,res,503,{error:'الربط مع منصة قلم غير مهيأ.'});
-      const given=Buffer.from(String(req.headers['x-qalam-partner-secret']||'')),expected=Buffer.from(partnerSecret);
-      if(given.length!==expected.length||!timingSafeEqual(given,expected))return send(req,res,403,{error:'غير مصرح.'});
+      if(!(process.env.QALAM_PARTNER_SECRET||''))return send(req,res,503,{error:'الربط مع منصة قلم غير مهيأ.'});
+      if(!partnerAuthorized(req))return send(req,res,403,{error:'غير مصرح.'});
       if(!adminStore)return send(req,res,200,{linked:false});
       const email=String(url.searchParams.get('email')||'').trim().toLowerCase();
       if(!validEmail(email))return send(req,res,200,{linked:false});
@@ -405,8 +406,13 @@ const server=http.createServer(async(req,res)=>{
       return send(req,res,200,{ok:true,email,active,accountStatus});
     }
     if(process.env.NODE_ENV==='production'&&process.env.QALAM_DESKTOP_MODE!=='1'&&!validSession(req)&&!loginAsset){
-      if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
-      return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
+      /* استثناء ضيّق: بحث ووثيقة (قراءة فقط) لمنصّة قلم عبر المفتاح السري المشترك، بلا جلسة شخصية —
+         منصّة قلم تتحقق هي نفسها من أن المحامي مسجّل ومرتبط بالمكتبة الرقمية قبل أي استدعاء بهذا المفتاح. */
+      const partnerReadRoute=req.method==='GET'&&(p==='/api/search'||p==='/api/document');
+      if(!(partnerReadRoute&&partnerAuthorized(req))){
+        if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
+        return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
+      }
     }
     if(p==='/api/admin/overview'&&req.method==='GET'){
       const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
