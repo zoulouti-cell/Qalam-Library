@@ -51,7 +51,13 @@ export function reflowReading(raw,{sourcePageSpans}={}){
         if(!next||next.length>12||/[.؟!:]$/.test(next)||/^(?:[-–—]\s*)?(?:المادة|الفصل|الباب|القسم|الكتاب|الفرع|الجزء)(?:\s|$)/.test(next))break;
         line+=next;i++;
       }
-      flush();blocks.push(line);continue;
+      flush();
+      /* قد يضمّ السطر الخام الواحد عدة مستويات من الترويسة معًا (القسم — الباب — الفرع)، مفصولة
+         بشرطة طويلة على نفس السطر لا في أسطر مستقلة؛ نقسم كل مستوى إلى عنوان مستقل بخط عريض
+         في سطره الخاص بدل تركها ملتصقة في عنوان واحد طويل. */
+      const levels=line.split(/\s*[-–—]\s*(?=(?:الباب|القسم|الكتاب|الفرع|الجزء)\s)/).map(s=>s.trim()).filter(Boolean);
+      for(const level of levels)blocks.push(level);
+      continue;
     }
     paragraph.push(line);
   }
