@@ -478,6 +478,13 @@
     return '<span class="notice-plain">' + esc(note) + '</span>';
   }
   function textRun(text, query) { return query && query.length > 1 ? markText(text, query) : esc(text); }
+  /* هوامش الصفحات: الخادم يحيط رقم الإحالة داخل المتن بـU+2060 ("\u2060(9)\u2060") ويبدأ فقرة الهامش بـU+2063
+     ("\u2063(9)\u2063 نص الهامش")؛ نعرض الرقم صغيرًا بين قوسين، ونص الهامش صغيرًا بين قوسين، ونتجاوزهما في القراءة الصوتية. */
+  const FN_REF = /\u2060\((\d{1,3})\)\u2060/;
+  const FN_NOTE = /^\u2063\((\d{1,3})\)\u2063\s*/;
+  function noteRun(text, query) {
+    return String(text).split(new RegExp(FN_REF.source, 'g')).map((part, i) => i % 2 ? '<span class="fn-ref" aria-label="إحالة إلى الهامش ' + esc(part) + '">(' + esc(part) + ')</span>' : textRun(part, query)).join('');
+  }
   function renderReaderBody(needle = '') {
     const doc = state.document; if (!doc) return;
     const text = doc.text || '';
@@ -487,14 +494,18 @@
     }
     const headings = (doc.textKind === 'source_summary' ? [] : doc.headings || []).filter(h => Number.isInteger(h.start) && h.start >= 0 && h.start < text.length).sort((a, b) => a.start - b.start);
     let html = '', cursor = 0;
-    const paragraphs = value => String(value).split(/\n\s*\n/).map(p => p.replace(/\s+/g, ' ').trim()).filter(Boolean).map(p => '<p data-read-block>' + textRun(p, needle) + '</p>').join('');
+    const paragraphs = value => String(value).split(/\n\s*\n/).map(p => p.replace(/\s+/g, ' ').trim()).filter(Boolean).map(p => {
+      const note = p.match(FN_NOTE);
+      if (note) return '<p class="fn-note"><span class="fn-ref">(' + esc(note[1]) + ')</span> <span class="fn-text">' + noteRun(p.slice(note[0].length), needle) + '</span></p>';
+      return '<p data-read-block>' + noteRun(p, needle) + '</p>';
+    }).join('');
     headings.forEach((heading, index) => {
       if (heading.start < cursor) return;
       if (heading.start > cursor) html += paragraphs(text.slice(cursor, heading.start));
       /* نهاية سطر العنوان كاملاً (من الخادم)، لا طول label المختصر للعرض؛ يمنع قطع العناوين الطويلة وسط الكلمة */
       let end = Number.isInteger(heading.titleEnd) && heading.titleEnd > heading.start ? Math.min(heading.titleEnd, text.length) : NaN;
       if (!Number.isInteger(end)) { const lineEnd = text.indexOf('\n', heading.start); end = lineEnd < 0 ? text.length : lineEnd; }
-      html += '<h3 id="doc-heading-' + index + '" data-read-block>' + textRun(text.slice(heading.start, end), needle) + '</h3>';
+      html += '<h3 id="doc-heading-' + index + '" data-read-block>' + noteRun(text.slice(heading.start, end), needle) + '</h3>';
       cursor = end;
     });
     if (cursor < text.length) html += paragraphs(text.slice(cursor));
@@ -735,7 +746,8 @@
     const blocks = [...$('readerBody').querySelectorAll('[data-read-block]')];
     const chunks = [];
     blocks.forEach(block => {
-      let value = (block.textContent || '').replace(/\s+/g, ' ');
+      const spoken = block.cloneNode(true); spoken.querySelectorAll('.fn-ref').forEach(node => node.remove());
+      let value = (spoken.textContent || '').replace(/\s+/g, ' ');
       if (prefs.spellReferences) {
         const digits = ['صفر', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
         value = value.replace(/[0-9٠-٩۰-۹]+(?:[./-][0-9٠-٩۰-۹]+)+/gu, identifier => [...identifier].map(c => c === '.' ? 'نقطة' : c === '/' ? 'شرطة مائلة' : c === '-' ? 'شرطة' : digits[Number(normalize(c))]).join(' '));

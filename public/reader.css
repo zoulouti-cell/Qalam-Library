@@ -45,3 +45,14 @@
 :root[data-theme="dark"] .reader-header-tools>.icon-button:hover{background:#42492c;border-color:#a39756;color:#fff4ce}
 @media(max-width:720px){.reader-header-tools{gap:4px}.reader-header-tools>.icon-button{width:31px;min-width:31px;height:31px}.reader-header-tools .reader-original-actions{max-width:37vw}.reader-header-tools .reader-original-actions .source-action{min-width:30px;min-height:30px}}
 :root[data-theme="dark"] .reader-toolbar .find-controls button{background:#343a25;color:#ecebc9}
+
+/* هوامش الصفحات في القارئ: رقم الإحالة صغير بين قوسين داخل المتن، ونص الهامش صغير بين قوسين تحت موضعه */
+.reader-body .fn-ref{font-size:.68em;font-weight:600;color:#7a6330;white-space:nowrap;margin-inline:.12em;unicode-bidi:isolate}
+.reader-body .fn-note{font-size:.8em;font-weight:400;line-height:1.75;color:#4d4f48;margin:.1em 0 .6em;padding-inline-start:.85em;border-inline-start:2px solid rgba(122,99,48,.28)}
+.reader-body .fn-note .fn-ref{font-size:1em;font-weight:700;margin-inline:0 .3em}
+.reader-body .fn-note .fn-text{unicode-bidi:isolate}
+.reader-body .fn-note .fn-text::before{content:"("}
+.reader-body .fn-note .fn-text::after{content:")"}
+:root[data-theme="dark"] .reader-body .fn-ref{color:#d3b872}
+:root[data-theme="dark"] .reader-body .fn-note{color:#aeb8ab;border-inline-start-color:rgba(211,184,114,.35)}
+@media print{.reader-body .fn-note{color:#333}}
