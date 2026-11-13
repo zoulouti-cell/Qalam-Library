@@ -1,6 +1,7 @@
 // Presentation-only reflow. Source wording stays in the compressed archive.
 import {headingsOf} from './text.mjs';
 import {createHash} from 'node:crypto';
+import {separateFootnotes} from './footnotes.mjs';
 export function pageSpans(pages){let at=0;return pages.map((p,i)=>{const text=String(typeof p==='string'?p:p.text).trim(),start=at;at+=text.length;const span={page:i+1,start,end:at};at+=2;return span;});}
 function stripPageEdges(text,spans){
   if(!Array.isArray(spans)||spans.length<2||spans[0].start!==0||spans.at(-1).end!==text.length||spans.some((s,i)=>s.end<s.start||(i&&s.start!==spans[i-1].end+2)))return {text,removed:0};
@@ -97,6 +98,9 @@ export function reflowReading(raw,{sourcePageSpans}={}){
   }
   flush();
   const inline=stripInlinePageMarkers(blocks);removed+=inline.removed;
-  const text=inline.blocks.map(b=>tidyPunctuation(b.replace(/\s+/g,' ').replace(/([0-9٠-٩])\s*([.\/-])\s*(?=[0-9٠-٩])/g,'$1$2').replace(/([\u0621-\u064a])(?=[0-9٠-٩])/g,'$1 ').replace(/([0-9٠-٩])(?=[\u0621-\u064a])/g,'$1 '))).filter(Boolean).join('\n\n');
-  return {text,headings:headingsOf(text),sha256:createHash('sha256').update(text).digest('hex'),presentation:{mode:'continuous_legal_text',removedPageMarkers:removed,sourceWordingRewritten:false,typographyNormalized:true}};
+  const flowed=inline.blocks.map(b=>tidyPunctuation(b.replace(/\s+/g,' ').replace(/([0-9٠-٩])\s*([.\/-])\s*(?=[0-9٠-٩])/g,'$1$2').replace(/([\u0621-\u064a])(?=[0-9٠-٩])/g,'$1 ').replace(/([0-9٠-٩])(?=[\u0621-\u064a])/g,'$1 '))).filter(Boolean);
+  /* هوامش الصفحات تُفصل عن المتن بعلامات غير مرئية يعرضها القارئ صغيرةً بين قوسين (انظر footnotes.mjs). */
+  const notes=separateFootnotes(flowed);
+  const text=notes.blocks.join('\n\n');
+  return {text,headings:headingsOf(text),sha256:createHash('sha256').update(text).digest('hex'),presentation:{mode:'continuous_legal_text',removedPageMarkers:removed,footnotes:notes.units,footnoteRefs:notes.attached,sourceWordingRewritten:false,typographyNormalized:true}};
 }

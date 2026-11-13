@@ -46,7 +46,7 @@ export function headingsOf(text) {
     /* طول السطر الفعلي كاملاً دون قطع تعسفي عند 160 حرفاً (كان يقطع عناوين طويلة وسط الكلمة)؛
        label تبقى نسخة مختصرة للعرض في الفهرس الجانبي فقط، ولا تُستعمل لتحديد نهاية العنوان عند العرض. */
     const full=match[0].trim();
-    out.push({key: String(start),marker:match[1],label:full.slice(0,160),titleEnd:start+full.length,number,start,end:text.length});
+    out.push({key: String(start),marker:match[1],label:full.replace(/[\u2060\u2063]\(\d{1,3}\)[\u2060\u2063]/g,'').slice(0,160),titleEnd:start+full.length,number,start,end:text.length});
   }
   for(const match of text.matchAll(/^[ \t]*(الديباجة|تصدير)[ \t]*$/gm)){const start=match.index+match[0].indexOf(match[1]);if(!out.some(h=>h.start===start))out.push({key:String(start),marker:match[1],label:match[1],titleEnd:start+match[1].length,number:'',start,end:text.length});}
   out.sort((a,b)=>a.start-b.start);
