@@ -13,8 +13,8 @@ document.querySelector('#login').addEventListener('submit',async event=>{
     const adminDestination=params.get('next')==='admin';
     if(adminDestination&&result.role!=='admin')throw new Error('هذا الحساب لا يملك صلاحية إدارة المكتبة.');
     // رابط مباشر لوثيقة بعينها (?doc=) يُحفظ عبر الدخول فيعود المستخدم إليها بعد تسجيل الدخول.
-    const docId=params.get('doc');
-    const home=docId?('/?doc='+encodeURIComponent(docId)):'/';
+    const docId=params.get('doc'),needle=params.get('q');
+    const home=docId?('/?doc='+encodeURIComponent(docId)+(needle?'&q='+encodeURIComponent(needle):'')):'/';
     location.replace(result.mustChangePassword?'/change-password':adminDestination?'/admin':home);
   }catch(error){message.textContent=error.message;}
 });

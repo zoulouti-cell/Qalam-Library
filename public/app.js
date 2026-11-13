@@ -1038,9 +1038,10 @@
   }
   /** رابط مباشر لوثيقة بعينها: ?doc=<id> (الشكل الذي يصدره طلب الربط من تطبيق المكتب) يفتح القارئ تلقائياً عند التحميل. */
   function openDocumentFromUrl() {
-    let id = '';
-    try { id = new URLSearchParams(location.search).get('doc') || ''; } catch { id = ''; }
-    if (id) openDocument(id);
+    let id = '', needle = '';
+    /* q (اختياري): كلمات يُبرزها القارئ ويقفز إلى أول موضع لها، فيصل المستخدم إلى النص المستهدف نفسه لا إلى أول الوثيقة */
+    try { const params = new URLSearchParams(location.search); id = params.get('doc') || ''; needle = String(params.get('q') || '').slice(0, 200); } catch { id = ''; needle = ''; }
+    if (id) openDocument(id, needle);
   }
   initialize();
 })();
