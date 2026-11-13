@@ -22,6 +22,28 @@ function tidyPunctuation(value){
     .replace(/([\p{L}\p{N}])\(/gu,'$1 (').replace(/\)(?=[\p{L}\p{N}])/gu,') ')
     .replace(/[ \t]{2,}/g,' ').trim();
 }
+/* رقم الصفحة المزخرف "- 13 -" يصل من استخراج المصدر مقسومًا أحيانًا على ثلاثة أسطر ("-" ثم "13" ثم "-")
+   فلا تلتقطه المعالجة السطرية أعلاه (التي تشترط الرقم كاملًا في سطر واحد)؛ يلتحم بعد ضمّ أسطر الفقرة
+   ويظهر في وسط النص أو آخر الفقرة أو كفقرة وحده. نزعه هنا على مستوى الفقرات المضمومة، لكن بحارس يحمي
+   الترقيم المشروع ("- 1 - ..." في قوائم النص): لا يُنزع شيء إلا إذا كوّنت الأرقام المرشَّحة تسلسلًا
+   تصاعديًا متقاربًا (٥ صفحات على الأقل) وبكثافة صفحات حقيقية (وسيط ≥ 600 حرف بين رقم وآخر). */
+const PAGE_NUMBER=s=>Number(String(s).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660)));
+export function stripInlinePageMarkers(blocks){
+  const marker=/(?<![^\s])[-–—ـ]\s*([0-9٠-٩]{1,4})\s*[-–—ـ](?![^\s])/g;
+  const found=[];let offset=0;
+  blocks.forEach((b,block)=>{for(const m of b.matchAll(marker))found.push({block,index:m.index,length:m[0].length,n:PAGE_NUMBER(m[1]),at:offset+m.index});offset+=b.length+2;});
+  if(found.length<5)return {blocks,removed:0};
+  /* أطول سلسلة تصاعدية بخطوات ١–٦ بين أرقام متتالية (تسامح مع صفحة ناقصة أو مدمجة). */
+  const best=found.map(()=>1),from=found.map(()=>-1);
+  for(let i=0;i<found.length;i++)for(let j=0;j<i;j++){const d=found[i].n-found[j].n;if(d>=1&&d<=6&&best[j]+1>best[i]){best[i]=best[j]+1;from[i]=j;}}
+  let end=best.indexOf(Math.max(...best));const chain=[];for(let i=end;i>=0;i=from[i])chain.unshift(found[i]);
+  if(chain.length<5)return {blocks,removed:0};
+  const gaps=chain.slice(1).map((f,i)=>f.at-chain[i].at).sort((a,b)=>a-b);
+  if(gaps[Math.floor(gaps.length/2)]<600)return {blocks,removed:0};
+  const out=blocks.slice();
+  for(const f of [...chain].reverse())out[f.block]=out[f.block].slice(0,f.index)+' '+out[f.block].slice(f.index+f.length);
+  return {blocks:out,removed:chain.length};
+}
 export function reflowReading(raw,{sourcePageSpans}={}){
   const paged=stripPageEdges(String(raw||''),sourcePageSpans);
   const lines=paged.text.replace(/\r\n?/g,'\n').replace(/[\u200b\ufeff]/g,'').replace(/\u00a0/g,' ').split('\n');
@@ -74,6 +96,7 @@ export function reflowReading(raw,{sourcePageSpans}={}){
     paragraph.push(line);
   }
   flush();
-  const text=blocks.map(b=>tidyPunctuation(b.replace(/\s+/g,' ').replace(/([0-9٠-٩])\s*([.\/-])\s*(?=[0-9٠-٩])/g,'$1$2').replace(/([\u0621-\u064a])(?=[0-9٠-٩])/g,'$1 ').replace(/([0-9٠-٩])(?=[\u0621-\u064a])/g,'$1 '))).filter(Boolean).join('\n\n');
+  const inline=stripInlinePageMarkers(blocks);removed+=inline.removed;
+  const text=inline.blocks.map(b=>tidyPunctuation(b.replace(/\s+/g,' ').replace(/([0-9٠-٩])\s*([.\/-])\s*(?=[0-9٠-٩])/g,'$1$2').replace(/([\u0621-\u064a])(?=[0-9٠-٩])/g,'$1 ').replace(/([0-9٠-٩])(?=[\u0621-\u064a])/g,'$1 '))).filter(Boolean).join('\n\n');
   return {text,headings:headingsOf(text),sha256:createHash('sha256').update(text).digest('hex'),presentation:{mode:'continuous_legal_text',removedPageMarkers:removed,sourceWordingRewritten:false,typographyNormalized:true}};
 }
