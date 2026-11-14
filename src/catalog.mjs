@@ -32,6 +32,20 @@ function categoryRank(name) {
 }
 function judicialRank(name){return name==='المجلس الأعلى'?0:name==='محكمة النقض'?1:name==='محكمة النقض - الخبرة'?2:name==='قواعد قضائية'?3:name.includes('محكمة الاستئناف')?4:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?5:name.startsWith('اجتهادات قضائية')?6:7;}
 function groupOf(name){return ({110:'authorities',120:'judicial',130:'councils',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
+/**
+ * «نصوص عامة»: عنوان محجوز في آخر «القوانين الوطنية» (بعد المواد القانونية كلها) يحيل إليه فهرس المكتب في تطبيق قلم.
+ * يظهر ولو كان فارغًا، وتُودَع فيه النصوص التي لا تنتمي إلى مادة بعينها (من لوحة الإدارة بوضع الفئة «نصوص عامة»).
+ * ما يُضاف إليه يُثبَّت دائمًا في آخر المجموعة مهما كان عدده.
+ */
+export const GENERAL_TEXTS = 'نصوص عامة';
+export function withGeneralTexts(categories) {
+  const existing = categories.find(c => c.name === GENERAL_TEXTS) || { name: GENERAL_TEXTS, count: 0, legislationCount: 0, jurisprudenceCount: 0, studiesCount: 0 };
+  const rest = categories.filter(c => c.name !== GENERAL_TEXTS);
+  let last = -1;
+  rest.forEach((c, index) => { if (c.group === 'materials') last = index; });
+  rest.splice(last + 1, 0, { ...existing, group: 'materials', groupLabel: 'القوانين الوطنية', tier: '' });
+  return rest;
+}
 export function orderedCategories(categories, original={}) {
   const sorted=[...categories].sort((a,b)=>categoryRank(a.name)-categoryRank(b.name)||(original[b.name]?.count??b.count)-(original[a.name]?.count??a.count));
   return GROUPS.flatMap(([group,groupLabel])=>{
