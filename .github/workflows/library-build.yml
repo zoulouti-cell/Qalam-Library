@@ -93,7 +93,8 @@ jobs:
           echo "Ran $(ls tests/*.test.mjs | wc -l) test files."
 
   library-e2e:
-    runs-on: ubuntu-latest
+    # Playwright لا تدعم Chromium على ubuntu-latest الحالية (26.04)، فيُثبَّت 24.04 كما في مكتب قلم.
+    runs-on: ubuntu-24.04
     services:
       mongo:
         image: mongo:7
