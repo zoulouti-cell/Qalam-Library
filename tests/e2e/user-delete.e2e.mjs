@@ -82,6 +82,7 @@ async function run(label, viewport, mobile) {
   await page.evaluate(() => scrollTo(0, 0)); /* شريط التبويبات لاصق؛ نبدأ من أعلى الصفحة كما يفعل المستخدم */
   await page.locator('[data-panel="contribPanel"]').click();
   await page.waitForSelector('#contribList .cr-row');
+  await page.waitForFunction(() => /حساب محذوف/.test(document.getElementById('contribList')?.innerText || ''), null, { timeout: 8000 }).catch(() => {}); /* القائمة تُعاد رسمها بعد أول تحميل */
   check(`${label}: لوحة الإضافات تعرض «حساب محذوف» بدل البريد`, /حساب محذوف/.test(await page.locator('#contribList').innerText()), await page.locator('#contribList').innerText());
 
   if (mobile) {

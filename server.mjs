@@ -27,6 +27,10 @@ const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'p
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
 const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
 const adminPassword=process.env.LIBRARY_ADMIN_PASSWORD||'';
+/* الدخول بكلمة الإدارة المشتركة (بلا بريد) صار اختياريًا ومعطّلًا ما لم يُضبط LIBRARY_ADMIN_PASSWORD؛ حذف المتغير من Render يُنهيه وتُرفض جلساته فورًا.
+   LIBRARY_BOOTSTRAP_ADMIN_EMAIL: بريد مدير الطوارئ؛ يُعاد مديرًا فعّالًا عند كل إقلاع (مسار الاسترجاع بدل الكلمة المشتركة). */
+const sharedAdminEnabled=!!adminPassword,bootstrapAdminEmail=String(process.env.LIBRARY_BOOTSTRAP_ADMIN_EMAIL||'').trim().toLowerCase();
+const bootstrapLocked=(email,what)=>email&&bootstrapAdminEmail&&email===bootstrapAdminEmail?'هذا حساب الطوارئ المحدد في Render (LIBRARY_BOOTSTRAP_ADMIN_EMAIL) ويُعاد مديرًا فعّالًا عند كل إقلاع؛ أزل المتغير أولًا إن أردت '+what+'.':'';
 const registrationLimits=new Map();
 function registrationAllowed(req){const key=clientIp(req),now=Date.now(),item=registrationLimits.get(key)||{start:now,count:0};if(now-item.start>3600000){item.start=now;item.count=0;}item.count++;registrationLimits.set(key,item);return item.count<=5;}
 
@@ -60,7 +64,7 @@ async function inviteUser(email,role,createdBy){
   await recordAudit(adminStore,createdBy,'user_invited',email,{role});
   return user;
 }
-if(process.env.NODE_ENV==='production'&&(!accessPassword||!adminPassword||!sessionSecret))throw new Error('Set library access, admin, and session secrets before production startup.');
+if(process.env.NODE_ENV==='production'&&(!accessPassword||!sessionSecret))throw new Error('Set library access and session secrets before production startup.');
 async function generateGeminiPdf(model,apiKey,bytes,prompt){
   const endpoint=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,body=JSON.stringify({contents:[{parts:[{inlineData:{mimeType:'application/pdf',data:bytes.toString('base64')}},{text:prompt}]}],generationConfig:{temperature:0,maxOutputTokens:24000}});
   for(let attempt=0;attempt<3;attempt++){
@@ -112,6 +116,18 @@ const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
+async function ensureBootstrapAdmin(){
+  if(!adminStore||!bootstrapAdminEmail)return;
+  if(!validEmail(bootstrapAdminEmail)){console.error('LIBRARY_BOOTSTRAP_ADMIN_EMAIL is not a valid e-mail address; ignored.');return;}
+  try{
+    const email=bootstrapAdminEmail,now=new Date(),user=await adminStore.users.findOne({email},{projection:{role:1,active:1,accountStatus:1}});
+    if(!user){await adminStore.users.insertOne({email,role:'admin',active:true,accountStatus:'active',mustChangePassword:false,createdAt:now,createdBy:'bootstrap',loginCount:0});await recordAudit(adminStore,'bootstrap','bootstrap_admin_ensured',email,{created:true});return;}
+    if(user.role==='admin'&&user.active&&user.accountStatus==='active')return;
+    await adminStore.users.updateOne({_id:user._id},{$set:{role:'admin',active:true,accountStatus:'active',updatedAt:now}});
+    await recordAudit(adminStore,'bootstrap','bootstrap_admin_ensured',email,{created:false,from:{role:user.role||'',active:!!user.active,accountStatus:user.accountStatus||''}});
+  }catch(error){console.error('Bootstrap admin failed:',error?.message||'unknown error');}
+}
+await ensureBootstrapAdmin();
 /* ربط Drive للكتابة: رمز التحديث لحساب المدير مخزَّن مشفّرًا في إعدادات المكتبة، ويقرؤه طبقة Drive عند كل كتابة. */
 if(adminStore)setDriveUserWriter(async()=>{const saved=await adminStore.settings.findOne({_id:'library'},{projection:{driveWrite:1}}),link=saved?.driveWrite;const refreshToken=link?openSecret(link.refreshTokenEncrypted):'';return refreshToken?{refreshToken,email:link.email||''}:null;});
 async function assistantPolicy(){
@@ -209,7 +225,7 @@ async function read(req,max){const chunks=[];let size=0;for await(const c of req
 async function jsonBody(req,max=40000){try{return JSON.parse((await read(req,max)).toString('utf8'));}catch(e){if(e.status)throw e;const error=new Error('صيغة الطلب غير صالحة.');error.status=400;throw error;}}
 function sameOrigin(req){if(!req.headers.origin)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';try{const u=new URL(req.headers.origin);return u.host===req.headers.host;}catch{return false;}}
 function authCookie(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(s=>s.trim().split(/=(.*)/s).slice(0,2)).filter(x=>x.length===2))['qalam_session']||'';}
-function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production'?{role:'admin',account:'env'}:null;const parts=authCookie(req).split('.'),expiry=parts[0],role=parts[1],account=parts.length===4?parts[2]:'legacy',signature=parts.length===4?parts[3]:parts[2],legacy=!['reader','admin'].includes(role);if(parts.length>4||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return null;const payload=legacy?expiry:parts.length===4?expiry+'.'+role+'.'+account:expiry+'.'+role,signed=legacy?role:signature;if(legacy&&!/^[a-f0-9]{64}$/i.test(signed||''))return null;const expected=createHmac('sha256',sessionSecret).update(payload).digest('hex'),a=Buffer.from(signed||''),b=Buffer.from(expected);return a.length===b.length&&timingSafeEqual(a,b)?{role:legacy?'reader':role,account:legacy?'legacy':account}:null;}
+function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production'?{role:'admin',account:'env'}:null;const parts=authCookie(req).split('.'),expiry=parts[0],role=parts[1],account=parts.length===4?parts[2]:'legacy',signature=parts.length===4?parts[3]:parts[2],legacy=!['reader','admin'].includes(role);if(parts.length>4||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return null;const payload=legacy?expiry:parts.length===4?expiry+'.'+role+'.'+account:expiry+'.'+role,signed=legacy?role:signature;if(legacy&&!/^[a-f0-9]{64}$/i.test(signed||''))return null;const expected=createHmac('sha256',sessionSecret).update(payload).digest('hex'),a=Buffer.from(signed||''),b=Buffer.from(expected);if(!(a.length===b.length&&timingSafeEqual(a,b)))return null;const info={role:legacy?'reader':role,account:legacy?'legacy':account};return info.role==='admin'&&['env','legacy'].includes(info.account)&&!sharedAdminEnabled?null:info;}
 function sessionRole(req){return sessionInfo(req)?.role||null;}
 function auditActor(req){const account=sessionInfo(req)?.account||'admin';if(account==='env'||account==='legacy')return'admin';try{return Buffer.from(account,'base64url').toString('utf8').slice(0,160)||'admin';}catch{return'admin';}}
 /* الجلسة تحمل الدور سبعة أيام؛ لذا يُطابَق الحساب الفردي بقاعدة البيانات عند كل طلب إداري كي يسري خفض الدور أو إيقاف الحساب فورًا.
@@ -357,7 +373,8 @@ const server=http.createServer(async(req,res)=>{
       return send(req,res,401,{error:'البريد الإلكتروني أو كلمة المرور غير صحيحة، أو أن الحساب غير مفعّل.'});
     }
     if(p==='/api/admin/login'&&req.method==='POST'){
-      if(!adminPassword||!sessionSecret)return send(req,res,503,{error:'دخول المدير غير مهيأ.'});
+      if(!sharedAdminEnabled)return send(req,res,410,{error:'دخول الإدارة بكلمة مرور مشتركة أُلغي؛ ادخل بحساب المدير الفردي (البريد وكلمة المرور، أو Google).'});
+      if(!sessionSecret)return send(req,res,503,{error:'دخول المدير غير مهيأ.'});
       const ip=clientIp(req);
       if(loginThrottled(ip,'__admin__'))return send(req,res,429,{error:'محاولات كثيرة. أعد المحاولة بعد عشر دقائق.'});
       const body=await jsonBody(req),given=Buffer.from(String(body.password||'')),expected=Buffer.from(adminPassword);
@@ -384,7 +401,7 @@ const server=http.createServer(async(req,res)=>{
         adminStore.users.countDocuments(filter),adminStore.users.countDocuments({active:true}),adminStore.users.countDocuments({accountStatus:'pending'}),adminStore.users.countDocuments({accountStatus:'permanent'}),adminStore.users.countDocuments({active:true,lastSeenAt:{$gte:new Date(Date.now()-120000)}}),adminStore.users.aggregate([{$group:{_id:null,total:{$sum:{$ifNull:['$loginCount',0]}}}}]).toArray()
       ]);
       const current=sessionInfo(req),profileEmail=current?.account&& !['env','legacy'].includes(current.account)?Buffer.from(current.account,'base64url').toString('utf8'):'';
-      return send(req,res,200,{users,page,pages:Math.max(1,Math.ceil(total/50)),total,stats:{active,pending,permanent,online,logins:allLogins[0]?.total||0},mailConfigured:emailReady(),ownerConfigured:validEmail(await configuredOwnerEmail()),ownerEmail:await configuredOwnerEmail(),profileEmail});
+      return send(req,res,200,{users:users.map(u=>({...u,bootstrap:!!bootstrapAdminEmail&&u.email===bootstrapAdminEmail})),sharedAdminEnabled,page,pages:Math.max(1,Math.ceil(total/50)),total,stats:{active,pending,permanent,online,logins:allLogins[0]?.total||0},mailConfigured:emailReady(),ownerConfigured:validEmail(await configuredOwnerEmail()),ownerEmail:await configuredOwnerEmail(),profileEmail});
     }
     if(p==='/api/admin/owner-email'&&req.method==='POST'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
@@ -458,6 +475,7 @@ const server=http.createServer(async(req,res)=>{
       if(!['reader','admin'].includes(role))return send(req,res,400,{error:'الصلاحية غير صالحة؛ المتاح: قارئ أو مدير.'});
       const target=await adminStore.users.findOne({email},{projection:{role:1,accountStatus:1,active:1}});if(!target)return send(req,res,404,{error:'لم يُعثر على الحساب.'});
       if(target.accountStatus==='permanent')return send(req,res,409,{error:'هذا الحساب موقوف نهائياً ولا تُغيَّر صلاحيته من اللوحة.'});
+      if(role==='reader'&&bootstrapLocked(email,'خفضه'))return send(req,res,409,{error:bootstrapLocked(email,'خفضه')});
       if(target.role===role)return send(req,res,200,{ok:true,email,role,unchanged:true});
       if(role==='reader'){
         if(!['env','legacy'].includes(account)&&Buffer.from(account,'base64url').toString('utf8')===email)return send(req,res,409,{error:'لا يمكنك خفض صلاحية الحساب الذي تستعمله؛ اطلب ذلك من مدير آخر.'});
@@ -474,6 +492,7 @@ const server=http.createServer(async(req,res)=>{
       if(action!=='resume'&&actor!=='env'&&actor!=='legacy'&&Buffer.from(actor,'base64url').toString('utf8')===email)return send(req,res,409,{error:'لا يمكن تعطيل حساب الإدارة المستخدم حالياً.'});
       const target=await adminStore.users.findOne({email},{projection:{role:1,accountStatus:1,active:1}});if(!target)return send(req,res,404,{error:'لم يُعثر على الحساب.'});
       if(target.accountStatus==='permanent')return send(req,res,409,{error:'هذا الحساب موقوف نهائياً ولا يمكن إعادة تفعيله من اللوحة.'});
+      if(action!=='resume'&&bootstrapLocked(email,'إيقافه'))return send(req,res,409,{error:bootstrapLocked(email,'إيقافه')});
       if(action==='resume'&&target.accountStatus==='pending')return send(req,res,409,{error:'يجب تفعيل البريد الإلكتروني أولاً.'});
       if(action!=='resume'&&target.role==='admin'&&target.active&&await adminStore.users.countDocuments({role:'admin',active:true})<=1)return send(req,res,409,{error:'أنشئ مديراً آخر وفعّله قبل تعطيل آخر مدير للمكتبة.'});
       const active=action==='resume',accountStatus=action==='resume'?'active':action==='permanent'?'permanent':'suspended';
@@ -489,6 +508,7 @@ const server=http.createServer(async(req,res)=>{
       if(!email||confirmEmail!==email)return send(req,res,400,{error:'اكتب بريد الحساب كما هو لتأكيد الحذف النهائي.'});
       const target=await adminStore.users.findOne({email},{projection:{role:1,accountStatus:1,active:1}});if(!target)return send(req,res,404,{error:'لم يُعثر على الحساب.'});
       if(!['env','legacy'].includes(account)&&Buffer.from(account,'base64url').toString('utf8')===email)return send(req,res,409,{error:'لا يمكنك حذف الحساب الذي تستعمله؛ اطلب ذلك من مدير آخر.'});
+      if(bootstrapLocked(email,'حذفه'))return send(req,res,409,{error:bootstrapLocked(email,'حذفه')});
       if(target.role==='admin'&&target.active&&await adminStore.users.countDocuments({role:'admin',active:true})<=1)return send(req,res,409,{error:'أنشئ مديراً آخر وفعّله قبل حذف آخر مدير للمكتبة.'});
       const open=await adminStore.contributions.find({userEmail:email,status:{$in:['pending','reviewing']}}).project({id:1,draftDocumentId:1}).toArray();
       if(open.length&&body.discardOpen!==true)return send(req,res,409,{error:'لهذا الحساب '+open.length+' إضافة قيد المراجعة؛ ستُحذف معه إن أكدتَ ذلك، أو ابتّ فيها أولًا.',needsDiscard:true,openContributions:open.length});
