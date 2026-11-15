@@ -97,7 +97,7 @@
   function transferHtml(c) {
     const stuck = c.status === 'published' && (c.originalFiles || []).some(f => !f.driveId);
     if (!stuck) return '';
-    return `<div class="cd-transfer"><p><b>لم تُنقل بعض الأصول إلى Drive.</b> بقيت على الخادم، ويمكن إعادة المحاولة (تأكدوا أن حساب الخدمة محرّر على مجلد الأصول).</p><div class="cd-row"><input id="cdSubfolder" type="text" maxlength="120" placeholder="عنوان مجلد جديد (اختياري)" aria-label="عنوان مجلد جديد في Drive"><button type="button" class="primary" data-act="transfer">نقل الأصول إلى Drive الآن</button></div></div>`;
+    return `<div class="cd-transfer"><p><b>لم تُنقل بعض الأصول إلى Drive.</b> بقيت على الخادم، ويمكن إعادة المحاولة بعد التأكد من ربط Drive للكتابة في «إعدادات وربط الخدمات».</p><div class="cd-row"><input id="cdSubfolder" type="text" maxlength="120" placeholder="عنوان مجلد جديد (اختياري)" aria-label="عنوان مجلد جديد في Drive"><button type="button" class="primary" data-act="transfer">نقل الأصول إلى Drive الآن</button></div></div>`;
   }
   function actionsHtml(c, open) {
     if (c.type === 'note') {
