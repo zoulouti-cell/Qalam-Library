@@ -44,7 +44,7 @@
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, assistantEngine: 'groq', ...storedPreferences };
   const state = {
-    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
+    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementTopic: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
     categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, translation: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
     document: null, documentId: '', askDocument: null, chat: [], suggestions: [], selectedSuggestion: -1,
@@ -250,7 +250,7 @@
   async function browseAgreements(agreementBranch = '') {
     const pane=$('browseContent');
     state.agreementBranch=agreementBranch||state.agreementBranch||'';
-    state.agreementCountry='';
+    state.agreementCountry='';state.agreementTopic='';
     const shell=(files=[])=>{
       const bilateral=files.filter(file=>agreementKind(file)==='ثنائية').length;
       const multilateral=files.filter(file=>agreementKind(file)==='متعددة').length;
@@ -273,8 +273,8 @@
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id)+'/view',officialUrl:file.officialUrl||''},true);}
   function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'النص متاح للاطلاع')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div>'+heading+'<p class="result-snippet">'+esc(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
-  function renderAgreementFiles(files,group,country=''){
-    const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;
+  function renderAgreementFiles(files,group,country='',topic=''){
+    const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;state.agreementTopic=group==='متعددة'?topic:'';
     document.querySelectorAll('[data-agreement-group]').forEach(button=>{const active=button.dataset.agreementGroup===group;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
     const filtered=files.filter(file=>agreementKind(file)===group);
     if(group==='ثنائية'){
@@ -294,11 +294,11 @@
       if(!topics.has(topic))topics.set(topic,[]);
       topics.get(topic).push(file);
     }
-    const sections=[...topics.entries()].sort((a,b)=>{const ai=topicOrder.indexOf(a[0]),bi=topicOrder.indexOf(b[0]);return (ai<0?99:ai)-(bi<0?99:bi)||a[0].localeCompare(b[0],'ar');}).map(([topic,items])=>{
-      items.sort((a,b)=>(a.textOrder||99)-(b.textOrder||99)||a.name.localeCompare(b.name,'ar'));
-      return '<section class="agreement-document-section" data-agreement-topic="'+esc(topic)+'">'+agreementSectionHeading(topic,items.length)+'<div class="agreement-document-grid">'+items.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>';
-    }).join('');
-    host.innerHTML=sections+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
+    const orderedTopics=[...topics.entries()].sort((a,b)=>{const ai=topicOrder.indexOf(a[0]),bi=topicOrder.indexOf(b[0]);return (ai<0?99:ai)-(bi<0?99:bi)||a[0].localeCompare(b[0],'ar');});
+    const topicCards=orderedTopics.map(([name,items])=>'<button type="button" class="agreement-country-card" data-agreement-topic-card="'+esc(name)+'" aria-pressed="'+(topic===name)+'"><span class="agreement-country-flag agreement-topic-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5h7l2 2h9v10.7a1.8 1.8 0 0 1-1.8 1.8H4.8A1.8 1.8 0 0 1 3 19.2z"></path><path d="M3 9h18"></path></svg></span><span class="agreement-country-info"><strong>'+esc(name)+'</strong><small>'+fmt(items.length)+' اتفاقية</small></span></button>').join('');
+    const selected=topic?(topics.get(topic)||[]).slice().sort((a,b)=>(a.textOrder||99)-(b.textOrder||99)||a.name.localeCompare(b.name,'ar')):[];
+    host.innerHTML='<div class="agreement-country-grid agreement-topic-grid">'+(topicCards||'<p class="sidebar-loading">لا توجد مجلدات مفهرسة في هذا الفرع.</p>')+'</div>'+(topic?'<section id="agreementTopicResults" class="agreement-document-section" data-agreement-topic="'+esc(topic)+'">'+agreementSectionHeading(topic,selected.length)+'<div class="agreement-document-grid">'+selected.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>':'');
+    if(topic)requestAnimationFrame(()=>$('agreementTopicResults')?.scrollIntoView({behavior:'smooth',block:'start'}));
   }
   async function browseDriveFolder(id,name,reset=false){
     const pane=$('browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';
@@ -924,6 +924,7 @@
       if (button.dataset.agreementSidebar) { const branch=button.dataset.agreementSidebar; state.agreementBranch=branch; state.agreementCountry=''; state.agreementSection=button.dataset.agreementSection||''; state.scope='agreements';state.scopeTouched=true;document.querySelectorAll('[data-scope]').forEach(b=>{const active=b.dataset.scope==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});state.browseGroup='agreements'; document.querySelectorAll('[data-browse-group]').forEach(b=>{const active=b.dataset.browseGroup==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));}); $('browsePanel').hidden=false; $('browseToggle').setAttribute('aria-expanded','true'); $('browseGroups').hidden=true; $('browseContent').hidden=false; browseAgreements(branch); if (!state.agreementSection) $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'}); return; }
       if (button.dataset.agreementGroup) { state.agreementSection=''; renderAgreementFiles(state.agreementFiles,button.dataset.agreementGroup); return; }
       if (button.dataset.agreementCountry) { renderAgreementFiles(state.agreementFiles,state.agreementBranch,button.dataset.agreementCountry); return; }
+      if (button.dataset.agreementTopicCard !== undefined) { const selected=state.agreementTopic===button.dataset.agreementTopicCard?'':button.dataset.agreementTopicCard; renderAgreementFiles(state.agreementFiles,'متعددة','',selected); return; }
       if (button.hasAttribute('data-drive-up')) { if(state.driveBrowseStack.length>1){state.driveBrowseStack.pop();const parent=state.driveBrowseStack.pop();browseDriveFolder(parent.id,parent.name,true);}else renderBrowseGroup('agreements');return; }
       if (button.dataset.view) { setView(button.dataset.view); return; }
       if (button.dataset.query !== undefined) { applyQuery(button.dataset.query); return; }
