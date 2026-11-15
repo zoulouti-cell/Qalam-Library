@@ -232,8 +232,7 @@
         rows.push('<h3 class="category-group agreement-sidebar-heading">الاتفاقيات الدولية</h3>');
         rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-agreement-sidebar="ثنائية" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>اتفاقيات ثنائية</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
         rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' ? ' selected' : '') + '" data-agreement-sidebar="متعددة" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة') + '"><span>اتفاقيات متعددة الأطراف</span><b>' + (state.agreementBranchCounts.multilateral === null ? '—' : fmt(state.agreementBranchCounts.multilateral)) + '</b></button>');
-        const regional = state.categories.find(x => x.name === AGREEMENT_SECTION);
-        if (regional?.count) rows.push('<button class="category-button agreement-sidebar-link agreement-sidebar-sub' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' && state.agreementSection ? ' selected' : '') + '" data-agreement-sidebar="متعددة" data-agreement-section="' + esc(AGREEMENT_SECTION) + '" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' && !!state.agreementSection) + '"><span>' + esc(AGREEMENT_SECTION) + '</span><b>' + fmt(regional.count) + '</b></button>');
+        /* لا نكرر فئة إقليمية قديمة كعنوان ثالث؛ فرعا الاتفاقيات هما الثنائية ومتعددة الأطراف. */
       }
     });
     $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
@@ -272,7 +271,7 @@
   function agreementKind(file){if(file.agreementKind==='ثنائية'||file.agreementKind==='متعددة')return file.agreementKind;const path=normalize(file.path||'');if(path.includes('متعددة'))return 'متعددة';if(path.includes('ثنائية'))return 'ثنائية';const country=normalize(file.country||'');return country&&/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country)?'متعددة':'ثنائية';}
   function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];if(file.country&&!/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(normalize(file.country)))return file.country;const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id)+'/view',officialUrl:file.officialUrl||''},true);}
-  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل محفوظ في Drive')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div>'+heading+'<p class="result-snippet">'+esc(file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
+  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل محفوظ في Drive')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div>'+heading+'<p class="result-snippet">'+esc(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;
@@ -287,11 +286,19 @@
       return;
     }
     filtered.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
-    /* قسم «اتفاقيات إقليمية»: الاتفاقيات التي لها نص كامل في المكتبة، وعناوينها تفتح نافذة الاطلاع. */
-    const withText=filtered.filter(file=>file.textDocumentId).sort((a,b)=>(a.textOrder||99)-(b.textOrder||99)),others=filtered.filter(file=>!file.textDocumentId);
-    const regional=withText.length?'<section id="agreementRegionalSection" class="agreement-document-section agreement-regional-section">'+agreementSectionHeading('اتفاقيات إقليمية',withText.length)+'<div class="agreement-document-grid">'+withText.map(file=>agreementDocumentCard(file,'اتفاقية إقليمية')).join('')+'</div></section>':'';
-    host.innerHTML=regional+'<section class="agreement-document-section">'+agreementSectionHeading('الاتفاقيات متعددة الأطراف',others.length)+'<div class="agreement-document-grid">'+others.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>'+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
-    if(state.agreementSection&&withText.length)requestAnimationFrame(()=>$('agreementRegionalSection')?.scrollIntoView({behavior:'smooth',block:'start'}));
+    const topicOrder=['اتفاقيات دولية','اتفاقيات إقليمية','اتفاقيات حقوق الإنسان','اتفاقيات منظمة العمل الدولية','اتفاقيات جنيف','اتفاقيات لاهاي'];
+    const topics=new Map();
+    for(const file of filtered){
+      const pathTopic=String(file.path||'').split(' / ').filter(Boolean).at(-1)||'';
+      const topic=String(file.agreementSubcategory||'').trim()||pathTopic||'اتفاقيات متعددة الأطراف';
+      if(!topics.has(topic))topics.set(topic,[]);
+      topics.get(topic).push(file);
+    }
+    const sections=[...topics.entries()].sort((a,b)=>{const ai=topicOrder.indexOf(a[0]),bi=topicOrder.indexOf(b[0]);return (ai<0?99:ai)-(bi<0?99:bi)||a[0].localeCompare(b[0],'ar');}).map(([topic,items])=>{
+      items.sort((a,b)=>(a.textOrder||99)-(b.textOrder||99)||a.name.localeCompare(b.name,'ar'));
+      return '<section class="agreement-document-section" data-agreement-topic="'+esc(topic)+'">'+agreementSectionHeading(topic,items.length)+'<div class="agreement-document-grid">'+items.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>';
+    }).join('');
+    host.innerHTML=sections+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
   }
   async function browseDriveFolder(id,name,reset=false){
     const pane=$('browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';

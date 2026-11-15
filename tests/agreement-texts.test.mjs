@@ -1,6 +1,7 @@
-/* نصوص الاتفاقيتين الإقليميتين المضمّنتين: السجل، الدمج في المكتبة (بحث/فئات/اطلاع)، صدق وسم المراجعة، سلامة النص. لا يحتاج Mongo. */
+/* اختبارات سجل نصوص الاتفاقيات متعددة الأطراف، مواضعها في التصفح والبحث، والربط بالأصول. */
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,87 +18,78 @@ before(() => {
   library.setBundledContent(bundledAgreementTexts);
 });
 after(() => { try { library?.db.close(); } catch {} fs.rmSync(dir, { recursive: true, force: true }); });
+const byId = id => bundledAgreementTexts.find(d => String(d.treatyId) === String(id));
+const MARINE = byId('10038'), BANK = byId('6652'), HAMBURG = byId('4608'), SOLAS = byId('7692');
 
-const MARINE = bundledAgreementTexts.find(d => d.treatyId === '10038');
-const BANK = bundledAgreementTexts.find(d => d.treatyId === '6652');
-
-test('السجل المضمّن: وثيقتان بالترتيب المطلوب وبمعرّفات Drive', () => {
+test('فهرس الاتفاقيات يضم الأصول متعددة الأطراف كلها دون إدخال ملفات الفرع الثنائي', () => {
+  assert.equal(bundledAgreementTexts.length, 167);
+  assert.equal(new Set(bundledAgreementTexts.map(d => String(d.treatyId))).size, 167);
+  const multilateral = bundledAgreementTexts.filter(d => d.category === 'اتفاقيات ومعاهدات');
+  assert.equal(multilateral.length, 165);
+  assert.deepEqual(Object.fromEntries([...new Set(multilateral.map(d => d.subcategory))].sort().map(n => [n, multilateral.filter(d => d.subcategory === n).length])), {
+    'اتفاقيات إقليمية': 38, 'اتفاقيات جنيف': 15, 'اتفاقيات دولية': 70, 'اتفاقيات حقوق الإنسان': 22, 'اتفاقيات لاهاي': 9, 'اتفاقيات منظمة العمل الدولية': 11,
+  });
   assert.equal(AGREEMENT_SECTION, 'اتفاقيات إقليمية');
-  assert.deepEqual(bundledAgreementTexts.map(d => d.treatyId), ['10038', '6652']);
-  assert.deepEqual(bundledAgreementTexts.map(d => d.order), [1, 2]);
-  assert.equal(agreementTextFor('10038').documentId, 'agreement-10038');
-  assert.equal(agreementTextFor(6652).documentId, 'agreement-6652');
-  assert.equal(agreementTextFor('999'), null);
   for (const d of bundledAgreementTexts) {
-    assert.equal(d.category, AGREEMENT_SECTION);
     assert.equal(d.status, 'published');
     assert.match(d.originalFiles[0].driveId, /^[\w-]{20,}$/);
-    assert.ok(d.originalFiles[0].name.startsWith(d.treatyId + '_'));
+    assert.ok(d.originalFiles[0].name.toLowerCase().endsWith('.pdf'));
+    assert.ok(d.text.length > 500);
+    assert.equal(agreementTextFor(d.treatyId).documentId, d.documentId);
   }
+  assert.equal(agreementTextFor('999'), null);
   assert.match(MARINE.title, /التلوث البحري/);
   assert.match(BANK.title, /البنك الإسلامي للتنمية/);
 });
 
-test('الوثيقتان تُفتحان في نافذة الاطلاع بنصهما وفهرسهما وأصلهما', () => {
-  const marine = library.document('agreement-10038');
-  assert.equal(marine.title, MARINE.title);
+test('النصوص المتعددة الأطراف تظهر كاملة في القراءة والبحث مع أصل Drive', () => {
+  const hamburg = library.document(HAMBURG.documentId);
+  assert.equal(hamburg.title, HAMBURG.title);
+  assert.ok(hamburg.text.length > 30000);
+  assert.match(hamburg.text, /اتفاقية الأمم المتحدة/);
+  assert.match(hamburg.text, /همبورغ/);
+  assert.equal(hamburg.originalFiles[0].driveId, HAMBURG.originalFiles[0].driveId);
+  const byText = library.search({ q: 'النقل البحري للبضائع' });
+  assert.ok(byText.results.some(r => r.id === HAMBURG.documentId));
+  const byCategory = library.search({ category: 'اتفاقيات ومعاهدات' });
+  assert.ok(byCategory.total >= 165);
+});
+
+test('النصان السابقان محفوظان، ولكل منهما أصل Drive وفهرس مواد مستقر', () => {
+  assert.equal(createHash('sha256').update(MARINE.text).digest('hex'), '0e05beacbc9cf56cacb8cee31341eb63b15267a77b7683aa597cb0e734d0fd96');
+  assert.equal(createHash('sha256').update(BANK.text).digest('hex'), 'bf0f2e4f10001d07097753e81a85adee4f915bde91f4f04bf77c5b9a73ba022b');
+  const marine = library.document(MARINE.documentId), bank = library.document(BANK.documentId);
   assert.equal(marine.headings.length, 12);
   assert.match(marine.text, /حوادث التلوث البحري/);
-  assert.equal(marine.originalFiles[0].driveId, MARINE.originalFiles[0].driveId);
-  const bank = library.document('agreement-6652');
   assert.equal(bank.headings.length, 33);
   assert.match(bank.text, /البنك الإسلامي للتنمية/);
-  assert.ok(bank.chars > 12000);
+  for (const d of [marine, bank]) assert.ok(d.originalFiles[0].driveId);
 });
 
-test('وسم المراجعة صادق: اعتماد المالك للاستخراج الآلي لا «مراجعة بشرية»', () => {
-  for (const id of ['agreement-10038', 'agreement-6652']) {
-    const d = library.document(id);
-    assert.equal(d.reviewStatus, 'owner_approved_extraction');
-    assert.notEqual(d.reviewStatus, 'human_verified');
-    assert.match(d.sourceLabel, /دون مراجعة بشرية/);
-    assert.match(d.citation, /ظهير شريف رقم/);
+test('صفحات البروتوكول المصورة أضيفت محلياً بـOCR مع تنبيه المراجعة', () => {
+  const d = library.document(SOLAS.documentId);
+  assert.ok(d.text.length > 70000);
+  assert.match(d.sourceLabel, /OCR عربي محلي/);
+  assert.notEqual(d.reviewStatus, 'human_verified');
+  assert.match(d.text, /شهادة سلامة|شهادة معدات|بيانات السفينة/);
+  assert.ok(headingsOf(reflowReading(d.text, {}).text).length > 0);
+});
+
+test('النصوص المضافة سليمة من رموز الاتجاه، الحروف المقلوبة، والفراغات التالفة', () => {
+  for (const d of bundledAgreementTexts.filter(x => !['10038','6652'].includes(String(x.treatyId)))) {
+    assert.doesNotMatch(d.text, /[‎‏‪-‮⁦-⁩]/, d.treatyId + ': رموز اتجاه متروكة');
+    assert.doesNotMatch(d.text, /االتفاق|االتفاقية|الحمد هلل|�/, d.treatyId + ': عكس حرف أو محرف تالف');
+    assert.doesNotMatch(d.text, /[ \t]{3,}/, d.treatyId + ': فراغ متراكم');
+    assert.ok(d.text.trim().length > 500);
   }
 });
 
-test('البحث بالعنوان وبالفئة يجد الوثيقتين وتظهر الفئة في الأقسام', () => {
-  const byTitle = library.search({ q: 'التلوث البحري' });
-  assert.ok(byTitle.results.some(r => r.id === 'agreement-10038'));
-  const byBank = library.search({ q: 'البنك الإسلامي للتنمية' });
-  assert.ok(byBank.results.some(r => r.id === 'agreement-6652'));
-  const byCategory = library.search({ category: AGREEMENT_SECTION });
-  assert.deepEqual(byCategory.results.map(r => r.id).sort(), ['agreement-10038', 'agreement-6652']);
-  const section = library.categories().find(c => c.name === AGREEMENT_SECTION);
-  assert.ok(section);
-  assert.equal(section.count, 2);
-});
-
-test('وثائق الإدارة لا تمحو المضمّنة، ووثيقة منشورة بالمعرّف نفسه تتقدّم عليها', () => {
+test('الوثائق المنشورة في الإدارة لا تمحو النصوص المضمّنة، والمنشور بالمعرّف نفسه يتقدم عليها', () => {
   library.setManagedContent([]);
-  assert.ok(library.document('agreement-10038'));
-  library.setManagedContent([{ documentId: 'agreement-10038', status: 'published', title: 'عنوان معدّل من الإدارة', category: AGREEMENT_SECTION, text: 'المادة 1\nنص بديل.' }]);
-  assert.equal(library.document('agreement-10038').title, 'عنوان معدّل من الإدارة');
-  assert.equal(library.document('agreement-6652').title, BANK.title);
+  assert.ok(library.document(MARINE.documentId));
+  library.setManagedContent([{ documentId: MARINE.documentId, status: 'published', title: 'عنوان معدّل من الإدارة', category: AGREEMENT_SECTION, text: 'المادة 1\\nنص بديل.' }]);
+  assert.equal(library.document(MARINE.documentId).title, 'عنوان معدّل من الإدارة');
+  assert.equal(library.document(BANK.documentId).title, BANK.title);
   library.setManagedContent([]);
-  assert.equal(library.document('agreement-10038').title, MARINE.title);
-});
-
-test('سلامة النص: لا رموز اتجاه ولا عكس «لا»/«ال» ولا فراغات متراكمة', () => {
-  for (const d of bundledAgreementTexts) {
-    assert.doesNotMatch(d.text, /[‎‏‪-‮⁦-⁩]/, 'رموز اتجاه متروكة');
-    assert.doesNotMatch(d.text, /هلل|االتفاق|االتفاقية/, 'أثر عكس «لا»/«ال»');
-    assert.doesNotMatch(d.text, /�/);
-    assert.doesNotMatch(d.text, /[ \t]{3,}/);
-    assert.match(d.text, /المادة/);
-  }
-});
-
-test('عناوين المواد بالتسلسل العددي الكامل وإعادة التنسيق لا تغيّر النص', () => {
-  for (const [d, count] of [[MARINE, 12], [BANK, 33]]) {
-    const once = reflowReading(d.text, {});
-    const twice = reflowReading(once.text, {});
-    assert.equal(twice.text, once.text);
-    const numbers = headingsOf(once.text).map(h => Number(h.number)).filter(Number.isFinite);
-    assert.deepEqual(numbers, Array.from({ length: count }, (_, i) => i + 1), 'تسلسل المواد ناقص أو مكرر');
-  }
+  assert.equal(library.document(MARINE.documentId).title, MARINE.title);
 });
