@@ -522,7 +522,7 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/admin/overview'&&req.method==='GET'){
       const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
       const documents=library.db.prepare("SELECT id,title,category,text_kind,review_status,chars FROM documents WHERE review_status IN ('needs_review','automated_review') ORDER BY CASE review_status WHEN 'needs_review' THEN 0 ELSE 1 END, rowid LIMIT 60").all();
-      const managed=adminStore?await adminStore.content.find({status:'draft'}).sort({updatedAt:-1}).limit(40).project({documentId:1,title:1,category:1,textKind:1,status:1,submittedBy:1,updatedAt:1}).toArray():[];
+      const managed=adminStore?await adminStore.content.find({status:'draft'}).sort({updatedAt:-1}).limit(40).project({documentId:1,title:1,category:1,textKind:1,status:1,submittedBy:1,updatedAt:1,origin:1}).toArray():[];
       return send(req,res,200,{stats,statuses,reviewQueue:documents,managedDrafts:managed,mongoConnected:!!adminStore});
     }
     if(p==='/api/admin/audit'&&req.method==='GET'){
@@ -638,6 +638,7 @@ const server=http.createServer(async(req,res)=>{
     if(p.startsWith('/api/admin/originals')){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً.'});
       if(p==='/api/admin/originals/drive'&&req.method==='GET')return send(req,res,200,await driveOriginalsStatus());
+      if(p==='/api/admin/originals/section'&&req.method==='GET'){const q=k=>String(url.searchParams.get(k)||'').slice(0,300),doc={kind:q('kind'),type:q('type'),category:q('category'),title:q('title')},section=originalsSection(doc),court=section.id==='jurisprudence'&&!!judicialFolderIdFor(q('issuer'));return send(req,res,200,{id:section.id,label:section.label,court});}
       if(p==='/api/admin/originals/transfer'&&req.method==='POST'){
         let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
         const doc=await adminStore.content.findOne({documentId:String(body.documentId||'').slice(0,120),status:'published'});if(!doc)return send(req,res,404,{error:'الوثيقة المنشورة غير موجودة.'});
@@ -696,7 +697,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/admin/document'&&req.method==='GET'){
       const id=(url.searchParams.get('id')||'').slice(0,120),draft=adminStore?await adminStore.content.findOne({documentId:id,status:'draft'},{sort:{updatedAt:-1}}):null;const doc=draft?{id:draft.documentId,title:draft.title,text:draft.text,category:draft.category,type:draft.type,textKind:draft.textKind,reviewStatus:'draft',sourceUrl:draft.sourceUrl,sourceLabel:draft.sourceLabel,reason:draft.reason,date:draft.date,kind:draft.kind,origin:draft.origin||'',originalFiles:draft.originalFiles||[]}:library.document(id);if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
-      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||'',origin:draft?.origin||'',originalFiles:draft?.originalFiles||doc.originalFiles||[]});
+      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||'',origin:draft?.origin||'',issuer:draft?.issuer||'',contributionId:draft?.contributionId||'',originalFiles:draft?.originalFiles||doc.originalFiles||[]});
     }
     if(p.startsWith('/api/editorial/')){
       if(!localEditor(req)&&!(p==='/api/editorial/ocr/worker'&&req.method==='GET'&&sessionRole(req)==='admin'))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});

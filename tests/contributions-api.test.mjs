@@ -167,3 +167,19 @@ test('ملاحظات القارئ: إرسال ← قيد الدرس ← قبول
   assert.equal(row.status, 'accepted'); assert.equal(row.reply, 'شكرًا، صُحّحت الإحالة.');
   assert.equal((await call('GET', '/api/contributions/mine', { cookie: otherCookie })).body.items.some(x => x.id === note.body.id), false, 'لا يرى مستخدم ملاحظات غيره');
 });
+
+test('مساعدات المحرر: خطة القسم في Drive وبيانات الإضافة في المسودة', { skip }, async () => {
+  assert.equal((await call('GET', '/api/admin/originals/section?kind=law', { cookie: userCookie })).status, 403, 'القارئ لا يصل إلى مسارات الإدارة');
+  const plan = q => call('GET', '/api/admin/originals/section?' + new URLSearchParams(q), { cookie: adminCookie }).then(r => r.body);
+  assert.equal((await plan({ kind: 'law', type: 'national', category: 'مواد قانونية' })).id, 'law');
+  assert.equal((await plan({ kind: 'study', type: 'judicial', category: 'دراسات' })).id, 'research');
+  assert.equal((await plan({ kind: 'law', category: 'الاتفاقيات الدولية', title: 'اتفاقية تجارية' })).id, 'treaty');
+  const court = await plan({ kind: 'jurisprudence', type: 'juriscassation', category: 'اجتهادات', issuer: 'محكمة النقض' });
+  assert.equal(court.id, 'jurisprudence'); assert.equal(typeof court.court, 'boolean');
+  const up = await upload(userCookie); const add = await call('POST', '/api/contributions/addition', { cookie: userCookie, json: additionBody([up.body.id], { title: 'قرار لاختبار بيانات المحرر' }) });
+  assert.equal(add.status, 201);
+  const draft = await call('POST', '/api/admin/contributions/draft', { cookie: adminCookie, json: { id: add.body.id } });
+  const doc = await call('GET', '/api/admin/document?id=' + draft.body.documentId, { cookie: adminCookie });
+  assert.equal(doc.body.origin, 'contribution'); assert.equal(doc.body.contributionId, add.body.id); assert.equal(doc.body.issuer, 'محكمة النقض'); assert.equal(doc.body.originalFiles.length, 1);
+  assert.equal((await call('POST', '/api/admin/contributions/resolve', { cookie: adminCookie, json: { id: add.body.id, status: 'declined', reply: 'اختبار تنظيف.' } })).status, 200);
+});
