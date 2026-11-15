@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { brotliDecompressSync } from 'node:zlib';
-import { normalizeSearch,tokens,meaningfulTokens,STOP,relatedQueries,snippet,citationOf,isAnswerReady,kindOf } from './text.mjs';
+import { normalizeSearch,tokens,meaningfulTokens,relatedQueries,snippet,citationOf,isAnswerReady,kindOf } from './text.mjs';
 import { orderedCategories, catalogCategory, withGeneralTexts } from './catalog.mjs';
 import { instrumentOrderSql, legislationHeading } from './legislation.mjs';
 import { reflowReading } from './reading.mjs';
@@ -92,7 +92,7 @@ export class Library {
     const rows=this.db.prepare(ranked+' WHERE '+where+' ORDER BY '+order+' LIMIT ? OFFSET ?').all(...(match?[match]:[]),...values,...(match?[reference,'%'+reference+'%',number,number,reference,'%'+reference+'%',reference,'%'+reference+'%']:[]),limit,(page-1)*limit);
     const baseResults=rows.map(row=>{const managed=this.managedDocs.get(row.id);if(!managed)return this.public(row,q);const doc=this.document(row.id);return {...doc,snippet:snippet(doc.text,q),score:row._rank?-row._rank:0};});
     const managedResults=[];const queryTerms=tokens(q),normQ=normalizeSearch(q);for(const d of this.managedDocs.values()){if(baseResults.some(r=>r.id===d.documentId))continue;if(params.type&&params.type!=='all'&&params.type!==d.type)continue;if(params.category&&params.category!==d.category)continue;if(params.scope==='legislation'&&d.type!=='national')continue;if(params.scope==='jurisprudence'&&!['judicial','juriscassation'].includes(d.type))continue;if(params.scope==='studies'&&d.kind!=='study')continue;if(params.quality==='text'&&d.textKind!=='extracted_text')continue;if(params.quality==='summary'&&d.textKind!=='source_summary')continue;if(params.quality==='catalog'&&d.textKind!=='image_only')continue;if(params.from&&String(d.date||'')<params.from)continue;if(params.to&&String(d.date||'')>params.to+'\uffff')continue;const doc=this.document(d.documentId),hay=normalizeSearch((doc.title||'')+' '+(doc.category||'')+' '+(doc.text||''));if(queryTerms.length&&!queryTerms.every(t=>hay.includes(t))&&!(normQ&&hay.includes(normQ)))continue;if(params.topic&&!normalizeSearch(doc.category+' '+doc.title+' '+doc.text).includes(normalizeSearch(params.topic).split(' ')[0]))continue;managedResults.push({...doc,snippet:snippet(doc.text,q),score:10});}
-    const merged=[...baseResults,...managedResults],totalMerged=total+managedResults.length,offset=(page-1)*limit;
+    const totalMerged=total+managedResults.length;
     const results=page===1?[...managedResults,...baseResults].slice(0,limit):baseResults;
     const result={query:q,total:totalMerged,page,limit,results,suggestions:relatedQueries(q,params.scope),relaxed,elapsedMs:Math.round(performance.now()-started)};
     this.searchCache.set(key,result);if(this.searchCache.size>100)this.searchCache.delete(this.searchCache.keys().next().value);return result;

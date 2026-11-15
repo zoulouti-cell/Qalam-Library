@@ -41,16 +41,3 @@ export async function generateGeminiText(prompt, { maxOutputTokens = 1200, model
   if (!text) throw new Error('لم يُرجع Gemini نصاً.');
   return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 }
-
-export async function translateLegalText(text, language = 'français') {
-  const source = String(text || '').trim();
-  if (!source) throw new Error('لا يوجد نص لترجمته.');
-  if (source.length > 6500) throw new Error('قسّم الجواب إلى مقاطع أقصر قبل الترجمة.');
-  const prompt = `أنت مترجم قانوني مغربي محترف. ترجم النص التالي من العربية إلى الفرنسية القانونية المهنية الواضحة، مع الحفاظ على المعنى والقيود والاحتمال والتمييز بين الوقائع والاستنتاج. لا تضف قاعدة أو إحالة أو معلومة، ولا تحذف التحفظات أو الاستشهادات بين الأقواس المربعة. أخرج الترجمة وحدها بصيغة JSON: {"translation":"..."}.\n\nالنص:\n${source}`;
-  const raw = await generateGeminiText(prompt, { maxOutputTokens: 1500 });
-  let parsed;
-  try { parsed = JSON.parse(raw); } catch { throw new Error('تعذر اعتماد بنية الترجمة؛ أعد المحاولة.'); }
-  const translation = String(parsed.translation || '').trim();
-  if (translation.length < 8 || translation.length > 12_000) throw new Error('لم تُرجع خدمة الترجمة نصاً صالحاً.');
-  return translation;
-}

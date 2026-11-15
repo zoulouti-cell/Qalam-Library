@@ -2,7 +2,6 @@
 import {headingsOf} from './text.mjs';
 import {createHash} from 'node:crypto';
 import {separateFootnotes} from './footnotes.mjs';
-export function pageSpans(pages){let at=0;return pages.map((p,i)=>{const text=String(typeof p==='string'?p:p.text).trim(),start=at;at+=text.length;const span={page:i+1,start,end:at};at+=2;return span;});}
 function stripPageEdges(text,spans){
   if(!Array.isArray(spans)||spans.length<2||spans[0].start!==0||spans.at(-1).end!==text.length||spans.some((s,i)=>s.end<s.start||(i&&s.start!==spans[i-1].end+2)))return {text,removed:0};
   const parts=spans.map(s=>text.slice(s.start,s.end));

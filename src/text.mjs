@@ -6,9 +6,8 @@ export function normalizeSearch(value = '') {
     .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x6f0));
 }
 export const tokens = value => normalizeSearch(value).match(/[\p{L}\p{N}]+/gu) || [];
-export const STOP = new Set(tokens('ما ماذا كيف هل هو هي في من على إلى عن مع هذا هذه ذلك التي الذي هل متى أين لماذا أريد اشرح لي وما وماهي ماهي قانون القانون القوانين المغربي المغربية المغرب سؤال جواب يمكن يكون تكون النص النصوص المتاحة المتوفر المتوفرة حول بخصوص بشأن اعطني أعطني وضح توضيح شرح معلومات ابحث بحث تفصيل تفاصيل تحليل مساعدة ساعدني فضلك رجاء قانونية قانوني القانونية القانوني'));
+const STOP = new Set(tokens('ما ماذا كيف هل هو هي في من على إلى عن مع هذا هذه ذلك التي الذي هل متى أين لماذا أريد اشرح لي وما وماهي ماهي قانون القانون القوانين المغربي المغربية المغرب سؤال جواب يمكن يكون تكون النص النصوص المتاحة المتوفر المتوفرة حول بخصوص بشأن اعطني أعطني وضح توضيح شرح معلومات ابحث بحث تفصيل تفاصيل تحليل مساعدة ساعدني فضلك رجاء قانونية قانوني القانونية القانوني'));
 export const meaningfulTokens = value => [...new Set(tokens(value).filter(t => t.length > 1 && !STOP.has(t)))].slice(0, 12);
-export const labels = { national: 'نص تشريعي', judicial: 'محتوى قضائي', juriscassation: 'قرار قضائي' };
 const PRIMARY_LAW_REFERENCES=['المسطرة المدنية','المسطرة الجنائية','الالتزامات والعقود','مجموعة القانون الجنائي','القانون الجنائي','مدونة التجارة','مدونة الأسرة','مدونة الشغل','مدونة الحقوق العينية','التحفيظ العقاري','مدونة السير','03.01','55.19','54.19','54.05'].map(normalizeSearch);
 export function kindOf(d) {
   if (d.type === 'juriscassation') return 'decision';
@@ -22,15 +21,6 @@ export function kindOf(d) {
   if(/^ظهير/.test(title))return /بمثابة\s+(?:قانون|مدونة)|بسن\s+قانون|تنفيذ\s+(?:نص\s+)?(?:ال)?قانون|(?:ب)?المصادقة\s+عل[ىي]\s+(?:مجموعة\s+)?(?:ال)?قانون|تنفيذ\s+نص\s+الدستور/.test(lead)?'law':'dahir';
   if(/^قرار/.test(title))return 'order';
   return 'other';
-}
-export function preserveJudicialCard(d, quality = {}) {
-  return ['decision','jurisprudence'].includes(kindOf(d)) && ['juriscassation','judicial'].includes(d.type) && quality.text_kind !== 'extracted_text';
-}
-export function lawNumber(title, text = '') {
-  // Legacy callers receive only an explicit primary law number in the title.
-  const normalized=normalizeSearch(title).replace(/^تم\s+نسخ\s+/,'');
-  const segment=normalized.replace(/^ظهير[\s\S]*?(?:بتنفيذ|بتنفيذ\s+نص|بسن)\s+/,'');
-  return segment.match(/^(?:ال)?قانون(?:\s*[–-]?\s*(?:التنظيمي|تنظيمي|الاطار|اطار))?\s+(?:رقم\s*)?(\d+(?:[.\/-]\d+)*)/)?.[1]||'';
 }
 const ordinal = new Map(Object.entries({ 'الأولى':1,'الأول':1,'الثانية':2,'الثاني':2,'الثالثة':3,'الثالث':3,'الرابعة':4,'الرابع':4,'الخامسة':5,'الخامس':5,'السادسة':6,'السادس':6,'السابعة':7,'السابع':7,'الثامنة':8,'الثامن':8,'التاسعة':9,'التاسع':9,'العاشرة':10,'العاشر':10 }).map(([k,v]) => [normalizeSearch(k), v]));
 export function headingsOf(text) {
@@ -90,9 +80,4 @@ export function relatedQueries(q,scope='all') {
   const out=[];for(const [keys,values] of RELATED)if(keys.some(key=>norm.includes(key)||terms.includes(key)||terms.includes(key.replace(/^ال/,''))))out.push(...values);
   const filtered=[...new Set(out)].filter(v=>normalizeSearch(v)!==norm);
   return filtered.slice(0,8);
-}
-export function isAnnualFinanceLaw(d) {
-  if(d.type!=='national')return false;
-  const title=normalizeSearch(d.title).trim();
-  return /(?:^|بتنفيذ\s+)قانون\s+(?:المالية|التصفية)(?:\s|$)/u.test(title);
 }
