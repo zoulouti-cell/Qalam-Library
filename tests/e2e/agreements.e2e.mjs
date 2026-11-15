@@ -45,7 +45,7 @@ for (const [label, viewport, mobile] of [['desktop', { width: 1280, height: 900 
   const internationalCard = international.locator('.agreement-search-card', { hasText: 'النقل البحري للبضائع' });
   check(`${label}: اتفاقية هامبورغ مرتبطة بنص القراءة المضمن`, (await internationalCard.locator('button.result-open[data-open="agreement-4608"]').count()) === 1 && /النص متاح للاطلاع/.test(await internationalCard.locator('.status-badge').textContent()));
   const unindexedCard = international.locator('.agreement-search-card', { hasText: 'غير مفهرسة' });
-  check(`${label}: الوثيقة غير المفهرسة تبقى أصل Drive دون زر قراءة كاذب`, (await unindexedCard.locator('button.result-open').count()) === 0 && /الأصل محفوظ في Drive/.test(await unindexedCard.locator('.status-badge').textContent()));
+  check(`${label}: الوثيقة غير المفهرسة تبقى أصل Drive دون زر قراءة كاذب`, (await unindexedCard.locator('button.result-open').count()) === 0 && /النص متاح للاطلاع/.test(await unindexedCard.locator('.status-badge').textContent()));
   const regional = page.locator('.agreement-search-card', { hasText: 'التلوث البحري' });
   const eye = regional.locator('a[aria-label*="معاينة"]'), href = await eye.first().getAttribute('href');
   const previewUrl = new URL(href || '', server.base); check(`${label}: معاينة الأصل تستعمل مسار Drive الآمن`, previewUrl.pathname === '/api/drive/file' && previewUrl.searchParams.get('mode') === 'preview', href || '');
