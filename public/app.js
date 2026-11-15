@@ -356,7 +356,7 @@
         const result=await api('/api/drive/agreements?q='+encodeURIComponent($('query').value.trim())+'&page='+state.page+'&limit='+state.limit);
         if(sequence!==state.searchSequence)return;state.results=result.files||[];state.total=result.total||0;state.page=result.page||state.page;
         $('resultsTitle').textContent=$('query').value.trim()?'نتائج الاتفاقيات الدولية':'الاتفاقيات الدولية';
-        $('results').innerHTML=state.results.length?state.results.map(renderAgreementResult).join(''):emptyState('لا توجد اتفاقيات مطابقة','يبحث هذا النطاق في أسماء ملفات Drive ومسارات مجلداتها؛ النص الكامل للمعاهدة يحتاج إلى إدخال النص المستخرج في الفهرس.',{key:'clear-filters',label:'مسح التصفية'});
+        $('results').innerHTML=state.results.length?state.results.map(renderAgreementResult).join(''):emptyState('لا توجد اتفاقيات مطابقة','يبحث هذا النطاق في عناوين الاتفاقيات وأسماء ملفات Drive ومسارات مجلداتها؛ النص الكامل للمعاهدة يحتاج إلى إدخال النص المستخرج في الفهرس.',{key:'clear-filters',label:'مسح التصفية'});
         const first=state.total?(state.page-1)*state.limit+1:0,last=Math.min(state.page*state.limit,state.total);$('resultsMeta').textContent=state.total?fmt(first)+'–'+fmt(last)+' من '+fmt(state.total)+' ملفاً مفهرساً في Drive':'لم يُعثر على ملفات مطابقة';$('queryCorrections').hidden=true;$('queryCorrections').innerHTML='';renderPagination();return;
       }
       const result = await api('/api/search?' + params, { signal: controller.signal });

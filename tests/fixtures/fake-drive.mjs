@@ -48,7 +48,7 @@ export async function startFakeDrive({ sections = ['الأبحاث و الدرا
     if (!isUser && state.serviceQuota && (req.method !== 'GET' || url.pathname.includes('/upload/'))) return json(res, 403, { error: { errors: [{ reason: 'storageQuotaExceeded' }] } });
     if (fail && (req.method !== 'GET' || url.pathname.includes('/upload/'))) { const f = fail; if (f.once) fail = null; return json(res, f.status, { error: { errors: [{ reason: f.reason || '' }] } }); }
     const rootMatch = url.pathname.match(/^\/drive\/v3\/files\/([^/]+)$/);
-    if (req.method === 'GET' && rootMatch) { const f = files.get(decodeURIComponent(rootMatch[1])); return f ? json(res, 200, { ...f, capabilities: { canAddChildren: isUser ? state.userCanWrite : state.serviceCanWrite } }) : json(res, 404, { error: {} }); }
+    if (req.method === 'GET' && rootMatch) { const f = files.get(decodeURIComponent(rootMatch[1])); if (f && url.searchParams.get('alt') === 'media') { const bytes = Buffer.from(f.data || '%PDF-1.4\n%fake\n%%EOF\n'); res.writeHead(200, { 'content-type': f.mimeType, 'content-length': bytes.length }); return res.end(bytes); } return f ? json(res, 200, { ...f, capabilities: { canAddChildren: isUser ? state.userCanWrite : state.serviceCanWrite } }) : json(res, 404, { error: {} }); }
     if (req.method === 'GET' && url.pathname === '/drive/v3/files') {
       const q = url.searchParams.get('q') || '', parent = q.match(/'([^']+)' in parents/)?.[1], mime = q.match(/mimeType = '([^']+)'/)?.[1], name = q.match(/name = '((?:\\'|[^'])*)'/)?.[1]?.replace(/\\'/g, "'");
       return json(res, 200, { files: [...files.values()].filter(f => f.parents?.includes(parent) && (!mime || f.mimeType === mime) && (!name || f.name === name)).map(({ data, ...f }) => f) });

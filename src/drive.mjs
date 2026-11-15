@@ -318,7 +318,7 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   }
   const files = agreementIndexCache.at ? agreementIndexCache.files : await agreementIndexCache.promise;
   const needle = normalizeDriveName(query), tokens = needle.split(/\s+/).filter(Boolean);
-  const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path}`).includes(token))) : files;
+  const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path} ${file.title || ''} ${file.fullTitle || ''} ${file.country || ''}`).includes(token))) : files;
   const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 20)), safePage = Math.max(1, Number(page) || 1);
   const isBilateral = file => file.agreementKind === 'ثنائية';
   const isMultilateral = file => file.agreementKind === 'متعددة';
