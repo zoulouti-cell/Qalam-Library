@@ -92,6 +92,34 @@ jobs:
           grep -q '^# skipped 0$' test.log || { echo "::error title=Tests were skipped::Some tests were skipped, so MongoDB was not reached."; exit 1; }
           echo "Ran $(ls tests/*.test.mjs | wc -l) test files."
 
+  library-e2e:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm ci
+      - name: Install the browser test runner (pinned; it is not a runtime dependency)
+        run: |
+          npm install --no-save playwright@1.56.0
+          npx playwright install --with-deps chromium
+      - name: Run the browser scenarios (admin panel, Drive write, login and home navigation, shared admin retired, user deletion, roles)
+        env:
+          QALAM_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
+        run: |
+          set -o pipefail
+          npm run test:e2e:ci 2>&1 | tee e2e.log
+          # A scenario that prints FAIL must fail the job even if a script forgot to set the exit code.
+          if grep -q '^FAIL' e2e.log; then echo "::error title=Browser scenario failed::See the FAIL lines above."; exit 1; fi
+          echo "Passed $(grep -c '^PASS' e2e.log) browser checks."
+
   offline-windows-package:
     if: github.event_name != 'pull_request'
     runs-on: windows-latest
