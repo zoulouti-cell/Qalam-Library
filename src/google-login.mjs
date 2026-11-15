@@ -1,9 +1,13 @@
 import { createHash, createHmac, createPublicKey, randomBytes, timingSafeEqual, verify } from 'node:crypto';
 
 const cookieName='qalam_google_flow';
-const authorizationEndpoint='https://accounts.google.com/o/oauth2/v2/auth';
-const tokenEndpoint='https://oauth2.googleapis.com/token';
-const keysEndpoint='https://www.googleapis.com/oauth2/v3/certs';
+/* في الاختبارات فقط يمكن توجيه نداءات Google إلى خادم محاكٍ؛ الإنتاج لا يقرأ هذا المتغير. */
+const testOrigin=process.env.NODE_ENV==='test'?String(process.env.QALAM_TEST_GOOGLE_ORIGIN||''):'';
+const authorizationEndpoint=testOrigin?`${testOrigin}/authorize`:'https://accounts.google.com/o/oauth2/v2/auth';
+const tokenEndpoint=testOrigin?`${testOrigin}/token`:'https://oauth2.googleapis.com/token';
+const keysEndpoint=testOrigin?`${testOrigin}/certs`:'https://www.googleapis.com/oauth2/v3/certs';
+const revokeEndpoint=testOrigin?`${testOrigin}/revoke`:'https://oauth2.googleapis.com/revoke';
+export const DRIVE_WRITE_SCOPE='https://www.googleapis.com/auth/drive';
 let cachedKeys={until:0,keys:[]};
 
 export function googleLoginConfig(){
@@ -29,11 +33,14 @@ function readFlow(value,secret){
   try{const flow=JSON.parse(Buffer.from(body,'base64url').toString('utf8'));return Date.now()-flow.createdAt<600000&&Date.now()>=flow.createdAt&&flow.state&&flow.verifier&&flow.nonce?flow:null;}catch{return null;}
 }
 
-export function beginGoogleLogin(config,destination='reader'){
-  const flow={state:randomBytes(32).toString('base64url'),nonce:randomBytes(32).toString('base64url'),verifier:randomBytes(32).toString('base64url'),createdAt:Date.now(),destination:destination==='admin'?'admin':'reader'};
+/* purpose='drive': ربط حساب المدير بـ Drive للكتابة (أصول الإضافات). يطلب رمز تحديث دائمًا ويفرض شاشة الموافقة. */
+export function beginGoogleLogin(config,destination='reader',{purpose='login'}={}){
+  const drive=purpose==='drive';
+  const flow={state:randomBytes(32).toString('base64url'),nonce:randomBytes(32).toString('base64url'),verifier:randomBytes(32).toString('base64url'),createdAt:Date.now(),destination:drive||destination==='admin'?'admin':'reader',...(drive?{purpose:'drive'}:{})};
   const challenge=createHash('sha256').update(flow.verifier).digest('base64url');
   const url=new URL(authorizationEndpoint);
-  for(const [key,value] of Object.entries({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:'openid email profile',state:flow.state,nonce:flow.nonce,code_challenge:challenge,code_challenge_method:'S256',prompt:'select_account'}))url.searchParams.set(key,value);
+  const params={client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:drive?`openid email ${DRIVE_WRITE_SCOPE}`:'openid email profile',state:flow.state,nonce:flow.nonce,code_challenge:challenge,code_challenge_method:'S256',prompt:drive?'consent select_account':'select_account',...(drive?{access_type:'offline'}:{})};
+  for(const [key,value] of Object.entries(params))url.searchParams.set(key,value);
   return {url:url.href,cookie:`${cookieName}=${signedFlow(flow,config.sessionSecret)}; HttpOnly; Secure; SameSite=Lax; Path=/api/auth/google; Max-Age=600`};
 }
 
@@ -75,10 +82,30 @@ export async function verifyGoogleIdToken(token,clientId,nonce){
   return {sub:claims.sub,email:claims.email.trim().toLowerCase(),hostedDomain:claims.hd||'',name,picture};
 }
 
-export async function exchangeGoogleCode(code,flow,config){
+export async function exchangeGoogleTokens(code,flow,config){
   const body=new URLSearchParams({code,client_id:config.clientId,client_secret:config.clientSecret,redirect_uri:config.redirectUri,grant_type:'authorization_code',code_verifier:flow.verifier});
   const response=await fetch(tokenEndpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw new Error('تعذر إتمام الدخول عبر Google. أعد المحاولة.');
   const result=await response.json();
-  return verifyGoogleIdToken(result.id_token,config.clientId,flow.nonce);
+  const identity=await verifyGoogleIdToken(result.id_token,config.clientId,flow.nonce);
+  return {identity,accessToken:typeof result.access_token==='string'?result.access_token:'',refreshToken:typeof result.refresh_token==='string'?result.refresh_token:'',scopes:String(result.scope||'').split(/\s+/).filter(Boolean)};
+}
+
+export async function exchangeGoogleCode(code,flow,config){return (await exchangeGoogleTokens(code,flow,config)).identity;}
+
+/* رمز وصول جديد من رمز التحديث المخزَّن. invalid_grant تعني أن الربط أُلغي أو انتهت صلاحيته فيلزم إعادة الربط. */
+export async function refreshGoogleAccessToken(refreshToken,config){
+  const body=new URLSearchParams({refresh_token:refreshToken,client_id:config.clientId,client_secret:config.clientSecret,grant_type:'refresh_token'});
+  const response=await fetch(tokenEndpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(15000)});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||typeof data.access_token!=='string'){
+    const error=new Error('تعذر تجديد تفويض Drive.');error.code=data?.error==='invalid_grant'?'invalid_grant':'refresh_failed';throw error;
+  }
+  return {accessToken:data.access_token,expiresIn:Math.min(Number(data.expires_in)||3600,3500)};
+}
+
+/* إلغاء الرمز لدى Google عند فك الربط أو رفض الحساب؛ محاولة بأفضل جهد لا تُفشل العملية. */
+export async function revokeGoogleToken(token){
+  if(!token)return false;
+  try{const response=await fetch(revokeEndpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token}),signal:AbortSignal.timeout(8000)});return response.ok;}catch{return false;}
 }

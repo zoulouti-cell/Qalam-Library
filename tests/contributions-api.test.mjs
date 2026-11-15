@@ -120,7 +120,7 @@ test('تعذّر Drive لا يُسقط النشر: يبقى الأصل على ا
   const documentId = (await call('POST', '/api/admin/contributions/draft', { cookie: adminCookie, json: { id: add.body.id } })).body.documentId;
   drive.fail({ status: 403, reason: 'insufficientFilePermissions' });
   const pub = await call('POST', '/api/admin/content/publish', { cookie: adminCookie, json: { documentId, confirmReviewed: true } });
-  assert.equal(pub.status, 200); assert.equal(pub.body.originals.moved, 0); assert.equal(pub.body.originals.failed, 1); assert.match(pub.body.originals.error, /محرر/);
+  assert.equal(pub.status, 200); assert.equal(pub.body.originals.moved, 0); assert.equal(pub.body.originals.failed, 1); assert.match(pub.body.originals.error, /ربط Drive للكتابة/);
   assert.equal((await call('GET', '/api/contributions/mine', { cookie: userCookie })).body.items.find(x => x.id === add.body.id).status, 'published', 'النص نُشر رغم تعذّر Drive');
   const fileId = (await call('GET', '/api/admin/document?id=' + documentId, { cookie: adminCookie })).body.originalFiles[0].id;
   const viaServer = await call('GET', `/api/original?doc=${documentId}&file=${fileId}`, { cookie: userCookie });

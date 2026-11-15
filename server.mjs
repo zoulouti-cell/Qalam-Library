@@ -18,8 +18,8 @@ import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
-import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,judicialFolderIdFor } from './src/drive.mjs';
+import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,judicialFolderIdFor,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
@@ -112,6 +112,8 @@ const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
+/* ربط Drive للكتابة: رمز التحديث لحساب المدير مخزَّن مشفّرًا في إعدادات المكتبة، ويقرؤه طبقة Drive عند كل كتابة. */
+if(adminStore)setDriveUserWriter(async()=>{const saved=await adminStore.settings.findOne({_id:'library'},{projection:{driveWrite:1}}),link=saved?.driveWrite;const refreshToken=link?openSecret(link.refreshTokenEncrypted):'';return refreshToken?{refreshToken,email:link.email||''}:null;});
 async function assistantPolicy(){
   const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{assistant:1}}):null;
   const config=saved?.assistant||{};
@@ -246,6 +248,23 @@ const server=http.createServer(async(req,res)=>{
       const config=googleLoginConfig(),flow=finishGoogleFlow(req.headers.cookie,url.searchParams.get('state'),config.sessionSecret);
       res.setHeader('Set-Cookie',clearGoogleFlowCookie);
       const fail=(reason='failed')=>{res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':clearGoogleFlowCookie,Location:`/login?google_error=${reason}${flow?.destination==='admin'?'&next=admin':''}`});res.end();};
+      if(flow?.purpose==='drive'){
+        /* ربط Drive للكتابة: لا يُنشئ جلسة ولا يربط حساب دخول؛ يحفظ رمز التحديث فقط لمدير مسجَّل الدخول. */
+        const back=reason=>{res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':clearGoogleFlowCookie,Location:`/admin?drive=${reason}`});res.end();};
+        if(sessionRole(req)!=='admin')return back('denied');
+        if(!config.available||!adminStore||url.searchParams.has('error')||!url.searchParams.get('code'))return back(url.searchParams.get('error')==='access_denied'?'cancelled':'failed');
+        try{
+          const grant=await exchangeGoogleTokens(url.searchParams.get('code'),flow,config);
+          if(!grant.scopes.includes(DRIVE_WRITE_SCOPE)){await revokeGoogleToken(grant.refreshToken||grant.accessToken);return back('scope');}
+          if(!grant.refreshToken){await revokeGoogleToken(grant.accessToken);return back('norefresh');}
+          const access=await probeDriveWriteAccess(grant.accessToken);
+          if(!access.ok){await revokeGoogleToken(grant.refreshToken);return back(access.reason==='probe'?'failed':'folder');}
+          await adminStore.settings.updateOne({_id:'library'},{$set:{driveWrite:{refreshTokenEncrypted:sealSecret(grant.refreshToken),email:grant.identity.email,sub:grant.identity.sub,connectedAt:new Date(),connectedBy:auditActor(req)},updatedAt:new Date()},$setOnInsert:{createdAt:new Date()}},{upsert:true});
+          forgetDriveUserToken();
+          try{await recordAudit(adminStore,auditActor(req),'drive_write_connected',grant.identity.email);}catch(error){console.error('Drive connect audit failed:',error?.message||'unknown error');}
+          return back('connected');
+        }catch(error){console.error('Drive write connect failed:',error?.message||'unknown error');return back('failed');}
+      }
       if(!config.available||!adminStore||!flow||url.searchParams.has('error')||!url.searchParams.get('code'))return fail('failed');
       try{
         const identity=await exchangeGoogleCode(url.searchParams.get('code'),flow,config);
@@ -635,9 +654,27 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/admin/content/delete'&&req.method==='POST'){
       let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),doomed=await adminStore.content.findOne({documentId,status:'draft',contributionId:{$exists:true}}),result=await adminStore.content.deleteMany({documentId,status:'draft'});if(doomed?.contributionId)await adminStore.contributions.updateOne({id:doomed.contributionId,status:'reviewing'},{$set:{status:'pending',statusChangedAt:new Date(),updatedAt:new Date()},$unset:{draftDocumentId:''}});if(!result.deletedCount)return send(req,res,404,{error:'لا توجد مسودة قابلة للحذف؛ لا يمكن حذف سجل منشور من هنا.'});await recordAudit(adminStore,'admin','draft_deleted',documentId);return send(req,res,200,{ok:true});
     }
+    if(p==='/api/admin/drive/connect'&&req.method==='GET'){
+      const config=googleLoginConfig(),goBack=reason=>{res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:`/admin?drive=${reason}`});res.end();};
+      if(!config.available||!adminStore)return goBack('unavailable');
+      const flow=beginGoogleLogin(config,'admin',{purpose:'drive'});
+      res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':flow.cookie,Location:flow.url});return res.end();
+    }
+    if(p==='/api/admin/drive/disconnect'&&req.method==='POST'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً.'});
+      const saved=await adminStore.settings.findOne({_id:'library'},{projection:{driveWrite:1}}),link=saved?.driveWrite;
+      if(!link)return send(req,res,200,{ok:true,connected:false});
+      const revoked=await revokeGoogleToken(openSecret(link.refreshTokenEncrypted));
+      await adminStore.settings.updateOne({_id:'library'},{$unset:{driveWrite:''},$set:{updatedAt:new Date()}});forgetDriveUserToken();
+      await recordAudit(adminStore,auditActor(req),'drive_write_disconnected',link.email||'',{revoked});
+      return send(req,res,200,{ok:true,connected:false,revoked});
+    }
     if(p.startsWith('/api/admin/originals')){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً.'});
-      if(p==='/api/admin/originals/drive'&&req.method==='GET')return send(req,res,200,await driveOriginalsStatus());
+      if(p==='/api/admin/originals/drive'&&req.method==='GET'){
+        const [status,saved]=await Promise.all([driveOriginalsStatus(),adminStore.settings.findOne({_id:'library'},{projection:{driveWrite:1}})]),link=saved?.driveWrite;
+        return send(req,res,200,{...status,connectable:googleLoginConfig().available,connection:link?{email:link.email||'',connectedAt:link.connectedAt||null}:null});
+      }
       if(p==='/api/admin/originals/section'&&req.method==='GET'){const q=k=>String(url.searchParams.get(k)||'').slice(0,300),doc={kind:q('kind'),type:q('type'),category:q('category'),title:q('title')},section=originalsSection(doc),court=section.id==='jurisprudence'&&!!judicialFolderIdFor(q('issuer'));return send(req,res,200,{id:section.id,label:section.label,court});}
       if(p==='/api/admin/originals/transfer'&&req.method==='POST'){
         let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
