@@ -91,3 +91,4 @@ input[type="checkbox"]:focus-visible{outline:2px solid #c39a44;outline-offset:2p
 .ops-guide .ops-item li{margin-bottom:6px}
 .ops-guide .ops-item code{direction:ltr;unicode-bidi:isolate;background:#eef1e4;border-radius:4px;padding:1px 5px;font-size:11px;color:#17413a;font-family:ui-monospace,Consolas,monospace}
 select{min-height:40px;padding:0 12px;border:1px solid #e3dccb;border-radius:11px;background:#fff;color:#17241e;font:inherit;font-size:13px}
+[data-role-user].confirm{border-color:#c8553f;color:#9a2c1f;background:#fdf1ee;font-weight:700}

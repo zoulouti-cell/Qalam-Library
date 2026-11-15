@@ -69,3 +69,7 @@ metadata(key TEXT PRIMARY KEY,value TEXT JSON).
 catalog_order(doc_rowid INTEGER PRIMARY KEY,position INTEGER) preserves original browsing priorities within instrument ranks. Both browsing and search order active laws, independent dahirs, decrees, other documents, then repealed texts; relevance applies within each rank. law_titles preserves original headings and number evidence.
 
 normalizeSearch: NFKC; remove Arabic diacritics/tatweel; map alef variants to ا, ى/ی to ي, ک to ك; Arabic/extended digits to ASCII; lowercase. Never swap all ال to لا.
+
+## Admin accounts: role change
+- POST /api/admin/users/role {email,role:'reader'|'admin'} → {ok,email,role,from} or {ok,unchanged:true}. Admin only. 404 unknown account; 409 for a permanently suspended account, for demoting the account in use, for demoting the last active admin, or on a concurrent change. Audited as `user_role_changed` {from,to}.
+- Individual-account admin sessions are re-checked against the users collection on every /admin page and /api/admin/* request (role must still be `admin` and the account active), so a demotion applies at once although the session cookie carries its role for 7 days. A promotion applies at the user's next login. /api/session reports the effective role. The shared admin password (account `env`/`legacy`) has no database account and is unaffected.
