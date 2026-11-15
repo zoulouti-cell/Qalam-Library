@@ -4,6 +4,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { brotliDecompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { googleLoginConfig, refreshGoogleAccessToken } from './google-login.mjs';
 
 const treatyTitleIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/treaty-titles.json', import.meta.url)), 'utf8')).documents || {};
 const treatyTitleByDriveTimestamp = Object.fromEntries(Object.values(treatyTitleIndex).flatMap(entry => {
@@ -395,27 +396,62 @@ export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {
 export function libraryDriveRoot() { return LOCAL_ORIGINALS_ROOT ? 'local-folder:' : DRIVE_ROOT_FOLDER_ID; }
 
 /* ───────── كتابة أصول الإضافات المعتمدة في Drive ─────────
-   تحتاج صلاحية «محرر» لحساب الخدمة على مجلد الأصول (ويُفضَّل Drive مشترك لأن حسابات الخدمة لا تملك مساحة تخزين).
-   لا تُطلب صلاحية الكتابة إلا عند نقل أصل معتمد؛ كل القراءة الأخرى تبقى بصلاحية القراءة فقط. */
+   الكتابة تتم بحساب المدير المربوط عبر OAuth («ربط Drive للكتابة») لأن حسابات الخدمة لا تملك مساحة تخزين،
+   وتُستعمل مساحة صاحب الحساب. إن لم يكن هناك ربط يُجرَّب حساب الخدمة (ينجح فقط داخل Drive مشترك).
+   كل القراءة الأخرى تبقى بحساب الخدمة وبصلاحية القراءة فقط. */
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 export const ORIGINAL_DRIVE_MIME = { pdf: 'application/pdf', jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain' };
 const driveQuote = value => String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 const compactName = value => normalizeDriveName(value).replace(/[\s_\-–—]+/g, '');
 
-function driveWriteError(status, reason = '') {
-  const message = reason === 'storageQuotaExceeded' ? 'حساب خدمة Drive لا يملك مساحة تخزين؛ ضعوا مجلد الأصول في Drive مشترك (Shared Drive) وأضيفوا حساب الخدمة إليه بصلاحية «مدير المحتوى».'
-    : status === 401 ? 'تعذر تفويض حساب خدمة Drive للكتابة؛ تحققوا من تفعيل Drive API ومن سرّ GOOGLE_SERVICE_ACCOUNT_JSON.'
-    : status === 403 ? 'لا يملك حساب خدمة Drive صلاحية الكتابة في مجلد الأصول؛ امنحوه صلاحية «محرر» على المجلد.'
-    : status === 404 ? 'مجلد الأصول أو المجلد الفرعي غير موجود أو غير مشارَك مع حساب الخدمة.'
-    : `تعذرت الكتابة إلى Drive (HTTP ${status}).`;
-  return Object.assign(new Error(message), { status, reason });
+/* مزوّد ربط المدير: يُسجَّل من الخادم ويعيد { refreshToken, email } أو null. */
+let userWriter = null;
+const userTokens = new Map();
+export function setDriveUserWriter(provider) { userWriter = typeof provider === 'function' ? provider : null; userTokens.clear(); }
+export function forgetDriveUserToken() { userTokens.clear(); }
+async function userWriteToken(force = false) {
+  if (!userWriter) return null;
+  const connection = await userWriter();
+  if (!connection?.refreshToken) return null;
+  const key = createHash('sha256').update(connection.refreshToken).digest('hex'), cached = userTokens.get(key);
+  if (!force && cached && cached.expiresAt > Date.now() + 60_000) return { token: cached.value, email: connection.email || '', key };
+  const config = googleLoginConfig();
+  if (!config.clientId || !config.clientSecret) throw Object.assign(new Error('إعدادات عميل Google غير مكتملة؛ تحققوا من GOOGLE_OAUTH_CLIENT_ID وGOOGLE_OAUTH_CLIENT_SECRET.'), { status: 500, reason: 'config' });
+  try {
+    const fresh = await refreshGoogleAccessToken(connection.refreshToken, config);
+    userTokens.set(key, { value: fresh.accessToken, expiresAt: Date.now() + fresh.expiresIn * 1000 });
+    return { token: fresh.accessToken, email: connection.email || '', key };
+  } catch (error) {
+    userTokens.delete(key);
+    if (error.code === 'invalid_grant') throw Object.assign(new Error(`انتهت صلاحية ربط Drive${connection.email ? ` بحساب ${connection.email}` : ''}؛ افتحوا الإعدادات واضغطوا «ربط Drive للكتابة» لإعادة الربط.`), { status: 401, reason: 'reauthorize' });
+    throw Object.assign(new Error('تعذر تجديد تفويض Drive مؤقتًا؛ أعيدوا المحاولة بعد قليل.'), { status: 503, reason: 'refresh' });
+  }
 }
-async function writeFetch(url, options = {}) {
-  const token = await accessToken(WRITE_SCOPE);
+
+function driveWriteError(status, reason = '', via = 'service', email = '') {
+  const who = email ? ` (${email})` : '';
+  const message = via === 'user'
+    ? (reason === 'storageQuotaExceeded' ? `مساحة حساب Drive المربوط${who} ممتلئة؛ أفرغوا مساحة أو اربطوا حسابًا آخر.`
+      : status === 401 ? `انتهت صلاحية ربط Drive${who}؛ افتحوا الإعدادات واضغطوا «ربط Drive للكتابة» لإعادة الربط.`
+      : status === 403 ? `الحساب المربوط${who} لا يملك صلاحية الكتابة في مجلد الأصول.`
+      : status === 404 ? `مجلد الأصول أو المجلد الفرعي غير موجود أو غير متاح للحساب المربوط${who}.`
+      : `تعذرت الكتابة إلى Drive (HTTP ${status}).`)
+    : (reason === 'storageQuotaExceeded' ? 'حساب خدمة Drive لا يملك مساحة تخزين؛ اضغطوا «ربط Drive للكتابة» في الإعدادات لاستعمال حساب المدير بدلًا منه.'
+      : status === 401 ? 'تعذر تفويض حساب خدمة Drive للكتابة؛ اضغطوا «ربط Drive للكتابة» في الإعدادات لاستعمال حساب المدير.'
+      : status === 403 ? 'لا تتوفر صلاحية الكتابة في مجلد الأصول؛ اضغطوا «ربط Drive للكتابة» في الإعدادات وسجّلوا بحساب يملك المجلد.'
+      : status === 404 ? 'مجلد الأصول أو المجلد الفرعي غير موجود أو غير مشارَك مع حساب الخدمة.'
+      : `تعذرت الكتابة إلى Drive (HTTP ${status}).`);
+  return Object.assign(new Error(message), { status, reason, via });
+}
+async function writeFetch(url, options = {}, retried = false) {
+  const user = await userWriteToken(retried);
+  const token = user ? user.token : await accessToken(WRITE_SCOPE), via = user ? 'user' : 'service';
   const response = await fetch(url, { ...options, headers: { authorization: `Bearer ${token}`, ...options.headers }, signal: options.signal || AbortSignal.timeout(90_000) });
   if (!response.ok) {
+    /* رمز الوصول قد يُلغى قبل انتهائه؛ يُجدَّد مرة واحدة ثم يُعاد الطلب (الجسم نصّي أو Buffer فيُعاد إرساله بأمان). */
+    if (response.status === 401 && user && !retried) { userTokens.delete(user.key); return writeFetch(url, options, true); }
     let reason = ''; try { const data = await response.json(); reason = data?.error?.errors?.[0]?.reason || data?.error?.status || ''; } catch {}
-    throw driveWriteError(response.status, reason);
+    throw driveWriteError(response.status, reason, via, user?.email);
   }
   return response;
 }
@@ -446,13 +482,25 @@ export function judicialFolderIdFor(courtName = '') {
 }
 export async function driveOriginalsStatus() {
   if (LOCAL_ORIGINALS_ROOT) return { ready: false, mode: 'local', error: 'وضع الأصول المحلية مفعّل؛ لا يمكن نقل الأصول إلى Drive.' };
+  let via = 'service', account = '';
   try {
+    const user = await userWriteToken();
+    if (user) { via = 'user'; account = user.email; }
     const query = new URLSearchParams({ fields: 'id,name,mimeType,driveId,capabilities(canAddChildren)', supportsAllDrives: 'true' });
     const root = await (await writeFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(DRIVE_ROOT_FOLDER_ID)}?${query}`)).json();
     const canWrite = !!root.capabilities?.canAddChildren;
-    return { ready: canWrite, mode: 'drive', root: { id: root.id, name: root.name }, sharedDrive: !!root.driveId, error: canWrite ? '' : driveWriteError(403).message,
-      note: canWrite && !root.driveId ? 'المجلد في Drive شخصي؛ إن رفضت Google الرفع بسبب مساحة حساب الخدمة فانقلوه إلى Drive مشترك.' : '' };
-  } catch (error) { return { ready: false, mode: 'drive', error: error.message || 'تعذر فحص ربط Drive.' }; }
+    return { ready: canWrite, mode: 'drive', via, account, root: { id: root.id, name: root.name }, sharedDrive: !!root.driveId, error: canWrite ? '' : driveWriteError(403, '', via, account).message,
+      note: canWrite && via === 'service' && !root.driveId ? 'الكتابة الحالية بحساب الخدمة؛ إن رفضت Google الرفع بسبب المساحة فاضغطوا «ربط Drive للكتابة» في الإعدادات.' : '' };
+  } catch (error) { return { ready: false, mode: 'drive', via, account, reauthorize: error.reason === 'reauthorize' || (error.via === 'user' && error.status === 401), error: error.message || 'تعذر فحص ربط Drive.' }; }
+}
+/* يفحص أن الحساب صاحب الرمز يستطيع الكتابة في مجلد الأصول قبل حفظ الربط (رمز وصول فوري، لا يُخزَّن). */
+export async function probeDriveWriteAccess(accessTokenValue) {
+  const query = new URLSearchParams({ fields: 'id,name,mimeType,driveId,capabilities(canAddChildren)', supportsAllDrives: 'true' });
+  const response = await fetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(DRIVE_ROOT_FOLDER_ID)}?${query}`, { headers: { authorization: `Bearer ${accessTokenValue}` }, signal: AbortSignal.timeout(15_000) });
+  if (response.status === 404 || response.status === 403) return { ok: false, reason: 'folder' };
+  if (!response.ok) return { ok: false, reason: 'probe' };
+  const root = await response.json().catch(() => ({}));
+  return root.capabilities?.canAddChildren ? { ok: true, rootName: root.name || '' } : { ok: false, reason: 'readonly' };
 }
 /* القسم المخصص يُوجد إن كان قائمًا ويُنشأ إن لم يوجد؛ ومجلد فرعي بعنوان جديد اختياري يحدّده المدير. */
 export async function resolveOriginalsFolder({ sectionLabel, sectionAliases = [], subfolder = '', folderId = '' } = {}) {

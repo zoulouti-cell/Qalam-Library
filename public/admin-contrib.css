@@ -86,3 +86,13 @@
 @media(prefers-reduced-motion:reduce){.cr-row{transition:none}}
 .cd-head .close{display:grid;place-items:center;flex:none;inline-size:34px;block-size:34px;padding:0;border:1px solid #e3dccb;border-radius:10px;background:#fff;color:#3f5a4d;font-size:19px;line-height:1}
 .cd-head .close:hover{background:#f7f5ef}
+
+/* الإعدادات: ربط Drive للكتابة */
+.dw-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 4px}
+.dw-btn{display:inline-flex;align-items:center;justify-content:center;min-block-size:40px;padding:0 18px;text-decoration:none;font-size:14px;font-weight:700}
+.dw-btn[hidden],#driveWriteDisconnect[hidden]{display:none}
+#driveWriteDisconnect.confirm{border-color:#c8553f;color:#9a2c1f;background:#fdf1ee}
+.dw-msg{margin:10px 0 0;padding:10px 14px;border-radius:11px;font-size:13px;line-height:1.9}
+.dw-msg.ok{background:#e6f5ec;color:#0f6a3f}.dw-msg.warn{background:#fdf1dc;color:#7a4e0d}.dw-msg[hidden]{display:none}
+.dw-help{margin-top:12px;font-size:13px}.dw-help summary{cursor:pointer;color:#3f5a4d;font-weight:600}.dw-help p{margin:8px 0 0;color:#4d5b53;line-height:1.9}
+#destStatus a{color:#174734;font-weight:700;text-decoration:underline;text-underline-offset:3px}

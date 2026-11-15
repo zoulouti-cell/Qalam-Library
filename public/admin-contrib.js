@@ -180,7 +180,59 @@
     if (mode === 'new' && sub) $('destSection').textContent += ` وسيُنشأ داخله المجلد «${sub}».`;
     const d = await driveStatus();
     $('destStatus').className = 'muted ' + (d.ready ? 'ok' : 'warn');
-    $('destStatus').textContent = d.ready ? 'ربط Drive جاهز للكتابة.' : `Drive غير جاهز للكتابة: ${d.error || 'تعذر الفحص'} — ستبقى الأصول على الخادم بعد النشر مع زر لإعادة النقل.`;
+    if (d.ready) $('destStatus').textContent = d.via === 'user' && d.account ? `ربط Drive جاهز للكتابة بحساب ${d.account}.` : 'ربط Drive جاهز للكتابة.';
+    else $('destStatus').innerHTML = `Drive غير جاهز للكتابة: ${esc(d.error || 'تعذر الفحص')} — ستبقى الأصول على الخادم بعد النشر مع زر لإعادة النقل.${d.connectable ? ' <a href="/api/admin/drive/connect" target="_blank" rel="noopener">ربط Drive للكتابة</a> (يُفتح في تبويب جديد دون أن تفقد عملك)' : ''}`;
+  }
+
+  /* ───────── الإعدادات: ربط Drive للكتابة بحساب المدير ───────── */
+  const DRIVE_RETURN = {
+    connected: ['ok', 'تم ربط Drive بحسابك. ستُنقل الأصول المعتمدة إلى مجلد الأصول عند كل نشر، ويمكنك إعادة نقل ما تعثّر من المحرر.'],
+    cancelled: ['warn', 'أُلغيت الموافقة في Google فلم يُربط شيء.'],
+    scope: ['warn', 'لم تمنح Google صلاحية Drive كاملة؛ أعد المحاولة واترك خيار Drive محدّدًا في شاشة الموافقة.'],
+    norefresh: ['warn', 'لم تُصدر Google رمز الربط الدائم؛ أعد المحاولة وسجّل الدخول بالحساب نفسه من جديد.'],
+    folder: ['warn', 'الحساب الذي اخترته لا يملك صلاحية الكتابة في مجلد الأصول؛ أعد الربط بالحساب الذي يملك المجلد.'],
+    denied: ['warn', 'انتهت جلسة الإدارة أثناء الربط؛ سجّل الدخول وأعد المحاولة.'],
+    unavailable: ['warn', 'دخول Google غير مهيأ للمكتبة؛ تحقق من GOOGLE_OAUTH_CLIENT_ID وGOOGLE_OAUTH_CLIENT_SECRET في Render.'],
+    failed: ['warn', 'تعذر إتمام الربط؛ أعد المحاولة بعد قليل.'],
+  };
+  function showDriveWriteMsg(kind, text) { const el = $('driveWriteMsg'); if (!el) return; el.hidden = !text; el.className = 'dw-msg ' + kind; el.textContent = text || ''; }
+  function renderDriveCard(d) {
+    const pill = $('driveWriteState'); if (!pill) return;
+    const link = d.connection, connect = $('driveWriteConnect'), off = $('driveWriteDisconnect');
+    let tone = 'bad', label = 'غير مربوط';
+    if (link && d.ready) { tone = 'ok'; label = 'مربوط · جاهز للكتابة'; }
+    else if (link && d.reauthorize) label = 'يلزم إعادة الربط';
+    else if (link) label = 'مربوط · تعذّرت الكتابة';
+    pill.textContent = label; pill.className = 'status-pill ' + tone;
+    $('driveWriteAccount').textContent = link
+      ? `الحساب المربوط: ${link.email || '—'} · منذ ${when(link.connectedAt)}${d.ready ? '' : ' — ' + (d.error || 'تعذر فحص الربط.')}`
+      : (d.connectable === false ? 'دخول Google غير مهيأ للمكتبة؛ أضف GOOGLE_OAUTH_CLIENT_ID وGOOGLE_OAUTH_CLIENT_SECRET في Render لتفعيل الربط.' : 'لا يوجد حساب مربوط؛ تُجرَّب الكتابة بحساب الخدمة وهو بلا مساحة تخزين فتتعثر الأصول وتبقى على الخادم.');
+    connect.hidden = d.connectable === false;
+    connect.textContent = link ? 'إعادة الربط أو تبديل الحساب' : 'ربط Drive للكتابة';
+    off.hidden = !link; off.classList.remove('confirm'); off.textContent = 'فك الربط';
+  }
+  async function loadDriveCard(force = true) {
+    if (!$('driveWriteCard')) return;
+    if (force) S.drive = null;
+    $('driveWriteState').textContent = 'جارٍ التحقق'; $('driveWriteState').className = 'status-pill';
+    renderDriveCard(await driveStatus());
+  }
+  let offTimer = 0;
+  async function onDisconnectClick() {
+    const btn = $('driveWriteDisconnect');
+    if (!btn.classList.contains('confirm')) { btn.classList.add('confirm'); btn.textContent = 'تأكيد فك الربط'; clearTimeout(offTimer); offTimer = setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = 'فك الربط'; }, 6000); return; }
+    clearTimeout(offTimer); btn.disabled = true;
+    try { await post('/api/admin/drive/disconnect', {}); showDriveWriteMsg('ok', 'فُكّ الربط وأُلغي الرمز لدى Google. ستبقى الأصول الجديدة على الخادم حتى تربط حسابًا من جديد.'); }
+    catch (error) { showDriveWriteMsg('warn', error.message); }
+    btn.disabled = false; await loadDriveCard();
+  }
+  /* العودة من Google: ‎/admin?drive=…‎ تفتح الإعدادات وتعرض النتيجة ثم تُمسح من العنوان */
+  function handleDriveReturn() {
+    const code = new URLSearchParams(location.search).get('drive'); if (!code) return;
+    const url = new URL(location.href); url.searchParams.delete('drive'); history.replaceState(null, '', url.pathname + url.search + url.hash);
+    document.querySelector('[data-panel="settingsPanel"]')?.click();
+    const [kind, text] = DRIVE_RETURN[code] || DRIVE_RETURN.failed;
+    showDriveWriteMsg(kind, text); $('driveWriteCard')?.scrollIntoView({ block: 'center' });
   }
   function onEditorDoc(d) {
     S.editor = d && (d.originalFiles?.length || d.origin === 'contribution') ? d : null;
@@ -230,7 +282,12 @@
     let timer = 0; $('contribQuery').addEventListener('input', event => { clearTimeout(timer); timer = setTimeout(() => { S.q = event.target.value.trim(); S.page = 1; loadList(); }, 220); });
     $('contribPrev').addEventListener('click', () => { if (S.page > 1) { S.page--; loadList(); } });
     $('contribNext').addEventListener('click', () => { if (S.page < S.pages) { S.page++; loadList(); } });
-    document.querySelector('.admin-tabs').addEventListener('click', event => { if (event.target.closest('[data-panel="contribPanel"]')) loadList(); });
+    document.querySelector('.admin-tabs').addEventListener('click', event => { if (event.target.closest('[data-panel="contribPanel"]')) loadList(); if (event.target.closest('[data-panel="settingsPanel"]')) loadDriveCard(); });
+    $('driveWriteRefresh')?.addEventListener('click', () => { showDriveWriteMsg('ok', ''); loadDriveCard(); });
+    $('driveWriteDisconnect')?.addEventListener('click', onDisconnectClick);
+    /* بعد الربط من تبويب آخر (رابط المحرر) تُحدَّث حالة Drive عند العودة إلى هذا التبويب */
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && S.drive && !S.drive.ready) { S.drive = null; if (!$('publishDest')?.hidden) refreshPlan(); } });
+    setTimeout(handleDriveReturn, 0);
     ['docKind', 'docType', 'docCategory', 'docTitle'].forEach(id => $(id).addEventListener('input', schedulePlan));
     $('publishDest').addEventListener('change', event => {
       if (event.target.name === 'destMode') { const input = $('driveSubfolder'); input.hidden = event.target.value !== 'new'; if (!input.hidden) input.focus(); refreshPlan(); }
