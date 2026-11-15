@@ -6,7 +6,8 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const normalize = value => String(value ?? '').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/[ىی]/g, 'ي').replace(/ک/g, 'ك').replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 1632)).replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 1776)).toLowerCase();
   const typeNames = { national: 'تشريع', judicial: 'اجتهاد ودراسة', juriscassation: 'قرار محكمة النقض' };
-  const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة' };
+  const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة', treaty: 'اتفاقية' };
+  const AGREEMENT_SECTION = 'اتفاقيات إقليمية';
   const kindNames = { extracted_text: 'نص مستخرج', source_summary: 'ملخص المصدر', image_only: 'بطاقة دون نص' };
   const kindClasses = { extracted_text: 'text', source_summary: 'summary', image_only: 'catalog' };
   const store = {
@@ -43,7 +44,7 @@
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, assistantEngine: 'groq', ...storedPreferences };
   const state = {
-    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
+    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
     categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, translation: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
     document: null, documentId: '', askDocument: null, chat: [], suggestions: [], selectedSuggestion: -1,
@@ -221,6 +222,7 @@
     let group = '', tier = '';
     const rows = [];
     categories.forEach((c, index) => {
+      if (c.name === AGREEMENT_SECTION && !c.group) return;
       let heading = '';
       if (c.group && c.group !== group) { group = c.group; tier = ''; heading += '<h3 class="category-group">' + esc(c.groupLabel) + '</h3>'; }
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
@@ -230,6 +232,8 @@
         rows.push('<h3 class="category-group agreement-sidebar-heading">الاتفاقيات الدولية</h3>');
         rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-agreement-sidebar="ثنائية" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>اتفاقيات ثنائية</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
         rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' ? ' selected' : '') + '" data-agreement-sidebar="متعددة" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة') + '"><span>اتفاقيات متعددة الأطراف</span><b>' + (state.agreementBranchCounts.multilateral === null ? '—' : fmt(state.agreementBranchCounts.multilateral)) + '</b></button>');
+        const regional = state.categories.find(x => x.name === AGREEMENT_SECTION);
+        if (regional?.count) rows.push('<button class="category-button agreement-sidebar-link agreement-sidebar-sub' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' && state.agreementSection ? ' selected' : '') + '" data-agreement-sidebar="متعددة" data-agreement-section="' + esc(AGREEMENT_SECTION) + '" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' && !!state.agreementSection) + '"><span>' + esc(AGREEMENT_SECTION) + '</span><b>' + fmt(regional.count) + '</b></button>');
       }
     });
     $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
@@ -268,7 +272,7 @@
   function agreementKind(file){if(file.agreementKind==='ثنائية'||file.agreementKind==='متعددة')return file.agreementKind;const path=normalize(file.path||'');if(path.includes('متعددة'))return 'متعددة';if(path.includes('ثنائية'))return 'ثنائية';const country=normalize(file.country||'');return country&&/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country)?'متعددة':'ثنائية';}
   function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];if(file.country&&!/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(normalize(file.country)))return file.country;const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id)+'/view',officialUrl:file.officialUrl||''},true);}
-  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle;return '<article class="result-card agreement-search-card"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">الأصل محفوظ في Drive</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div><h3 class="result-open" title="'+esc(file.fullTitle||rawTitle)+'">'+markText(title,$('query').value)+'</h3><p class="result-snippet">'+esc(file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
+  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل محفوظ في Drive')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div>'+heading+'<p class="result-snippet">'+esc(file.country||file.path.split(' / ').at(-1)||relation)+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;
@@ -283,7 +287,11 @@
       return;
     }
     filtered.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
-    host.innerHTML='<section class="agreement-document-section">'+agreementSectionHeading('الاتفاقيات متعددة الأطراف',filtered.length)+'<div class="agreement-document-grid">'+filtered.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>'+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
+    /* قسم «اتفاقيات إقليمية»: الاتفاقيات التي لها نص كامل في المكتبة، وعناوينها تفتح نافذة الاطلاع. */
+    const withText=filtered.filter(file=>file.textDocumentId).sort((a,b)=>(a.textOrder||99)-(b.textOrder||99)),others=filtered.filter(file=>!file.textDocumentId);
+    const regional=withText.length?'<section id="agreementRegionalSection" class="agreement-document-section agreement-regional-section">'+agreementSectionHeading('اتفاقيات إقليمية',withText.length)+'<div class="agreement-document-grid">'+withText.map(file=>agreementDocumentCard(file,'اتفاقية إقليمية')).join('')+'</div></section>':'';
+    host.innerHTML=regional+'<section class="agreement-document-section">'+agreementSectionHeading('الاتفاقيات متعددة الأطراف',others.length)+'<div class="agreement-document-grid">'+others.map(file=>agreementDocumentCard(file,'اتفاقية متعددة الأطراف')).join('')+'</div></section>'+(filtered.length?'':'<p class="sidebar-loading">لا توجد معاهدات مفهرسة في هذا الفرع.</p>');
+    if(state.agreementSection&&withText.length)requestAnimationFrame(()=>$('agreementRegionalSection')?.scrollIntoView({behavior:'smooth',block:'start'}));
   }
   async function browseDriveFolder(id,name,reset=false){
     const pane=$('browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';
@@ -356,7 +364,7 @@
         const result=await api('/api/drive/agreements?q='+encodeURIComponent($('query').value.trim())+'&page='+state.page+'&limit='+state.limit);
         if(sequence!==state.searchSequence)return;state.results=result.files||[];state.total=result.total||0;state.page=result.page||state.page;
         $('resultsTitle').textContent=$('query').value.trim()?'نتائج الاتفاقيات الدولية':'الاتفاقيات الدولية';
-        $('results').innerHTML=state.results.length?state.results.map(renderAgreementResult).join(''):emptyState('لا توجد اتفاقيات مطابقة','يبحث هذا النطاق في أسماء ملفات Drive ومسارات مجلداتها؛ النص الكامل للمعاهدة يحتاج إلى إدخال النص المستخرج في الفهرس.',{key:'clear-filters',label:'مسح التصفية'});
+        $('results').innerHTML=state.results.length?state.results.map(renderAgreementResult).join(''):emptyState('لا توجد اتفاقيات مطابقة','يبحث هذا النطاق في عناوين الاتفاقيات وأسماء ملفات Drive ومسارات مجلداتها؛ النص الكامل للمعاهدة يحتاج إلى إدخال النص المستخرج في الفهرس.',{key:'clear-filters',label:'مسح التصفية'});
         const first=state.total?(state.page-1)*state.limit+1:0,last=Math.min(state.page*state.limit,state.total);$('resultsMeta').textContent=state.total?fmt(first)+'–'+fmt(last)+' من '+fmt(state.total)+' ملفاً مفهرساً في Drive':'لم يُعثر على ملفات مطابقة';$('queryCorrections').hidden=true;$('queryCorrections').innerHTML='';renderPagination();return;
       }
       const result = await api('/api/search?' + params, { signal: controller.signal });
@@ -463,6 +471,7 @@
     if (isShortJudicialCard(doc)) note = kind === 'source_summary' ? 'بطاقة قضائية محفوظة بملخصها أو قاعدتها المتاحة. المتن الكامل للقرار غير متاح؛ لا يُعد المعروض نص القرار الكامل.' : 'بطاقة قضائية محفوظة ببيانات فهرستها. المتن الكامل غير متاح.';
     if (isOcrDraft(doc)) note = 'مسودة نص مستخرج آلياً من الأصل. تحتاج مراجعة تحريرية للأسماء والأرقام والنفي والإحالات؛ لا تمثل اعتماداً بشرياً.';
     if (isAssistantCompared(doc)) note = 'قورن النص بصور صفحات الأصل بواسطة المساعد. هذه مقارنة من المساعد، ولا تمثل تدقيقاً أو اعتماداً بشرياً أو رسمياً.';
+    if (doc.reviewStatus === 'owner_approved_extraction') note = 'نص مستخرج آليًا من نسخة الجريدة الرسمية وقورن بقراءة بصرية آلية لصفحاتها، واعتُمد للعرض بقرار مالك المكتبة دون مراجعة بشرية. يُرجى الرجوع إلى الأصل قبل الاستشهاد.';
     if (doc.reviewStatus === 'needs_review' && kind === 'extracted_text') note += ' رُصدت مؤشرات تستدعي المراجعة.';
     if (doc.reviewStatus === 'official_source_import') note = 'نص مستورد من النشر الإلكتروني الرسمي للمحكمة الدستورية، مع التحقق من اكتمال فصوله. لا يمثل ذلك تدقيقاً بشرياً مستقلاً لكل كلمة.';
     if (doc.type === 'juriscassation' && doc.category === 'قواعد قضائية') {
@@ -905,8 +914,8 @@
       if (button.dataset.driveOpen) { if(button.dataset.driveName){openMatchedDrive(button.dataset.driveOpen,button.dataset.driveSource,button.dataset.driveMode||'preview',button.dataset.driveName,button.dataset.drivePath||'');}else findDriveSource(button.dataset.driveOpen); return; }
       if (button.dataset.driveSearch) { findDriveSource(button.dataset.driveSearch); return; }
       if (button.dataset.driveFolder) { browseDriveFolder(button.dataset.driveFolder,button.dataset.driveName); return; }
-      if (button.dataset.agreementSidebar) { const branch=button.dataset.agreementSidebar; state.agreementBranch=branch; state.agreementCountry=''; state.scope='agreements';state.scopeTouched=true;document.querySelectorAll('[data-scope]').forEach(b=>{const active=b.dataset.scope==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});state.browseGroup='agreements'; document.querySelectorAll('[data-browse-group]').forEach(b=>{const active=b.dataset.browseGroup==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));}); $('browsePanel').hidden=false; $('browseToggle').setAttribute('aria-expanded','true'); $('browseGroups').hidden=true; $('browseContent').hidden=false; browseAgreements(branch); $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'}); return; }
-      if (button.dataset.agreementGroup) { renderAgreementFiles(state.agreementFiles,button.dataset.agreementGroup); return; }
+      if (button.dataset.agreementSidebar) { const branch=button.dataset.agreementSidebar; state.agreementBranch=branch; state.agreementCountry=''; state.agreementSection=button.dataset.agreementSection||''; state.scope='agreements';state.scopeTouched=true;document.querySelectorAll('[data-scope]').forEach(b=>{const active=b.dataset.scope==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});state.browseGroup='agreements'; document.querySelectorAll('[data-browse-group]').forEach(b=>{const active=b.dataset.browseGroup==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));}); $('browsePanel').hidden=false; $('browseToggle').setAttribute('aria-expanded','true'); $('browseGroups').hidden=true; $('browseContent').hidden=false; browseAgreements(branch); if (!state.agreementSection) $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'}); return; }
+      if (button.dataset.agreementGroup) { state.agreementSection=''; renderAgreementFiles(state.agreementFiles,button.dataset.agreementGroup); return; }
       if (button.dataset.agreementCountry) { renderAgreementFiles(state.agreementFiles,state.agreementBranch,button.dataset.agreementCountry); return; }
       if (button.hasAttribute('data-drive-up')) { if(state.driveBrowseStack.length>1){state.driveBrowseStack.pop();const parent=state.driveBrowseStack.pop();browseDriveFolder(parent.id,parent.name,true);}else renderBrowseGroup('agreements');return; }
       if (button.dataset.view) { setView(button.dataset.view); return; }

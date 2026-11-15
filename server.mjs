@@ -10,6 +10,7 @@ import { createHash,randomBytes,createHmac,timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { PDFDocument } from 'pdf-lib';
 import { Library } from './src/library.mjs';
+import { bundledAgreementTexts } from './src/agreement-texts.mjs';
 import { answerQuestion,aiCapability,GROQ_CHAT_MODELS,selectedGroqModel } from './src/assistant.mjs';
 import { answerFromWeb } from './src/websearch.mjs';
 import { geminiApiKey,geminiOcrApiKey,geminiOcrModel,geminiOcrEnabled } from './src/gemini.mjs';
@@ -116,6 +117,7 @@ async function extractGeminiPdf(model,apiKey,sourceBytes,prompt){
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
+library.setBundledContent(bundledAgreementTexts);
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 /* استعادة كلمة المرور بالبريد؛ تصفير محاولات الدخول الفاشلة بعد نجاحها لأن صاحب الصندوق أثبت ملكيته. */
 const passwordReset=createPasswordReset({store:adminStore,afterReset:(ip,email)=>clearLoginFailures(ip,email)});
