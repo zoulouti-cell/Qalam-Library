@@ -79,7 +79,7 @@
     return Number(bytes) >= 1048576 ? (Number(bytes) / 1048576).toFixed(1) + ' MB' : Math.round(Number(bytes) / 1024) + ' KB';
   }
   function applyStats(stats) {
-    $('statDocuments').textContent = fmt(stats.documents); $('statTexts').textContent = fmt(stats.texts); $('statSummaries').textContent = fmt(stats.summaries); $('libraryCount').textContent = fmt(stats.documents); if($('storageSize')) $('storageSize').textContent = sizeLabel(stats.dbBytes);
+    $('statDocuments').textContent = fmt(stats.documents); $('statTexts').textContent = fmt(stats.texts); $('statSummaries').textContent = fmt(stats.summaries); if ($('libraryCount')) $('libraryCount').textContent = fmt(stats.documents); if($('storageSize')) $('storageSize').textContent = sizeLabel(stats.dbBytes);
   }
   async function refreshStats() {
     try { applyStats(await api('/api/stats', { signal: AbortSignal.timeout(8000) })); } catch {}
@@ -142,21 +142,24 @@
     try { const parsed = new URL(url); driveId = parsed.hostname === 'drive.google.com' ? decodeURIComponent(parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || parsed.searchParams.get('id') || '') : ''; if (driveId) { previewUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=preview'; downloadUrl = '/api/drive/file?id=' + encodeURIComponent(driveId) + '&mode=download'; } } catch {}
     const icon = (name) => name === 'preview' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' : name === 'official' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>' : name === 'search' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v4h16v-4"/></svg>';
     const cls = compact ? 'source-action source-action-compact' : 'source-action';
-    const officialUrl = doc?.officialUrl || doc?.officialSourceUrl || (url && !driveId ? url : '');
+    const officialUrl = doc?.officialUrl || doc?.officialSourceUrl || (url && !driveId && !(Array.isArray(doc?.originalFiles) && doc.originalFiles.length) ? url : '');
     const query=[doc?.title,doc?.lawNumber,doc?.decisionNumber,doc?.caseNumber].filter(Boolean).join(' '),mapped=!!(doc?.driveSourceName&&doc?.driveSourcePath),driveAttrs=' data-drive-open="'+esc(query)+'" data-drive-source="'+esc(url&&!driveId?url:(doc?.sourceUrl||''))+'"'+(mapped?' data-drive-name="'+esc(doc.driveSourceName)+'" data-drive-path="'+esc(doc.driveSourcePath)+'"':'');
     const judicialMapped=doc?.type==='juriscassation'&&/^jc:\d+$/.test(doc?.id||'')&&doc?.judicialIndex===true&&doc?.driveSourceStatus==='verified';
     if(judicialMapped){previewUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=download';}
     else if(mapped){previewUrl='/api/drive/document-source?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document-source?id='+encodeURIComponent(doc.id)+'&mode=download';}
-    const previewAction = judicialMapped||driveId
+    const uf = Array.isArray(doc?.originalFiles) ? doc.originalFiles.filter(f => f && f.id) : [];
+    const ufUrl = (f, mode) => f.driveId ? '/api/drive/file?id=' + encodeURIComponent(f.driveId) + '&mode=' + mode : '/api/original?doc=' + encodeURIComponent(doc.id) + '&file=' + encodeURIComponent(f.id) + '&mode=' + mode;
+    const previewAction = uf.length ? '<a class="'+cls+'" href="'+esc(ufUrl(uf[0],'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل المرفق" title="معاينة الأصل المرفق">'+icon('preview')+'</a>' : judicialMapped||driveId
       ? '<a class="'+cls+'" href="'+esc(previewUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل من Drive" title="معاينة الأصل من Drive">'+icon('preview')+'</a>'
       : '<button type="button" class="'+cls+'"'+driveAttrs+' data-drive-mode="preview" aria-label="معاينة الوثيقة الأصلية من Drive" title="'+(mapped?'معاينة الأصل المطابق في Drive':'البحث اليدوي عن الأصل في Drive')+'">'+icon('preview')+'</button>';
-    const downloadAction = judicialMapped||driveId
+    const downloadAction = uf.length ? '<a class="'+cls+'" href="'+esc(ufUrl(uf[0],'download'))+'" aria-label="تحميل الأصل المرفق" title="تحميل الأصل المرفق">'+icon('download')+'</a>' : judicialMapped||driveId
       ? '<a class="'+cls+'" href="'+esc(downloadUrl)+'" aria-label="تحميل الأصل من Drive" title="تحميل الأصل من Drive">'+icon('download')+'</a>'
       : '<button type="button" class="'+cls+'"'+driveAttrs+' data-drive-mode="download" aria-label="تحميل الوثيقة الأصلية من Drive" title="تحميل الأصل بعد التحقق">'+icon('download')+'</button>';
     const alternateWord = doc?.driveAlternateFileId ? '<a class="'+cls+' source-action-word" href="/api/drive/file?id='+encodeURIComponent(doc.driveAlternateFileId)+'&mode=download" aria-label="تحميل نسخة Word من Drive" title="تحميل نسخة Word: '+esc(doc.driveAlternateFileName||'')+'"><span aria-hidden="true">W</span></a>' : '';
     const sourceStatus=doc?.driveSourceStatus==='unverified'?'<small class="drive-link-status" title="لم يظهر أصل مطابق في الجرد الأخير؛ تتيح الأيقونات إعادة البحث في Drive">الأصل غير مثبت في Drive</small>':!driveId&&!mapped&&doc?.driveSourceStatus==='unmapped'?'<small class="drive-link-status" title="لم يثبت وجود ملف أصلي مطابق في فهرس Drive">الربط غير متاح</small>':'';
+    const moreOriginals=uf.slice(1).map((f,i)=>'<a class="'+cls+' source-action-word" href="'+esc(ufUrl(f,'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل '+(i+2)+'" title="الأصل '+(i+2)+': '+esc(f.name||'')+'"><span aria-hidden="true">'+(i+2)+'</span></a>').join('');
     const officialAction=officialUrl?'<a class="'+cls+'" href="'+esc(officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي على الإنترنت" title="المصدر الرسمي">'+icon('official')+'</a>':'';
-    return '<span class="source-actions" dir="ltr" aria-label="معاينة الأصل والمصدر الرسمي والتنزيل">'+previewAction+officialAction+alternateWord+downloadAction+sourceStatus+'</span>';
+    return '<span class="source-actions" dir="ltr" aria-label="معاينة الأصل والمصدر الرسمي والتنزيل">'+previewAction+officialAction+alternateWord+moreOriginals+downloadAction+sourceStatus+'</span>';
   }
   async function openMatchedDrive(query,source,mode,exactName='',exactPath=''){
     const popup=window.open('about:blank','_blank');if(!popup){toast('اسمح بفتح نافذة المعاينة مرة واحدة لفتح أصل الوثيقة.');return;}popup.opener=null;popup.document.title='جارٍ مطابقة أصل الوثيقة';popup.document.body.innerHTML='<main dir="rtl" style="font:16px Tahoma,sans-serif;padding:32px;color:#244738">جارٍ مطابقة الوثيقة بأصلها في Drive…</main>';
@@ -1055,6 +1058,7 @@
     try { const params = new URLSearchParams(location.search); id = params.get('doc') || ''; needle = String(params.get('q') || '').slice(0, 200); } catch { id = ''; needle = ''; }
     if (id) openDocument(id, needle);
   }
+  /* جسر لخدمة «إضافات» (contrib.js): تستعمل إشعارات الصفحة وفتح الوثائق دون مسّ حالتها الداخلية */
+  window.qalamBridge = { state, toast, openDocument, closeSidebar, esc };
   initialize();
 })();
-

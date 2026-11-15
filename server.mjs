@@ -16,11 +16,12 @@ import { geminiApiKey,geminiModel,geminiOcrApiKey,geminiOcrModel,geminiOcrEnable
 import { deeplApiKey,translateWithDeepL } from './src/deepl.mjs';
 import { speechCapabilities,transcribe,synthesize } from './src/speech.mjs';
 import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLocalCorrection } from './src/editorial.mjs';
-import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword } from './src/admin-store.mjs';
+import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,judicialFolderIdFor } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
+import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
@@ -118,6 +119,38 @@ async function assistantPolicy(){
   return {aiEnabled:config.aiEnabled!==false,translationEnabled:config.translationEnabled!==false,webSearchEnabled:config.webSearchEnabled!==false,translationEngine:config.translationEngine==='local'?'local':'deepl',processingLevel:['fast','balanced','deep'].includes(config.processingLevel)?config.processingLevel:'balanced',groqModel:GROQ_CHAT_MODELS.includes(config.groqModel)?config.groqModel:GROQ_CHAT_MODELS.includes(configuredModel)?configuredModel:GROQ_CHAT_MODELS[0]};
 }
 async function configuredOwnerEmail(){const saved=adminStore?await adminStore.settings.findOne({_id:'library'},{projection:{ownerEmail:1}}):null;return String(saved?.ownerEmail||ownerEmail()).trim().toLowerCase();}
+function contributorEmail(req){const current=sessionInfo(req);if(!current?.account||['legacy','env'].includes(current.account))return '';try{return Buffer.from(current.account,'base64url').toString('utf8');}catch{return '';}}
+async function mailContributor(c,event){try{if(!emailReady()||!validEmail(c.userEmail))return false;const mail=contributionMail(c,event);if(!mail)return false;await sendMail(c.userEmail,mail.subject,mail.text,mail.html);return true;}catch(error){console.error('Contribution mail failed:',error?.message||'delivery_error');return false;}}
+async function mailOwnerAboutContribution(c){try{const owner=await configuredOwnerEmail();if(!emailReady()||!validEmail(owner))return false;const mail=ownerContributionMail(c);await sendMail(owner,mail.subject,mail.text,mail.html);return true;}catch(error){console.error('Owner contribution mail failed:',error?.message||'delivery_error');return false;}}
+async function sendOriginalFile(req,res,file,mode){
+  const raw=file.data,buffer=raw?.buffer?Buffer.from(raw.buffer.subarray(0,raw.position??raw.buffer.length)):Buffer.from(raw),ext=file.ext,asDownload=mode==='download'||ext==='docx',type=ORIGINAL_MIME[ext]||'application/octet-stream',name=encodeURIComponent(safeFileName(file.name,ext));
+  res.writeHead(200,{...headers,'Content-Type':type,'Content-Disposition':`${asDownload?'attachment':'inline'}; filename="original.${ext}"; filename*=UTF-8''${name}`,'Cache-Control':'private, no-store, max-age=0','Content-Length':buffer.length,'X-Content-Type-Options':'nosniff'});
+  res.end(req.method==='HEAD'?undefined:buffer);
+}
+const fileMeta=f=>({id:f.id,name:f.name,ext:f.ext,size:f.size});
+/* بعد النشر تُنقل الأصول من الخادم إلى Drive ثم تُحذف منه فلا يبقى على الخادم إلا النص. فشل النقل لا يُسقط النشر: يبقى الأصل محفوظًا هنا ويمكن إعادة المحاولة. */
+async function moveOriginalsToDrive(doc,{subfolder=''}={}){
+  const all=Array.isArray(doc.originalFiles)?doc.originalFiles:[],pending=all.filter(f=>!f.driveId);
+  const result={total:all.length,moved:0,failed:0,error:'',folder:''};if(!pending.length)return result;
+  let folder;const section=originalsSection(doc),court=section.id==='jurisprudence'?judicialFolderIdFor(doc.issuer||''):'',resolve=folderId=>resolveOriginalsFolder({sectionLabel:section.label,sectionAliases:section.aliases,subfolder,folderId});
+  try{folder=await resolve(court);}catch(first){try{if(!court)throw first;folder=await resolve('');}catch(error){return {...result,failed:pending.length,error:error.message||'تعذر تحديد مجلد الأصول في Drive.'};}}
+  result.folder=folder.path;const updated=all.map(f=>({...f}));
+  for(const meta of pending){
+    const file=await adminStore.contributionFiles.findOne({id:meta.id});if(!file){result.failed++;result.error='ملف الأصل غير موجود على الخادم.';break;}
+    try{
+      const raw=file.data,buffer=raw?.buffer?Buffer.from(raw.buffer.subarray(0,raw.position??raw.buffer.length)):Buffer.from(raw),index=all.findIndex(f=>f.id===meta.id);
+      const up=await uploadOriginalFile({folderId:folder.id,fileName:originalDriveName(doc,file.ext,index,all.length),ext:file.ext,buffer,description:[doc.sourceLabel,doc.sourceUrl].filter(Boolean).join('\n')});
+      Object.assign(updated[index],{name:up.name,size:up.size||meta.size,driveId:up.id,folderPath:folder.path});await adminStore.contributionFiles.deleteOne({id:meta.id});result.moved++;
+    }catch(error){result.failed++;result.error=error.message||'تعذر رفع الأصل إلى Drive.';break;}
+  }
+  if(result.moved){
+    await adminStore.content.updateMany({documentId:doc.documentId,status:'published'},{$set:{originalFiles:updated}});
+    if(doc.contributionId)await adminStore.contributions.updateOne({id:doc.contributionId},{$set:{originalFiles:updated}});
+    library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+  }
+  return result;
+}
+async function moveContribution(id,status,extra={}){const now=new Date();return adminStore.contributions.findOneAndUpdate({id},{$set:{status,statusChangedAt:now,updatedAt:now,userNotifyPending:true,...extra}},{returnDocument:'after'});}
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
 let driveScanPromise=null;
@@ -169,7 +202,7 @@ function send(req,res,status,value,type='application/json; charset=utf-8'){
 const officialPdfHosts=new Set(['adala.justice.gov.ma','justice.gov.ma','www.sgg.gov.ma','sgg.gov.ma','www.mahakim.ma','mahakim.ma',...(process.env.QALAM_ALLOWED_PDF_HOSTS||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean)]);
 function isAllowedPdfUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&officialPdfHosts.has(u.hostname.toLowerCase())&&!u.username&&!u.password;}catch{return false;}}
 async function fetchOfficialPdf(value){let current=new URL(value);for(let hop=0;hop<=3;hop++){if(!isAllowedPdfUrl(current.href))throw new Error('يسمح فقط بروابط HTTPS من مصادر رسمية مضافة إلى قائمة المصادر الموثوقة.');const response=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(45000),headers:{'Accept':'application/pdf,application/octet-stream;q=0.9'}});if([301,302,303,307,308].includes(response.status)){const location=response.headers.get('location');if(!location||hop===3)throw new Error('تعذر تتبع رابط التحميل الرسمي.');current=new URL(location,current);continue;}if(!response.ok)throw new Error(`تعذر جلب رابط المصدر (HTTP ${response.status}).`);const type=(response.headers.get('content-type')||'').toLowerCase();if(!type.includes('pdf')&&!type.includes('octet-stream'))throw new Error('الرابط لا يعيد ملف PDF مباشراً.');const declared=Number(response.headers.get('content-length')||0);if(declared>20*1024*1024)throw new Error('حجم PDF يتجاوز الحد الآمن البالغ 20 ميغابايت.');const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>20*1024*1024){await response.body.cancel().catch(()=>{});throw new Error('حجم PDF يتجاوز الحد الآمن البالغ 20 ميغابايت.');}chunks.push(Buffer.from(chunk));}const bytes=Buffer.concat(chunks);if(!bytes.length||bytes.subarray(0,5).toString()!=='%PDF-')throw new Error('الملف فارغ أو ليس PDF صالحاً.');return {bytes,url:current.href};}throw new Error('تعذر جلب رابط المصدر.');}
-function rate(req,post){const key=(req.socket.remoteAddress||'local')+':'+(post?'write':'read'),now=Date.now();let value=limits.get(key);if(!value||now-value.start>60000)value={start:now,n:0};value.n++;limits.set(key,value);return value.n<=(post?35:400);}
+function rate(req,post){const key=(req.socket.remoteAddress||'local')+':'+(post?'write':'read'),now=Date.now();let value=limits.get(key);if(!value||now-value.start>60000)value={start:now,n:0};value.n++;limits.set(key,value);return value.n<=(post?(process.env.NODE_ENV==='test'&&Number(process.env.QALAM_TEST_WRITE_LIMIT)||35):400);}
 async function read(req,max){const chunks=[];let size=0;for await(const c of req){size+=c.length;if(size>max){const e=new Error('حجم الطلب أكبر من المسموح.');e.status=413;throw e;}chunks.push(c);}return Buffer.concat(chunks);}
 async function jsonBody(req,max=40000){try{return JSON.parse((await read(req,max)).toString('utf8'));}catch(e){if(e.status)throw e;const error=new Error('صيغة الطلب غير صالحة.');error.status=400;throw error;}}
 function sameOrigin(req){if(!req.headers.origin)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';try{const u=new URL(req.headers.origin);return u.host===req.headers.host;}catch{return false;}}
@@ -414,6 +447,78 @@ const server=http.createServer(async(req,res)=>{
         return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
       }
     }
+    if(p==='/api/original'&&(req.method==='GET'||req.method==='HEAD')){
+      if(!adminStore)return send(req,res,503,{error:'خدمة الأصول غير متاحة حالياً.'});
+      const docId=String(url.searchParams.get('doc')||'').slice(0,120),fileId=String(url.searchParams.get('file')||'').slice(0,40),pub=await adminStore.content.findOne({documentId:docId,status:'published'},{projection:{originalFiles:1}});
+      if(!pub||!(pub.originalFiles||[]).some(f=>f.id===fileId))return send(req,res,404,{error:'الأصل غير متاح لهذه الوثيقة.'});
+      const file=await adminStore.contributionFiles.findOne({id:fileId});if(!file)return send(req,res,404,{error:'ملف الأصل غير موجود.'});
+      return sendOriginalFile(req,res,file,url.searchParams.get('mode'));
+    }
+    if(p.startsWith('/api/contributions')){
+      if(!adminStore)return send(req,res,503,{error:'خدمة الإضافات غير متاحة حالياً؛ قاعدة البيانات غير متصلة.'});
+      const email=contributorEmail(req);
+      if(p==='/api/contributions/config'&&req.method==='GET')return send(req,res,200,{canSubmit:!!email,reason:email?'':'الإضافات والملاحظات متاحة للحسابات الفردية؛ سجّلوا الدخول ببريدكم الإلكتروني.',kinds:Object.entries(CONTRIB_KINDS).map(([id,k])=>({id,label:k.label,hint:k.hint})),noteTypes:Object.entries(NOTE_TYPES).map(([id,label])=>({id,label})),limits:{textChars:CONTRIB_LIMITS.textChars,fileBytes:CONTRIB_LIMITS.fileBytes,originalBytes:CONTRIB_LIMITS.originalBytes,originalsPerItem:CONTRIB_LIMITS.originalsPerItem,originalsTotalBytes:CONTRIB_LIMITS.originalsTotalBytes},mailNotices:emailReady()});
+      if(!email)return send(req,res,403,{error:'الإضافات والملاحظات متاحة للحسابات الفردية؛ سجّلوا الدخول ببريدكم الإلكتروني.'});
+      if(p==='/api/contributions/mine'&&req.method==='GET'){
+        const rows=await adminStore.contributions.find({userEmail:email}).sort({createdAt:-1}).limit(100).project({text:0,message:0,excerpt:0,note:0}).toArray();
+        return send(req,res,200,{items:rows.map(contributionView),unread:rows.filter(r=>r.userNotifyPending).length});
+      }
+      if(p==='/api/contributions/unread'&&req.method==='GET')return send(req,res,200,{unread:await adminStore.contributions.countDocuments({userEmail:email,userNotifyPending:true})});
+      if(p==='/api/contributions/seen'&&req.method==='POST'){await adminStore.contributions.updateMany({userEmail:email,userNotifyPending:true},{$set:{userNotifyPending:false}});return send(req,res,200,{ok:true});}
+      if(p==='/api/contributions/extract'&&req.method==='POST'){
+        let raw;try{raw=await read(req,CONTRIB_LIMITS.fileBytes);}catch(error){return send(req,res,error.status||400,{error:error.status===413?'الملف أكبر من 7 ميغابايت.':error.message});}
+        let name='';try{name=decodeURIComponent(String(req.headers['x-file-name']||'')).slice(0,200);}catch{}
+        try{return send(req,res,200,{...extractFileText(raw,name),name});}catch(error){return send(req,res,error.status||422,{error:error.message||'تعذر استخراج النص من الملف.'});}
+      }
+      if(p==='/api/contributions/file'&&req.method==='POST'){
+        let raw;try{raw=await read(req,CONTRIB_LIMITS.originalBytes);}catch(error){return send(req,res,error.status||400,{error:error.status===413?'الأصل أكبر من 8 ميغابايت؛ اختاروا ملفًا أصغر أو قلّلوا جودة الصور.':error.message});}
+        if(!raw.length)return send(req,res,400,{error:'الملف فارغ.'});
+        let name='';try{name=decodeURIComponent(String(req.headers['x-file-name']||'')).slice(0,200);}catch{}
+        const ext=sniffOriginal(raw,name);if(!ext)return send(req,res,415,{error:'نوع الملف غير مقبول؛ المسموح: PDF أو صورة (JPG/PNG/WebP) أو Word (docx) أو نص (txt).'});
+        if(await adminStore.contributionFiles.countDocuments({ownerEmail:email,contributionId:{$exists:false}})>=CONTRIB_LIMITS.orphanFilesPerUser)return send(req,res,429,{error:'عدد الملفات المرفوعة دون إرسال كبير؛ أرسلوا الإضافة أو أزيلوا بعض الملفات.'});
+        const used=await adminStore.contributionFiles.aggregate([{$group:{_id:null,n:{$sum:'$size'}}}]).toArray();if((used[0]?.n||0)+raw.length>CONTRIB_LIMITS.storeCapBytes)return send(req,res,507,{error:'مساحة حفظ الأصول ممتلئة حاليًا؛ سيُبلَّغ المدير. حاولوا لاحقًا.'});
+        const now=new Date(),doc={id:newFileId(),ownerEmail:email,name:safeFileName(name,ext),ext,mime:ORIGINAL_MIME[ext],size:raw.length,sha256:createHash('sha256').update(raw).digest('hex'),data:new Binary(raw),createdAt:now,orphanAt:new Date(now.getTime()+86400000)};
+        await adminStore.contributionFiles.insertOne(doc);return send(req,res,201,fileMeta(doc));
+      }
+      if(p==='/api/contributions/file/delete'&&req.method==='POST'){
+        let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+        const r=await adminStore.contributionFiles.deleteOne({id:String(body.id||'').slice(0,40),ownerEmail:email,contributionId:{$exists:false}});return send(req,res,200,{ok:true,deleted:r.deletedCount});
+      }
+      if(p==='/api/contributions/file'&&(req.method==='GET'||req.method==='HEAD')){
+        const file=await adminStore.contributionFiles.findOne({id:String(url.searchParams.get('id')||'').slice(0,40),ownerEmail:email});if(!file)return send(req,res,404,{error:'الملف غير موجود.'});
+        return sendOriginalFile(req,res,file,url.searchParams.get('mode'));
+      }
+      if(p==='/api/contributions/addition'&&req.method==='POST'){
+        let body;try{body=await jsonBody(req,2_200_000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+        const checked=validateAddition(body,email);if(checked.error)return send(req,res,400,{error:checked.error});const record=checked.record;
+        if(!record.fileIds.length)return send(req,res,400,{error:'أرفقوا النسخة الأصلية للوثيقة (PDF أو صورة أو Word) مع النص؛ الأصل شرط لقبول الإضافة.'});
+        const attached=await adminStore.contributionFiles.find({id:{$in:record.fileIds},ownerEmail:email,contributionId:{$exists:false}}).project({data:0}).toArray();
+        if(attached.length!==record.fileIds.length)return send(req,res,400,{error:'تعذر العثور على أحد الأصول المرفقة أو انتهت مهلته؛ أعيدوا رفعه ثم أرسلوا الإضافة.'});
+        if(attached.reduce((n,f)=>n+f.size,0)>CONTRIB_LIMITS.originalsTotalBytes)return send(req,res,413,{error:'مجموع الأصول المرفقة يتجاوز 16 ميغابايت.'});
+        const since=new Date(Date.now()-86400000);
+        if(await adminStore.contributions.countDocuments({userEmail:email,type:'addition',createdAt:{$gte:since}})>=CONTRIB_LIMITS.additionsPerDay)return send(req,res,429,{error:'بلغتم الحد اليومي لعدد الإضافات؛ أعيدوا المحاولة غدًا.'});
+        if(await adminStore.contributions.countDocuments({userEmail:email,type:'addition',status:{$in:['pending','reviewing']}})>=CONTRIB_LIMITS.openAdditions)return send(req,res,429,{error:'لديكم إضافات كثيرة قيد الدرس؛ انتظروا البتّ فيها قبل إرسال المزيد.'});
+        if(await adminStore.contributions.findOne({userEmail:email,contentHash:record.contentHash,status:{$in:['pending','reviewing']}},{projection:{_id:1}}))return send(req,res,409,{error:'سبق أن أرسلتم هذا النص وهو قيد الدرس.'});
+        const now=new Date();Object.assign(record,{createdAt:now,updatedAt:now,statusChangedAt:now,userNotifyPending:false,originalFiles:attached.map(fileMeta)});delete record.fileIds;await adminStore.contributions.insertOne(record);
+        await adminStore.contributionFiles.updateMany({id:{$in:attached.map(f=>f.id)}},{$set:{contributionId:record.id},$unset:{orphanAt:''}});
+        await recordAudit(adminStore,email,'contribution_added',record.id,{kind:record.kind,title:record.title});
+        void mailContributor(record,'received');void mailOwnerAboutContribution(record);
+        return send(req,res,201,{ok:true,id:record.id,status:record.status,statusLabel:CONTRIB_STATUSES.pending});
+      }
+      if(p==='/api/contributions/note'&&req.method==='POST'){
+        let body;try{body=await jsonBody(req,60000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+        const title=library.titleOf(contribLine(body.documentId,120));if(!title)return send(req,res,404,{error:'الوثيقة المعنية غير موجودة في المكتبة.'});
+        const checked=validateNote(body,email,{title});if(checked.error)return send(req,res,400,{error:checked.error});const record=checked.record;
+        const since=new Date(Date.now()-86400000);
+        if(await adminStore.contributions.countDocuments({userEmail:email,type:'note',createdAt:{$gte:since}})>=CONTRIB_LIMITS.notesPerDay)return send(req,res,429,{error:'بلغتم الحد اليومي لعدد الملاحظات؛ أعيدوا المحاولة غدًا.'});
+        if(await adminStore.contributions.findOne({userEmail:email,contentHash:record.contentHash,status:'pending'},{projection:{_id:1}}))return send(req,res,409,{error:'سبق أن أرسلتم هذه الملاحظة وهي قيد الدرس.'});
+        const now=new Date();Object.assign(record,{createdAt:now,updatedAt:now,statusChangedAt:now,userNotifyPending:false});await adminStore.contributions.insertOne(record);
+        await recordAudit(adminStore,email,'contribution_note',record.id,{documentId:record.documentId});
+        void mailOwnerAboutContribution(record);
+        return send(req,res,201,{ok:true,id:record.id,status:record.status,statusLabel:CONTRIB_STATUSES.pending});
+      }
+      return send(req,res,404,{error:'الخدمة غير موجودة.'});
+    }
     if(p==='/api/admin/overview'&&req.method==='GET'){
       const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
       const documents=library.db.prepare("SELECT id,title,category,text_kind,review_status,chars FROM documents WHERE review_status IN ('needs_review','automated_review') ORDER BY CASE review_status WHEN 'needs_review' THEN 0 ELSE 1 END, rowid LIMIT 60").all();
@@ -510,31 +615,88 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/admin/content'&&req.method==='GET'){
       const status=['draft','published','superseded'].includes(url.searchParams.get('status'))?url.searchParams.get('status'):'draft';
-      const docs=await adminStore.content.find({status}).sort({updatedAt:-1}).limit(100).project({documentId:1,title:1,category:1,type:1,textKind:1,status:1,sourceUrl:1,reason:1,updatedAt:1,createdAt:1}).toArray();return send(req,res,200,{documents:docs});
+      const docs=await adminStore.content.find({status}).sort({updatedAt:-1}).limit(100).project({documentId:1,title:1,category:1,type:1,textKind:1,status:1,sourceUrl:1,reason:1,origin:1,contributionId:1,updatedAt:1,createdAt:1}).toArray();return send(req,res,200,{documents:docs});
     }
     if(p==='/api/admin/content/save'&&req.method==='POST'){
       let body;try{body=JSON.parse((await read(req,2200000)).toString('utf8'));}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
       const title=String(body.title||'').trim().slice(0,500),text=String(body.text||'').trim(),reason=String(body.reason||'').trim().slice(0,2000);if(title.length<3||text.length<40||!reason)return send(req,res,400,{error:'أدخل عنواناً ونصاً كاملاً وسبباً موثقاً للتعديل.'});
-      const documentId=String(body.documentId||'managed_'+randomBytes(12).toString('hex')).slice(0,120);let base=null;try{base=library.document(documentId);}catch{}if(!base&&!documentId.startsWith('managed_'))return send(req,res,404,{error:'الوثيقة الأصلية غير موجودة في فهرس المكتبة.'});
-      const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(base?.type||'national'),category:String(body.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||base?.date||'').slice(0,20),kind:String(body.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:String(body.sourceLabel||base?.sourceLabel||'').slice(0,300),reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin'};
-      if(!/^https:\/\//i.test(record.sourceUrl))return send(req,res,400,{error:'أدخل رابط المصدر الرسمي أو رابط أصل Drive بصيغة https:// قبل حفظ المسودة.'});
+      const documentId=String(body.documentId||'managed_'+randomBytes(12).toString('hex')).slice(0,120);const prevDraft=await adminStore.content.findOne({documentId,status:'draft'},{sort:{updatedAt:-1}}),prevPublished=prevDraft?null:await adminStore.content.findOne({documentId,status:'published'},{projection:{origin:1,originalFiles:1,issuer:1}}),carried=prevDraft||prevPublished;let base=null;try{base=library.document(documentId);}catch{}if(!base&&!documentId.startsWith('managed_'))return send(req,res,404,{error:'الوثيقة الأصلية غير موجودة في فهرس المكتبة.'});
+      const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(prevDraft?.type||base?.type||'national'),category:String(body.category||prevDraft?.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||prevDraft?.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||prevDraft?.date||base?.date||'').slice(0,20),kind:String(body.kind||prevDraft?.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:String(body.sourceLabel||prevDraft?.sourceLabel||base?.sourceLabel||'').slice(0,300),reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin',...(carried?.origin==='contribution'?{origin:'contribution',issuer:carried.issuer||'',originalFiles:carried.originalFiles||[],...(prevDraft?.contributionId?{contributionId:prevDraft.contributionId}:{})}:{})};
+      if(record.origin!=='contribution'&&!/^https:\/\//i.test(record.sourceUrl))return send(req,res,400,{error:'أدخل رابط المصدر الرسمي أو رابط أصل Drive بصيغة https:// قبل حفظ المسودة.'});
       await adminStore.content.updateMany({documentId,status:'draft'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','draft_saved',documentId,{title,sourceUrl:record.sourceUrl});return send(req,res,201,{ok:true,documentId,status:'draft'});
     }
     if(p==='/api/admin/content/publish'&&req.method==='POST'){
       let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),draft=await adminStore.content.findOne({documentId,status:'draft'},{sort:{updatedAt:-1}});
-      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر.'});
-      await adminStore.content.updateMany({documentId,status:'published'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.updateOne({_id:draft._id},{$set:{status:'published',publishedAt:new Date(),publishedBy:'admin',updatedAt:new Date()}});await recordAudit(adminStore,'admin','content_published',documentId,{title:draft.title,sourceUrl:draft.sourceUrl});library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());return send(req,res,200,{ok:true,documentId,status:'published'});
+      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||(draft.origin!=='contribution'&&(!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر.'});
+      await adminStore.content.updateMany({documentId,status:'published'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.updateOne({_id:draft._id},{$set:{status:'published',publishedAt:new Date(),publishedBy:'admin',updatedAt:new Date()}});await recordAudit(adminStore,'admin','content_published',documentId,{title:draft.title,sourceUrl:draft.sourceUrl});library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());if(draft.contributionId){const done=await moveContribution(draft.contributionId,'published',{publishedDocumentId:documentId,publishedAt:new Date()});if(done)void mailContributor(done,'published');}
+      let originals={total:0,moved:0,failed:0};if(draft.originalFiles?.length){try{originals=await moveOriginalsToDrive(draft,{subfolder:String(body.driveSubfolder||'')});}catch(error){originals={total:draft.originalFiles.length,moved:0,failed:draft.originalFiles.length,error:error.message||'تعذر نقل الأصول إلى Drive.'};}await recordAudit(adminStore,'admin','originals_to_drive',documentId,{moved:originals.moved,failed:originals.failed,folder:originals.folder||'',error:originals.error||''});}
+      return send(req,res,200,{ok:true,documentId,status:'published',originals});
     }
     if(p==='/api/admin/content/delete'&&req.method==='POST'){
-      let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),result=await adminStore.content.deleteMany({documentId,status:'draft'});if(!result.deletedCount)return send(req,res,404,{error:'لا توجد مسودة قابلة للحذف؛ لا يمكن حذف سجل منشور من هنا.'});await recordAudit(adminStore,'admin','draft_deleted',documentId);return send(req,res,200,{ok:true});
+      let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),doomed=await adminStore.content.findOne({documentId,status:'draft',contributionId:{$exists:true}}),result=await adminStore.content.deleteMany({documentId,status:'draft'});if(doomed?.contributionId)await adminStore.contributions.updateOne({id:doomed.contributionId,status:'reviewing'},{$set:{status:'pending',statusChangedAt:new Date(),updatedAt:new Date()},$unset:{draftDocumentId:''}});if(!result.deletedCount)return send(req,res,404,{error:'لا توجد مسودة قابلة للحذف؛ لا يمكن حذف سجل منشور من هنا.'});await recordAudit(adminStore,'admin','draft_deleted',documentId);return send(req,res,200,{ok:true});
+    }
+    if(p.startsWith('/api/admin/originals')){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً.'});
+      if(p==='/api/admin/originals/drive'&&req.method==='GET')return send(req,res,200,await driveOriginalsStatus());
+      if(p==='/api/admin/originals/transfer'&&req.method==='POST'){
+        let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+        const doc=await adminStore.content.findOne({documentId:String(body.documentId||'').slice(0,120),status:'published'});if(!doc)return send(req,res,404,{error:'الوثيقة المنشورة غير موجودة.'});
+        const originals=await moveOriginalsToDrive(doc,{subfolder:String(body.driveSubfolder||'')});await recordAudit(adminStore,'admin','originals_to_drive',doc.documentId,{moved:originals.moved,failed:originals.failed,folder:originals.folder||'',error:originals.error||''});return send(req,res,200,{ok:!originals.failed,originals});
+      }
+      return send(req,res,404,{error:'الخدمة غير موجودة.'});
+    }
+    if(p.startsWith('/api/admin/contributions')){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً؛ تحقق من اتصال MongoDB.'});
+      if(p==='/api/admin/contributions'&&req.method==='GET'){
+        const type=['addition','note'].includes(url.searchParams.get('type'))?url.searchParams.get('type'):'',status=Object.keys(CONTRIB_STATUSES).includes(url.searchParams.get('status'))?url.searchParams.get('status'):'',query=String(url.searchParams.get('q')||'').trim().slice(0,100),page=Math.max(1,Math.min(1000,Number(url.searchParams.get('page'))||1));
+        const filter={...(type?{type}:{}),...(status?{status}:{}),...(query?{$or:['title','documentTitle','userEmail'].map(k=>({[k]:{$regex:query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),$options:'i'}}))}:{})};
+        const [rows,total,grouped]=await Promise.all([
+          adminStore.contributions.find(filter).sort({updatedAt:-1}).skip((page-1)*30).limit(30).project({text:0,message:0,excerpt:0,note:0}).toArray(),
+          adminStore.contributions.countDocuments(filter),
+          adminStore.contributions.aggregate([{$group:{_id:{type:'$type',status:'$status'},n:{$sum:1}}}]).toArray()
+        ]);
+        const counts={additions:{},notes:{}};for(const g of grouped)(g._id.type==='note'?counts.notes:counts.additions)[g._id.status]=g.n;
+        return send(req,res,200,{items:rows.map(r=>({id:r.id,type:r.type,kind:r.kind||'',kindLabel:r.kind?CONTRIB_KINDS[r.kind]?.label||'':NOTE_TYPES[r.noteType]||'',title:r.type==='note'?(r.documentTitle||r.documentId):r.title,documentId:r.documentId||'',issuedAt:r.issuedAt||'',userEmail:r.userEmail,status:r.status,statusLabel:CONTRIB_STATUSES[r.status]||r.status,chars:r.chars||0,draftDocumentId:r.draftDocumentId||'',publishedDocumentId:r.publishedDocumentId||'',createdAt:r.createdAt,updatedAt:r.updatedAt})),total,page,pages:Math.max(1,Math.ceil(total/30)),counts,statuses:CONTRIB_STATUSES});
+      }
+      if(p==='/api/admin/contributions/file'&&(req.method==='GET'||req.method==='HEAD')){
+        const file=await adminStore.contributionFiles.findOne({id:String(url.searchParams.get('id')||'').slice(0,40)});if(!file)return send(req,res,404,{error:'الملف غير موجود (ربما حُذف بعد رفض الإضافة).'});
+        return sendOriginalFile(req,res,file,url.searchParams.get('mode'));
+      }
+      if(p==='/api/admin/contributions/item'&&req.method==='GET'){
+        const c=await adminStore.contributions.findOne({id:String(url.searchParams.get('id')||'').slice(0,60)},{projection:{_id:0}});if(!c)return send(req,res,404,{error:'الإضافة غير موجودة.'});
+        return send(req,res,200,{...c,kindLabel:c.kind?CONTRIB_KINDS[c.kind]?.label||'':'',noteTypeLabel:NOTE_TYPES[c.noteType]||'',statusLabel:CONTRIB_STATUSES[c.status]||c.status});
+      }
+      if(p==='/api/admin/contributions/draft'&&req.method==='POST'){
+        let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+        const c=await adminStore.contributions.findOne({id:String(body.id||'').slice(0,60)});if(!c||c.type!=='addition')return send(req,res,404,{error:'لا توجد إضافة بهذا المعرّف.'});
+        if(['published','declined'].includes(c.status))return send(req,res,409,{error:'سبق البتّ في هذه الإضافة.'});
+        if(c.draftDocumentId&&await adminStore.content.findOne({documentId:c.draftDocumentId,status:'draft'},{projection:{_id:1}}))return send(req,res,200,{ok:true,documentId:c.draftDocumentId,existing:true});
+        const documentId='managed_'+randomBytes(12).toString('hex'),now=new Date();await adminStore.content.insertOne({...draftFromContribution(c,documentId),status:'draft',createdAt:now,updatedAt:now,updatedBy:'admin'});
+        await moveContribution(c.id,'reviewing',{draftDocumentId:documentId});await recordAudit(adminStore,'admin','contribution_drafted',c.id,{documentId,title:c.title});
+        return send(req,res,201,{ok:true,documentId});
+      }
+      if(p==='/api/admin/contributions/resolve'&&req.method==='POST'){
+        let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+        const c=await adminStore.contributions.findOne({id:String(body.id||'').slice(0,60)});if(!c)return send(req,res,404,{error:'الإضافة غير موجودة.'});
+        const status=String(body.status||''),reply=contribClean(body.reply,CONTRIB_LIMITS.reply);
+        if(!(c.type==='note'?['accepted','declined']:['declined']).includes(status))return send(req,res,400,{error:'حالة غير مسموحة لهذا النوع.'});
+        if(['published','declined','accepted'].includes(c.status))return send(req,res,409,{error:'سبق البتّ في هذه الإضافة.'});
+        if(status==='declined'&&!reply)return send(req,res,400,{error:'اكتبوا سبب عدم الاعتماد ليصل إلى صاحبها.'});
+        const done=await moveContribution(c.id,status,{adminReply:reply,resolvedAt:new Date(),...(status==='declined'&&c.originalFiles?.length?{originalFiles:[],originalsPurged:c.originalFiles.length}:{})});
+        if(status==='declined')await adminStore.contributionFiles.deleteMany({contributionId:c.id});
+        if(c.draftDocumentId)await adminStore.content.deleteMany({documentId:c.draftDocumentId,status:'draft'});
+        await recordAudit(adminStore,'admin','contribution_'+status,c.id,{type:c.type});void mailContributor(done,status);
+        return send(req,res,200,{ok:true,status});
+      }
+      return send(req,res,404,{error:'الخدمة غير موجودة.'});
     }
     if(p==='/api/admin/search'&&req.method==='GET'){
       const q=(url.searchParams.get('q')||'').trim().slice(0,160);if(q.length<2)return send(req,res,200,{results:[]});
       const result=library.search({q,scope:'all',limit:20});return send(req,res,200,{results:result.results.map(d=>({id:d.id,title:d.title,category:d.category,textKind:d.textKind,reviewStatus:d.reviewStatus,chars:d.chars,sourceLabel:d.sourceLabel}))});
     }
     if(p==='/api/admin/document'&&req.method==='GET'){
-      const id=(url.searchParams.get('id')||'').slice(0,120),draft=adminStore?await adminStore.content.findOne({documentId:id,status:'draft'},{sort:{updatedAt:-1}}):null;const doc=draft?{id:draft.documentId,title:draft.title,text:draft.text,category:draft.category,type:draft.type,textKind:draft.textKind,reviewStatus:'draft',sourceUrl:draft.sourceUrl,sourceLabel:draft.sourceLabel,reason:draft.reason,date:draft.date,kind:draft.kind}:library.document(id);if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
-      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||''});
+      const id=(url.searchParams.get('id')||'').slice(0,120),draft=adminStore?await adminStore.content.findOne({documentId:id,status:'draft'},{sort:{updatedAt:-1}}):null;const doc=draft?{id:draft.documentId,title:draft.title,text:draft.text,category:draft.category,type:draft.type,textKind:draft.textKind,reviewStatus:'draft',sourceUrl:draft.sourceUrl,sourceLabel:draft.sourceLabel,reason:draft.reason,date:draft.date,kind:draft.kind,origin:draft.origin||'',originalFiles:draft.originalFiles||[]}:library.document(id);if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||'',origin:draft?.origin||'',originalFiles:draft?.originalFiles||doc.originalFiles||[]});
     }
     if(p.startsWith('/api/editorial/')){
       if(!localEditor(req)&&!(p==='/api/editorial/ocr/worker'&&req.method==='GET'&&sessionRole(req)==='admin'))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});

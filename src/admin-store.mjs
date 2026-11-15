@@ -1,4 +1,5 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, Binary } from 'mongodb';
+export { Binary };
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const DB_NAME = process.env.MONGODB_DB || 'qalam_library';
@@ -37,6 +38,15 @@ export async function connectAdminStore(uri) {
       db.collection('libraryUsers').createIndex({ active: 1, role: 1 }),
       db.collection('libraryUsers').createIndex({ activationTokenHash: 1 }, { sparse: true }),
       db.collection('libraryUsers').createIndex({ lastSeenAt: -1 }),
+      db.collection('userContributions').createIndex({ id: 1 }, { unique: true }),
+      db.collection('userContributions').createIndex({ userEmail: 1, createdAt: -1 }),
+      db.collection('userContributions').createIndex({ type: 1, status: 1, updatedAt: -1 }),
+      db.collection('userContributions').createIndex({ userEmail: 1, contentHash: 1 }),
+      db.collection('userContributions').createIndex({ draftDocumentId: 1 }, { sparse: true }),
+      db.collection('contributionFiles').createIndex({ id: 1 }, { unique: true }),
+      db.collection('contributionFiles').createIndex({ contributionId: 1 }),
+      db.collection('contributionFiles').createIndex({ ownerEmail: 1, createdAt: -1 }),
+      db.collection('contributionFiles').createIndex({ orphanAt: 1 }, { expireAfterSeconds: 0 }),
     ]);
     return {
       client, db,
@@ -46,6 +56,8 @@ export async function connectAdminStore(uri) {
       driveMonitorFiles: db.collection('driveMonitorFiles'),
       driveMonitorState: db.collection('driveMonitorState'),
       users: db.collection('libraryUsers'),
+      contributions: db.collection('userContributions'),
+      contributionFiles: db.collection('contributionFiles'),
     };
   } catch (error) {
     await client.close().catch(() => {});
