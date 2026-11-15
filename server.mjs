@@ -481,6 +481,35 @@ const server=http.createServer(async(req,res)=>{
       await recordAudit(adminStore,'administrator',action==='resume'?'user_resumed':action==='permanent'?'user_permanently_suspended':'user_suspended',email);
       return send(req,res,200,{ok:true,email,active,accountStatus});
     }
+    /* حذف حساب فردي نهائيًا. الحساب وملفاته الشخصية غير المرتبطة بإضافة يُمحيان؛ الإضافات المبتوت فيها تبقى سجلًا للمكتبة بلا بريد صاحبها؛
+       والإضافات المفتوحة (قيد المراجعة) لا تُحذف إلا بموافقة صريحة (discardOpen). سجل التدقيق يحتفظ بأن الحذف تمّ ومَن نفّذه. */
+    if(p==='/api/admin/users/delete'&&req.method==='POST'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
+      const body=await jsonBody(req),email=String(body.email||'').trim().toLowerCase(),confirmEmail=String(body.confirmEmail||'').trim().toLowerCase(),account=sessionInfo(req)?.account||'';
+      if(!email||confirmEmail!==email)return send(req,res,400,{error:'اكتب بريد الحساب كما هو لتأكيد الحذف النهائي.'});
+      const target=await adminStore.users.findOne({email},{projection:{role:1,accountStatus:1,active:1}});if(!target)return send(req,res,404,{error:'لم يُعثر على الحساب.'});
+      if(!['env','legacy'].includes(account)&&Buffer.from(account,'base64url').toString('utf8')===email)return send(req,res,409,{error:'لا يمكنك حذف الحساب الذي تستعمله؛ اطلب ذلك من مدير آخر.'});
+      if(target.role==='admin'&&target.active&&await adminStore.users.countDocuments({role:'admin',active:true})<=1)return send(req,res,409,{error:'أنشئ مديراً آخر وفعّله قبل حذف آخر مدير للمكتبة.'});
+      const open=await adminStore.contributions.find({userEmail:email,status:{$in:['pending','reviewing']}}).project({id:1,draftDocumentId:1}).toArray();
+      if(open.length&&body.discardOpen!==true)return send(req,res,409,{error:'لهذا الحساب '+open.length+' إضافة قيد المراجعة؛ ستُحذف معه إن أكدتَ ذلك، أو ابتّ فيها أولًا.',needsDiscard:true,openContributions:open.length});
+      const removed=await adminStore.users.deleteOne({_id:target._id,role:target.role,active:target.active,accountStatus:target.accountStatus});
+      if(!removed.deletedCount)return send(req,res,409,{error:'تغيّر الحساب أثناء الطلب؛ أعد تحميل القائمة وحاول مجددًا.'});
+      /* الحساب غاب فتسقط جلساته عند أول طلب؛ ثم تُنظَّف بياناته (كل خطوة مستقلة وقابلة للتكرار). */
+      const result={discardedContributions:0,anonymizedContributions:0,removedFiles:0};let cleanupFailed=false;
+      try{
+        if(open.length){
+          const ids=open.map(c=>c.id),drafts=open.map(c=>c.draftDocumentId).filter(Boolean);
+          if(drafts.length)await adminStore.content.deleteMany({documentId:{$in:drafts},status:'draft'});
+          result.removedFiles+=(await adminStore.contributionFiles.deleteMany({contributionId:{$in:ids}})).deletedCount;
+          result.discardedContributions=(await adminStore.contributions.deleteMany({id:{$in:ids}})).deletedCount;
+        }
+        result.removedFiles+=(await adminStore.contributionFiles.deleteMany({ownerEmail:email,contributionId:{$exists:false}})).deletedCount;
+        await adminStore.contributionFiles.updateMany({ownerEmail:email},{$set:{ownerEmail:''}});
+        result.anonymizedContributions=(await adminStore.contributions.updateMany({userEmail:email},{$set:{userEmail:'',userDeleted:true,userDeletedAt:new Date(),userNotifyPending:false}})).modifiedCount;
+      }catch(error){cleanupFailed=true;console.error('User data cleanup failed:',error?.message||'unknown error');}
+      await recordAudit(adminStore,auditActor(req),'user_deleted',email,{role:target.role,accountStatus:target.accountStatus||(target.active?'active':'suspended'),...result,...(cleanupFailed?{cleanupFailed:true}:{})});
+      return send(req,res,200,{ok:true,email,...result,...(cleanupFailed?{warning:'حُذف الحساب لكن تعذّر إكمال تنظيف بعض بياناته؛ راجع السجل.'}:{})});
+    }
     if(process.env.NODE_ENV==='production'&&process.env.QALAM_DESKTOP_MODE!=='1'&&!validSession(req)&&!loginAsset){
       /* استثناء ضيّق: بحث ووثيقة (قراءة فقط) لمنصّة قلم عبر المفتاح السري المشترك، بلا جلسة شخصية —
          منصّة قلم تتحقق هي نفسها من أن المحامي مسجّل ومرتبط بالمكتبة الرقمية قبل أي استدعاء بهذا المفتاح. */
@@ -718,7 +747,7 @@ const server=http.createServer(async(req,res)=>{
           adminStore.contributions.aggregate([{$group:{_id:{type:'$type',status:'$status'},n:{$sum:1}}}]).toArray()
         ]);
         const counts={additions:{},notes:{}};for(const g of grouped)(g._id.type==='note'?counts.notes:counts.additions)[g._id.status]=g.n;
-        return send(req,res,200,{items:rows.map(r=>({id:r.id,type:r.type,kind:r.kind||'',kindLabel:r.kind?CONTRIB_KINDS[r.kind]?.label||'':NOTE_TYPES[r.noteType]||'',title:r.type==='note'?(r.documentTitle||r.documentId):r.title,documentId:r.documentId||'',issuedAt:r.issuedAt||'',userEmail:r.userEmail,status:r.status,statusLabel:CONTRIB_STATUSES[r.status]||r.status,chars:r.chars||0,draftDocumentId:r.draftDocumentId||'',publishedDocumentId:r.publishedDocumentId||'',createdAt:r.createdAt,updatedAt:r.updatedAt})),total,page,pages:Math.max(1,Math.ceil(total/30)),counts,statuses:CONTRIB_STATUSES});
+        return send(req,res,200,{items:rows.map(r=>({id:r.id,type:r.type,kind:r.kind||'',kindLabel:r.kind?CONTRIB_KINDS[r.kind]?.label||'':NOTE_TYPES[r.noteType]||'',title:r.type==='note'?(r.documentTitle||r.documentId):r.title,documentId:r.documentId||'',issuedAt:r.issuedAt||'',userEmail:r.userEmail,userDeleted:!!r.userDeleted,status:r.status,statusLabel:CONTRIB_STATUSES[r.status]||r.status,chars:r.chars||0,draftDocumentId:r.draftDocumentId||'',publishedDocumentId:r.publishedDocumentId||'',createdAt:r.createdAt,updatedAt:r.updatedAt})),total,page,pages:Math.max(1,Math.ceil(total/30)),counts,statuses:CONTRIB_STATUSES});
       }
       if(p==='/api/admin/contributions/file'&&(req.method==='GET'||req.method==='HEAD')){
         const file=await adminStore.contributionFiles.findOne({id:String(url.searchParams.get('id')||'').slice(0,40)});if(!file)return send(req,res,404,{error:'الملف غير موجود (ربما حُذف بعد رفض الإضافة).'});

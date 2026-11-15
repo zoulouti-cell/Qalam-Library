@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24.2.0" },
-  "scripts": { "start": "node server.mjs", "test": "node --test tests/*.test.mjs", "test:e2e": "node tests/e2e/contributions.e2e.mjs && node tests/e2e/contributions-admin.e2e.mjs && node tests/e2e/drive-write.e2e.mjs && node tests/e2e/user-role.e2e.mjs" },
+  "scripts": { "start": "node server.mjs", "test": "node --test tests/*.test.mjs", "test:e2e": "node tests/e2e/contributions.e2e.mjs && node tests/e2e/contributions-admin.e2e.mjs && node tests/e2e/drive-write.e2e.mjs && node tests/e2e/user-role.e2e.mjs && node tests/e2e/user-delete.e2e.mjs" },
   "dependencies": { "mongodb": "^6.20.0", "pdf-lib": "^1.17.1" }
 }
