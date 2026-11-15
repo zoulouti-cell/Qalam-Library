@@ -32,7 +32,6 @@ jobs:
           node --check tools/apply-judicial-index.mjs
           node --check tools/correct-library-texts.mjs
           node --check tools/curate-unlinked-appeals.mjs
-          node --test tests/google-login.test.mjs
           node --check public/admin-ocr.js
           node --check public/admin-scanner.js
       - name: Build the production container
@@ -68,6 +67,30 @@ jobs:
           fi
           curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 --request POST "$RENDER_DEPLOY_HOOK"
           echo "Render accepted the deploy request for image ghcr.io/${{ github.repository_owner }}/qalam-library:${{ github.sha }}."
+
+  library-tests:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm ci
+      - name: Run every test file in tests/ against a disposable MongoDB
+        env:
+          QALAM_TEST_MONGODB_URI: mongodb://127.0.0.1:27017
+        run: |
+          set -o pipefail
+          node --test --test-reporter=tap tests/*.test.mjs | tee test.log
+          # A test that needs MongoDB skips itself when the address is missing; never let that pass silently.
+          grep -q '^# skipped 0$' test.log || { echo "::error title=Tests were skipped::Some tests were skipped, so MongoDB was not reached."; exit 1; }
+          echo "Ran $(ls tests/*.test.mjs | wc -l) test files."
 
   offline-windows-package:
     if: github.event_name != 'pull_request'

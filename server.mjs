@@ -244,8 +244,13 @@ function issueSession(res,role,account='legacy'){const expiry=String(Date.now()+
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
 function ingestionSnapshot(progress){const age=Date.now()-Date.parse(progress.lastUpdate||'');const stale=progress.running===true&&Number.isFinite(age)&&age>300000;return stale?{...progress,running:false,status:'stalled',stale:true}:progress;}
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8','.svg':'image/svg+xml','.xml':'application/xml; charset=utf-8','.txt':'text/plain; charset=utf-8','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.mp4':'video/mp4','.webm':'video/webm'};
+/* HSTS: يلزم المتصفح بالاتصال الآمن (HTTPS) بهذا العنوان سنةً. يُرسل في الإنتاج وعلى اتصال HTTPS فقط (Render ينهي TLS ويعلمنا بـ X-Forwarded-Proto)،
+   فلا يُرسل في النسخة المكتبية المحلية (http://127.0.0.1) ولا في التطوير. لا includeSubDomains ولا preload: نطاق onrender.com ليس نطاقنا. */
+const HSTS='max-age=31536000';
+function hstsApplies(req){return process.env.NODE_ENV==='production'&&process.env.QALAM_DESKTOP_MODE!=='1'&&(Boolean(req.socket.encrypted)||String(req.headers['x-forwarded-proto']||'').split(',')[0].trim().toLowerCase()==='https');}
 const server=http.createServer(async(req,res)=>{
   try{
+    if(hstsApplies(req))res.setHeader('Strict-Transport-Security',HSTS);
     if(!rate(req,req.method==='POST'))return send(req,res,429,{error:'طلبات كثيرة؛ حاول بعد قليل.'});
     const url=new URL(req.url,'http://localhost:'+PORT),p=url.pathname;
     if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
