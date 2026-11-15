@@ -48,3 +48,4 @@ body.dark .art-panel{background:#04120d}body.dark .art-panel::after{background:l
 /* زر المظهر في أقصى يسار الشاشة فعليًا، بمعزل عن حاشية لوحة النموذج */
 .panel-controls{position:fixed;left:8px;top:8px;z-index:5}
 .panel-controls a{text-decoration:none;cursor:pointer}.panel-controls :is(button,a):focus-visible{outline:2px solid #b7963e;outline-offset:2px;border-radius:8px}
+.forgot-link{margin:-6px 0 14px;text-align:start;font-size:12px}.forgot-link a{color:#9b722a;font-weight:700}body.dark .forgot-link a{color:#e0be70}
