@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import { brotliDecompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { googleLoginConfig, refreshGoogleAccessToken } from './google-login.mjs';
+import { agreementTextFor } from './agreement-texts.mjs';
 
 const treatyTitleIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/treaty-titles.json', import.meta.url)), 'utf8')).documents || {};
 const treatyTitleByDriveTimestamp = Object.fromEntries(Object.values(treatyTitleIndex).flatMap(entry => {
@@ -309,7 +310,7 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
         const country = normalizeDriveName(title?.country || '');
         const genericCountry = /(?:اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country);
         const agreementKind = /متعددة/u.test(path) || genericCountry ? 'متعددة' : /ثنائية/u.test(path) || title?.country ? 'ثنائية' : '';
-        return { ...file, ...(title ? { title: title.title, fullTitle: title.fullTitle, treatyId: id, country: title.country } : {}), ...(agreementKind ? { agreementKind } : {}), webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || officialUrl };
+        return { ...file, ...(title ? { title: title.title, fullTitle: title.fullTitle, treatyId: id, country: title.country } : {}), ...(agreementTextFor(id) ? { textDocumentId: agreementTextFor(id).documentId, textOrder: agreementTextFor(id).order || 99 } : {}), ...(agreementKind ? { agreementKind } : {}), webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || officialUrl };
       });
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };

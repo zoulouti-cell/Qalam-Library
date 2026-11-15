@@ -23,6 +23,18 @@ export function kindOf(d) {
   return 'other';
 }
 const ordinal = new Map(Object.entries({ 'الأولى':1,'الأول':1,'الثانية':2,'الثاني':2,'الثالثة':3,'الثالث':3,'الرابعة':4,'الرابع':4,'الخامسة':5,'الخامس':5,'السادسة':6,'السادس':6,'السابعة':7,'السابع':7,'الثامنة':8,'الثامن':8,'التاسعة':9,'التاسع':9,'العاشرة':10,'العاشر':10 }).map(([k,v]) => [normalizeSearch(k), v]));
+/* ترتيبيات مركّبة في عناوين المواد: «الحادية عشرة» ← 11، «الثانية والعشرون» ← 22، «الثلاثون» ← 30. 0 إن لم يكن الترتيبي مركّبًا. */
+const ordinalUnits = new Map(Object.entries({ 'الحادي':1,'الحادية':1,'الأول':1,'الأولى':1,'الثاني':2,'الثانية':2,'الثالث':3,'الثالثة':3,'الرابع':4,'الرابعة':4,'الخامس':5,'الخامسة':5,'السادس':6,'السادسة':6,'السابع':7,'السابعة':7,'الثامن':8,'الثامنة':8,'التاسع':9,'التاسعة':9 }).map(([k,v]) => [normalizeSearch(k), v]));
+const ordinalTens = new Map(Object.entries({ 'العشرون':20,'الثلاثون':30 }).map(([k,v]) => [normalizeSearch(k), v]));
+function compoundOrdinal(tail) {
+  const [first, second] = String(tail).trim().split(/\s+/).slice(0, 2).map(w => normalizeSearch(w.replace(/[:،]+$/, '')));
+  if (ordinalTens.has(first)) return ordinalTens.get(first);
+  const unit = ordinalUnits.get(first);
+  if (!unit || !second) return 0;
+  if (/^عشر(?:ه|ة)?$/.test(second)) return 10 + unit;
+  const tens = ordinalTens.get(normalizeSearch(second.replace(/^وال/, 'ال')));
+  return second.startsWith(normalizeSearch('وال')) && tens ? tens + unit : 0;
+}
 export function headingsOf(text) {
   const rx = /^(?:[ \t]*)(المادة|الفصل|الباب|القسم|الكتاب|الجزء|الفرع|الملحق|الديباجة|البند)[ \t]+([^\n]{1,4000})/gm;
   const out = [];
@@ -31,7 +43,7 @@ export function headingsOf(text) {
     if (/^(?:\d+)\s+من\s+(?:القانون|هذا|الظهير|المرسوم|المدونة)/.test(tail)) continue;
     const first = tail.split(/\s|[:،]/)[0];
     const n = normalizeSearch(first);
-    const number = /^\d+(?:[.\/-]\d+)*$/.test(n) ? n : ordinal.has(n) ? String(ordinal.get(n)) : '';
+    const number = /^\d+(?:[.\/-]\d+)*$/.test(n) ? n : ordinal.has(n) ? String(compoundOrdinal(tail) || ordinal.get(n)) : (compoundOrdinal(tail) ? String(compoundOrdinal(tail)) : '');
     const start=match.index+match[0].indexOf(match[1]);
     /* طول السطر الفعلي كاملاً دون قطع تعسفي عند 160 حرفاً (كان يقطع عناوين طويلة وسط الكلمة)؛
        label تبقى نسخة مختصرة للعرض في الفهرس الجانبي فقط، ولا تُستعمل لتحديد نهاية العنوان عند العرض. */
