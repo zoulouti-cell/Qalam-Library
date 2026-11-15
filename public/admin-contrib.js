@@ -6,6 +6,8 @@
   const $ = id => document.getElementById(id);
   const fmt = n => new Intl.NumberFormat('ar-MA').format(Number(n) || 0);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  /* إضافة فُصل بريد صاحبها بعد حذف حسابه: يُعرض «حساب محذوف» بدل بريد فارغ. */
+  const sender = x => x.userDeleted ? '<em class="muted">حساب محذوف</em>' : `<bdi dir="ltr">${esc(x.userEmail)}</bdi>`;
   const when = v => v ? new Date(v).toLocaleString('ar-MA', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
   const sizeOf = n => n >= 1048576 ? fmt(Math.round(n / 104857.6) / 10) + ' م.ب' : fmt(Math.max(1, Math.round(n / 1024))) + ' ك.ب';
   const httpsOnly = v => /^https:\/\//i.test(String(v || '')) ? String(v) : '';
@@ -49,7 +51,7 @@
     const isNote = item.type === 'note', tone = STATUS_TONE[item.status] || 'wait';
     return `<button type="button" class="cr-row ${S.current?.id === item.id ? 'on' : ''}" data-open="${esc(item.id)}">
       <span class="cr-icon ${isNote ? 'note' : ''}">${isNote ? ICON.note : ICON.addition}</span>
-      <span class="cr-main"><strong>${esc(item.title || '—')}</strong><small>${esc(item.kindLabel)}${item.issuedAt ? ' · ' + esc(item.issuedAt) : ''} · <bdi dir="ltr">${esc(item.userEmail)}</bdi></small></span>
+      <span class="cr-main"><strong>${esc(item.title || '—')}</strong><small>${esc(item.kindLabel)}${item.issuedAt ? ' · ' + esc(item.issuedAt) : ''} · ${sender(item)}</small></span>
       <span class="cr-side"><span class="cpill ${tone}">${esc(item.statusLabel)}</span><small>${esc(when(item.updatedAt))}</small></span></button>`;
   }
   async function loadList() {
@@ -84,8 +86,8 @@
     const link = httpsOnly(c.sourceUrl), source = link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(c.source || link)}</a>` : esc(c.source || '');
     const head = `<div class="cd-head"><span class="cr-icon ${isNote ? 'note' : ''}">${isNote ? ICON.note : ICON.addition}</span><div><small>${esc(isNote ? 'ملاحظة على وثيقة · ' + (c.noteTypeLabel || '') : 'إضافة · ' + (c.kindLabel || ''))}</small><h2>${esc(isNote ? c.documentTitle || c.documentId : c.title)}</h2></div><span class="cpill ${tone}">${esc(c.statusLabel)}</span><button type="button" class="close" data-act="close" aria-label="إغلاق التفاصيل">×</button></div>`;
     const meta = isNote
-      ? metaRow('المرسل', `<bdi dir="ltr">${esc(c.userEmail)}</bdi>`) + metaRow('أُرسلت', esc(when(c.createdAt))) + metaRow('الوثيقة', `${esc(c.documentTitle || '')} <small class="muted"><bdi dir="ltr">${esc(c.documentId)}</bdi></small>`) + metaRow('الموضع المعني', c.excerpt ? `«${esc(c.excerpt)}»` : '')
-      : metaRow('المرسل', `<bdi dir="ltr">${esc(c.userEmail)}</bdi>`) + metaRow('أُرسلت', esc(when(c.createdAt))) + metaRow('تاريخ الإصدار', esc(c.issuedAt)) + metaRow('المصدر', source) + metaRow('الجهة', esc(c.issuer)) + metaRow('المرجع', esc(c.reference)) + metaRow('طول النص', c.chars ? fmt(c.chars) + ' حرف' : '');
+      ? metaRow('المرسل', sender(c)) + metaRow('أُرسلت', esc(when(c.createdAt))) + metaRow('الوثيقة', `${esc(c.documentTitle || '')} <small class="muted"><bdi dir="ltr">${esc(c.documentId)}</bdi></small>`) + metaRow('الموضع المعني', c.excerpt ? `«${esc(c.excerpt)}»` : '')
+      : metaRow('المرسل', sender(c)) + metaRow('أُرسلت', esc(when(c.createdAt))) + metaRow('تاريخ الإصدار', esc(c.issuedAt)) + metaRow('المصدر', source) + metaRow('الجهة', esc(c.issuer)) + metaRow('المرجع', esc(c.reference)) + metaRow('طول النص', c.chars ? fmt(c.chars) + ' حرف' : '');
     const body = isNote
       ? `<section class="cd-block"><h3>الملاحظة</h3><pre class="cd-text" dir="auto">${esc(c.message)}</pre></section>`
       : `${c.note ? `<section class="cd-block"><h3>ملاحظة المرسل</h3><p class="cd-quote">${esc(c.note)}</p></section>` : ''}
