@@ -15,11 +15,11 @@ export const sessionCookie = (role, email = '') => {
   const account = email ? Buffer.from(email).toString('base64url') : 'legacy', expiry = String(Date.now() + 3600_000), payload = `${expiry}.${role}.${account}`;
   return `qalam_session=${payload}.${createHmac('sha256', SESSION_SECRET).update(payload).digest('hex')}`;
 };
-export async function bootServer({ mongoUri = process.env.QALAM_TEST_MONGODB_URI, env = {} } = {}) {
+export async function bootServer({ mongoUri = process.env.QALAM_TEST_MONGODB_URI, env = {}, dbName: givenDb } = {}) {
   if (!mongoUri) throw new Error('QALAM_TEST_MONGODB_URI is required');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qalam-lib-')), db = makeLibraryDb(path.join(dir, 'library.sqlite')), port = await freePort();
-  const dbName = 'qalam_lib_test_' + Math.random().toString(36).slice(2, 8);
-  const child = spawn(process.execPath, ['server.mjs'], { cwd: root, env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', QALAM_DB_PATH: db, MONGODB_URI: mongoUri, MONGODB_DB: dbName, LIBRARY_SESSION_SECRET: SESSION_SECRET, NODE_ENV: 'test', QALAM_TEST_WRITE_LIMIT: '5000', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const dbName = givenDb || 'qalam_lib_test_' + Math.random().toString(36).slice(2, 8);
+  const child = spawn(process.execPath, ['server.mjs'], { cwd: root, env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', QALAM_DB_PATH: db, MONGODB_URI: mongoUri, MONGODB_DB: dbName, LIBRARY_SESSION_SECRET: SESSION_SECRET, LIBRARY_ADMIN_PASSWORD: 'test-shared-admin-password', NODE_ENV: 'test', QALAM_TEST_WRITE_LIMIT: '5000', ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = ''; child.stdout.on('data', d => { log += d; }); child.stderr.on('data', d => { log += d; });
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 100; i++) { try { const r = await fetch(base + '/api/health').catch(() => null); if (r) break; } catch {} if (child.exitCode !== null) throw new Error('server exited: ' + log); await new Promise(r => setTimeout(r, 150)); }
