@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat('ar-MA').format(Number(n)||0);
-  let pollTimer=null,checking=false,pauseRequested=false;
+  let pollTimer=null,checking=false;
   async function api(url,options={}){
     const response=await fetch(url,{credentials:'same-origin',...options,headers:{...(options.headers||{}),'Content-Type':options.body?'application/json':(options.headers||{})['Content-Type']||'application/json'}});
     const data=await response.json().catch(()=>({}));
@@ -48,7 +48,7 @@
   }
   async function control(action){
     $('ocrStartBtn').disabled=true;$('ocrPauseBtn').disabled=true;$('ocrWorkerDetail').textContent=action==='pause'?'جارٍ طلب الإيقاف المؤقت بعد انتهاء الصفحة الحالية…':'جارٍ تشغيل OCR المحلي…';
-    try{await api('/api/editorial/ocr/worker',{method:'POST',body:JSON.stringify({action,workers:Number($('ocrWorkers').value)||2,maxPages:Math.max(0,Math.min(10000,Number($('ocrMaxPages').value)||0))})});pauseRequested=action==='pause';await refreshProgress(false);}
+    try{await api('/api/editorial/ocr/worker',{method:'POST',body:JSON.stringify({action,workers:Number($('ocrWorkers').value)||2,maxPages:Math.max(0,Math.min(10000,Number($('ocrMaxPages').value)||0))})});await refreshProgress(false);}
     catch(error){$('ocrWorkerDetail').textContent=error.message;$('ocrStartBtn').disabled=false;$('ocrPauseBtn').disabled=false;}
   }
   document.querySelector('.admin-tabs').addEventListener('click',event=>{const tab=event.target.closest('[data-panel]');if(tab?.dataset.panel==='ocrPanel'){loadSettings();refreshProgress(true);}else clearTimeout(pollTimer);});

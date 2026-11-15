@@ -4,7 +4,6 @@
   const $ = id => document.getElementById(id);
   const fmt = n => new Intl.NumberFormat('ar-MA').format(Number(n) || 0);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const escRe = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const normalize = value => String(value ?? '').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/[ىی]/g, 'ي').replace(/ک/g, 'ك').replace(/[٠-٩]/g, c => String(c.charCodeAt(0) - 1632)).replace(/[۰-۹]/g, c => String(c.charCodeAt(0) - 1776)).toLowerCase();
   const typeNames = { national: 'تشريع', judicial: 'اجتهاد ودراسة', juriscassation: 'قرار محكمة النقض' };
   const instrumentNames = { law: 'قانون', dahir: 'ظهير', decree: 'مرسوم', order: 'قرار تنظيمي', other: 'وثيقة', decision: 'قرار قضائي', jurisprudence: 'اجتهاد قضائي', study: 'دراسة' };
@@ -937,7 +936,6 @@
         if (state.expandedCard === id) { state.expandedCard = ''; $('results').innerHTML = state.results.map(renderCard).join(''); return; }
         state.expandedCard = id; $('results').innerHTML = state.results.map(renderCard).join('');
         if (!state.previewCache.has(id)) {
-          const target = $('results').querySelector('[data-expand-doc="' + CSS.escape(id) + '"]');
           api('/api/document?id=' + encodeURIComponent(id)).then(doc => { state.previewCache.set(id, doc.text || 'لا يتوفر نص قابل للقراءة لهذه البطاقة.'); if (state.expandedCard === id) $('results').innerHTML = state.results.map(renderCard).join(''); }).catch(() => { state.previewCache.set(id, 'تعذر تحميل النص المتاح.'); if (state.expandedCard === id) $('results').innerHTML = state.results.map(renderCard).join(''); });
         }
         return;

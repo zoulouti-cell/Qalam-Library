@@ -1,6 +1,6 @@
 'use strict';
 (()=>{
-  const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const $=id=>document.getElementById(id);
   const state={root:'',stack:[],files:[],folderFiles:[],canAdmin:false,ocrConfigured:false,ocrMaxPages:0,previewUrl:'',draftId:'',searchMode:false,searchSequence:0,searchTimer:0};
   async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...options});let body={};try{body=await r.json();}catch{}if(!r.ok)throw new Error(body.error||'تعذر إتمام العملية.');return body;}
   function note(text,kind=''){ $('status').textContent=text; $('status').className='status '+kind; }

@@ -215,7 +215,7 @@ export const userView = c => ({
   id: c.id, type: c.type, kind: c.kind || '', kindLabel: c.kind ? KINDS[c.kind]?.label || '' : (NOTE_TYPES[c.noteType] || ''),
   title: c.type === 'note' ? (c.documentTitle || 'ملاحظة على وثيقة') : c.title, documentId: c.documentId || '', issuedAt: c.issuedAt || '',
   originals: (c.originalFiles || []).length, unread: !!c.userNotifyPending, status: c.status, statusLabel: STATUSES[c.status] || c.status, reply: c.adminReply || '', publishedDocumentId: c.publishedDocumentId || '',
-  createdAt: c.createdAt, updatedAt: c.statusChangedAt || c.updatedAt, unread: !!c.userNotifyPending,
+  createdAt: c.createdAt, updatedAt: c.statusChangedAt || c.updatedAt,
 });
 
 /* ───────── رسائل البريد ───────── */
