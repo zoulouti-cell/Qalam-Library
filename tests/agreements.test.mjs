@@ -52,12 +52,16 @@ test('البحث في الاتفاقيات يشمل العنوان الظاهر 
   assert.equal((await listAgreementPdfs('لا يوجد مثل هذا العنوان أبدا', 1, 50)).total, 0);
 });
 
-test('الاتفاقيتان الإقليميتان تحملان معرّف نصهما المضمّن وترتيبهما، وغيرهما لا', async () => {
+test('النصوص المضمنة تُربط بملفاتها وتُعرض في موضوع مجلد Drive الصحيح', async () => {
   const all = await listAgreementPdfs('', 1, 2000);
   const byPrefix = prefix => all.files.find(file => file.name.startsWith(prefix + '_'));
   assert.equal(byPrefix('10038').textDocumentId, 'agreement-10038');
   assert.equal(byPrefix('10038').textOrder, 1);
+  assert.equal(byPrefix('10038').agreementSubcategory, 'اتفاقيات إقليمية');
   assert.equal(byPrefix('6652').textDocumentId, 'agreement-6652');
   assert.equal(byPrefix('6652').textOrder, 2);
-  for (const prefix of ['4608', '2632']) assert.ok(!byPrefix(prefix).textDocumentId, prefix + ' بلا نص مضمّن');
+  assert.equal(byPrefix('4608').textDocumentId, 'agreement-4608');
+  assert.ok(byPrefix('4608').textOrder > 0);
+  assert.equal(byPrefix('4608').agreementSubcategory, 'اتفاقيات دولية');
+  assert.ok(!byPrefix('2632').textDocumentId, 'الوثيقة الثنائية لا تُدرج في سجل النصوص متعددة الأطراف');
 });
