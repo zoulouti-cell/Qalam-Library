@@ -1,4 +1,4 @@
-import { createSign } from 'node:crypto';
+import { createHash, createSign } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -30,7 +30,11 @@ const LOCAL_LIBRARY_FOLDERS = new Set([
   'الأبحاث و الدراسات', 'الأبحات و الدراسات', 'الاتفاقيات و المعاهدات', 'الاجتهادات القضائية',
   'القوانين المنظمة للمؤسسات والهيئات', 'المادة الدستورية', 'المواد القانونية',
 ]);
-let tokenCache = { value: '', expiresAt: 0 };
+const READ_SCOPE = 'https://www.googleapis.com/auth/drive.readonly', WRITE_SCOPE = 'https://www.googleapis.com/auth/drive';
+const tokenCaches = new Map();
+/* في الاختبارات فقط يمكن توجيه نداءات Google إلى خادم محاكٍ؛ الإنتاج لا يقرأ هذا المتغير. */
+const GOOGLE_API = (process.env.NODE_ENV === 'test' && process.env.QALAM_TEST_GOOGLE_ORIGIN) || 'https://www.googleapis.com';
+const GOOGLE_TOKEN_URL = (process.env.NODE_ENV === 'test' && process.env.QALAM_TEST_GOOGLE_ORIGIN) ? `${process.env.QALAM_TEST_GOOGLE_ORIGIN}/token` : 'https://oauth2.googleapis.com/token';
 
 function localRoot() {
   if (!LOCAL_ORIGINALS_ROOT) return null;
@@ -122,27 +126,29 @@ function credentials() {
   return value;
 }
 
-async function accessToken() {
-  if (tokenCache.value && tokenCache.expiresAt > Date.now() + 60_000) return tokenCache.value;
+async function accessToken(scope = READ_SCOPE) {
+  const cached = tokenCaches.get(scope);
+  if (cached?.value && cached.expiresAt > Date.now() + 60_000) return cached.value;
   const account = credentials(), now = Math.floor(Date.now() / 1000);
   const unsigned = `${base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${base64url(JSON.stringify({
     iss: account.client_email,
-    scope: 'https://www.googleapis.com/auth/drive.readonly',
+    scope,
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
   }))}`;
   const signer = createSign('RSA-SHA256'); signer.update(unsigned); signer.end();
   const assertion = `${unsigned}.${signer.sign(account.private_key, 'base64url')}`;
-  const response = await fetch('https://oauth2.googleapis.com/token', {
+  const response = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
     signal: AbortSignal.timeout(15_000),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.access_token) throw new Error('تعذر تفويض حساب خدمة Drive. تحقق من مشاركة مجلد الأصول معه وتفعيل Drive API.');
-  tokenCache = { value: data.access_token, expiresAt: Date.now() + Math.min(Number(data.expires_in) || 3600, 3500) * 1000 };
-  return tokenCache.value;
+  const fresh = { value: data.access_token, expiresAt: Date.now() + Math.min(Number(data.expires_in) || 3600, 3500) * 1000 };
+  tokenCaches.set(scope, fresh);
+  return fresh.value;
 }
 
 async function driveFetch(url, options = {}) {
@@ -158,7 +164,7 @@ let pdfIndexCache = { at: 0, promise: null, files: [] };
 let agreementIndexCache = { at: 0, promise: null, files: [] };
 async function metadata(id) {
   const query = new URLSearchParams({ fields, supportsAllDrives: 'true' });
-  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?${query}`);
+  const response = await driveFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(id)}?${query}`);
   return response.json();
 }
 
@@ -190,7 +196,7 @@ export async function listDriveFolder(folderId = LOCAL_ORIGINALS_ROOT ? 'local-f
       fields: `nextPageToken,files(${fields})`, supportsAllDrives: 'true', includeItemsFromAllDrives: 'true',
     });
     if (pageToken) query.set('pageToken', pageToken);
-    const response = await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`);
+    const response = await driveFetch(`${GOOGLE_API}/drive/v3/files?${query}`);
     const data = await response.json();
     files.push(...(data.files || []).filter((item) => item.mimeType === 'application/pdf' || item.mimeType === 'application/vnd.google-apps.folder'));
     pageToken = data.nextPageToken || '';
@@ -203,16 +209,16 @@ export async function openDrivePdf(id) {
   const item = await withinLibrary(id);
   if (item.mimeType !== 'application/pdf') throw new Error('المعاينة والتحميل متاحان لملفات PDF في الأرشيف فقط.');
   if (item.localPath) return { item, response: localResponse(item) };
-  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
+  const response = await driveFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
   return { item, response };
 }
 
 export async function openDriveSourceFile(id) {
   const item = await withinLibrary(id);
-  const allowed = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
+  const allowed = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/webp', 'text/plain']);
   if (!allowed.has(item.mimeType)) throw new Error('نوع ملف المصدر غير مدعوم للفتح من المكتبة.');
   if (item.localPath) return { item, response: localResponse(item) };
-  const response = await driveFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
+  const response = await driveFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);
   return { item, response };
 }
 
@@ -236,7 +242,7 @@ async function allLibraryPdfs(force=false) {
       return files;
     }
     const files=[],queue=[{id:DRIVE_ROOT_FOLDER_ID,depth:0,path:''}],seen=new Set();
-    async function children(folder){const found=[];let token='';do{const query=new URLSearchParams({q:`'${folder.id}' in parents and trashed = false`,pageSize:'1000',fields:`nextPageToken,files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});if(token)query.set('pageToken',token);const response=await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`),data=await response.json();found.push(...(data.files||[]));token=data.nextPageToken||'';}while(token);return found;}
+    async function children(folder){const found=[];let token='';do{const query=new URLSearchParams({q:`'${folder.id}' in parents and trashed = false`,pageSize:'1000',fields:`nextPageToken,files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});if(token)query.set('pageToken',token);const response=await driveFetch(`${GOOGLE_API}/drive/v3/files?${query}`),data=await response.json();found.push(...(data.files||[]));token=data.nextPageToken||'';}while(token);return found;}
     while(queue.length&&files.length<60000){const batch=queue.splice(0,4).filter(folder=>!seen.has(folder.id)&&folder.depth<=8);if(!batch.length)continue;batch.forEach(folder=>seen.add(folder.id));const pages=await Promise.all(batch.map(async folder=>({folder,items:await children(folder)})));for(const {folder,items} of pages)for(const item of items){if(item.mimeType==='application/pdf')files.push({id:item.id,name:item.name||'',size:Number(item.size)||0,md5Checksum:item.md5Checksum||'',modifiedTime:item.modifiedTime||'',path:folder.path||'',webViewLink:item.webViewLink||'',officialUrl:officialSourceFromDescription(item.description)});else if(item.mimeType==='application/vnd.google-apps.folder')queue.push({id:item.id,depth:folder.depth+1,path:[folder.path,item.name||''].filter(Boolean).join(' / ')});}}    pdfIndexCache={at:Date.now(),promise:null,files};return files;
   })().catch(error=>{pdfIndexCache.promise=null;throw error;});
   return pdfIndexCache.promise;
@@ -365,7 +371,7 @@ export async function resolveJudicialDrivePdf(documentId,court){
   const names=[...new Set([expected,`${numeric}.pdf`])];
   for(const name of names){
     const query=new URLSearchParams({q:`'${folderId}' in parents and name = '${name.replaceAll("'","\\'")}' and trashed = false`,pageSize:'10',fields:`files(${fields})`,supportsAllDrives:'true',includeItemsFromAllDrives:'true'});
-    const result=await (await driveFetch(`https://www.googleapis.com/drive/v3/files?${query}`)).json();
+    const result=await (await driveFetch(`${GOOGLE_API}/drive/v3/files?${query}`)).json();
     const matches=(result.files||[]).filter(item=>item.mimeType==='application/pdf'&&item.name===name);
     if(matches.length===1){const item=await withinLibrary(matches[0].id);judicialFileCache.set(documentId,{court,item,until:Date.now()+15*60_000});return item;}
     if(matches.length>1)throw new Error('وجدت أكثر من أصل مطابق لهذا القرار؛ تلزم مراجعة الربط قبل إتاحة التحميل.');
@@ -387,3 +393,93 @@ export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {
 }
 
 export function libraryDriveRoot() { return LOCAL_ORIGINALS_ROOT ? 'local-folder:' : DRIVE_ROOT_FOLDER_ID; }
+
+/* ───────── كتابة أصول الإضافات المعتمدة في Drive ─────────
+   تحتاج صلاحية «محرر» لحساب الخدمة على مجلد الأصول (ويُفضَّل Drive مشترك لأن حسابات الخدمة لا تملك مساحة تخزين).
+   لا تُطلب صلاحية الكتابة إلا عند نقل أصل معتمد؛ كل القراءة الأخرى تبقى بصلاحية القراءة فقط. */
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
+export const ORIGINAL_DRIVE_MIME = { pdf: 'application/pdf', jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain' };
+const driveQuote = value => String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+const compactName = value => normalizeDriveName(value).replace(/[\s_\-–—]+/g, '');
+
+function driveWriteError(status, reason = '') {
+  const message = reason === 'storageQuotaExceeded' ? 'حساب خدمة Drive لا يملك مساحة تخزين؛ ضعوا مجلد الأصول في Drive مشترك (Shared Drive) وأضيفوا حساب الخدمة إليه بصلاحية «مدير المحتوى».'
+    : status === 401 ? 'تعذر تفويض حساب خدمة Drive للكتابة؛ تحققوا من تفعيل Drive API ومن سرّ GOOGLE_SERVICE_ACCOUNT_JSON.'
+    : status === 403 ? 'لا يملك حساب خدمة Drive صلاحية الكتابة في مجلد الأصول؛ امنحوه صلاحية «محرر» على المجلد.'
+    : status === 404 ? 'مجلد الأصول أو المجلد الفرعي غير موجود أو غير مشارَك مع حساب الخدمة.'
+    : `تعذرت الكتابة إلى Drive (HTTP ${status}).`;
+  return Object.assign(new Error(message), { status, reason });
+}
+async function writeFetch(url, options = {}) {
+  const token = await accessToken(WRITE_SCOPE);
+  const response = await fetch(url, { ...options, headers: { authorization: `Bearer ${token}`, ...options.headers }, signal: options.signal || AbortSignal.timeout(90_000) });
+  if (!response.ok) {
+    let reason = ''; try { const data = await response.json(); reason = data?.error?.errors?.[0]?.reason || data?.error?.status || ''; } catch {}
+    throw driveWriteError(response.status, reason);
+  }
+  return response;
+}
+async function listChildren(parentId, extra = '') {
+  const found = []; let pageToken = '';
+  do {
+    const query = new URLSearchParams({ q: `'${driveQuote(parentId)}' in parents and trashed = false${extra}`, pageSize: '1000', fields: 'nextPageToken,files(id,name,mimeType,size,md5Checksum,webViewLink)', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' });
+    if (pageToken) query.set('pageToken', pageToken);
+    const data = await (await writeFetch(`${GOOGLE_API}/drive/v3/files?${query}`)).json();
+    found.push(...(data.files || [])); pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return found;
+}
+async function ensureFolder(parentId, name, aliases = [name]) {
+  const wanted = new Set(aliases.map(compactName));
+  const existing = (await listChildren(parentId, ` and mimeType = '${FOLDER_MIME}'`)).find(f => wanted.has(compactName(f.name)));
+  if (existing) return { id: existing.id, name: existing.name, created: false };
+  const created = await (await writeFetch(`${GOOGLE_API}/drive/v3/files?supportsAllDrives=true&fields=id,name`, { method: 'POST', headers: { 'content-type': 'application/json; charset=UTF-8' }, body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }) })).json();
+  return { id: created.id, name: created.name || name, created: true };
+}
+const cleanFolderName = value => String(value || '').replace(/[\u0000-\u001f\u007f/\\:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+
+export function judicialFolderIdFor(courtName = '') {
+  const wanted = compactName(courtName);
+  if (wanted.length < 4) return '';
+  for (const [name, id] of JUDICIAL_FOLDERS) { const key = compactName(name); if (key === wanted || wanted.includes(key)) return id; }
+  return '';
+}
+export async function driveOriginalsStatus() {
+  if (LOCAL_ORIGINALS_ROOT) return { ready: false, mode: 'local', error: 'وضع الأصول المحلية مفعّل؛ لا يمكن نقل الأصول إلى Drive.' };
+  try {
+    const query = new URLSearchParams({ fields: 'id,name,mimeType,driveId,capabilities(canAddChildren)', supportsAllDrives: 'true' });
+    const root = await (await writeFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(DRIVE_ROOT_FOLDER_ID)}?${query}`)).json();
+    const canWrite = !!root.capabilities?.canAddChildren;
+    return { ready: canWrite, mode: 'drive', root: { id: root.id, name: root.name }, sharedDrive: !!root.driveId, error: canWrite ? '' : driveWriteError(403).message,
+      note: canWrite && !root.driveId ? 'المجلد في Drive شخصي؛ إن رفضت Google الرفع بسبب مساحة حساب الخدمة فانقلوه إلى Drive مشترك.' : '' };
+  } catch (error) { return { ready: false, mode: 'drive', error: error.message || 'تعذر فحص ربط Drive.' }; }
+}
+/* القسم المخصص يُوجد إن كان قائمًا ويُنشأ إن لم يوجد؛ ومجلد فرعي بعنوان جديد اختياري يحدّده المدير. */
+export async function resolveOriginalsFolder({ sectionLabel, sectionAliases = [], subfolder = '', folderId = '' } = {}) {
+  if (LOCAL_ORIGINALS_ROOT) throw new Error('وضع الأصول المحلية مفعّل؛ لا يمكن نقل الأصول إلى Drive.');
+  let base;
+  if (folderId) { const item = await withinLibrary(folderId); if (item.mimeType !== FOLDER_MIME) throw new Error('المجلد المحدد غير صالح.'); base = { id: item.id, name: item.name }; }
+  else base = await ensureFolder(DRIVE_ROOT_FOLDER_ID, sectionLabel, [sectionLabel, ...sectionAliases]);
+  const sub = cleanFolderName(subfolder);
+  if (!sub) return { id: base.id, path: base.name };
+  const child = await ensureFolder(base.id, sub);
+  return { id: child.id, path: `${base.name} / ${child.name}` };
+}
+export async function uploadOriginalFile({ folderId, fileName, ext, buffer, description = '' }) {
+  const mimeType = ORIGINAL_DRIVE_MIME[ext];
+  if (!mimeType) throw new Error('نوع الأصل غير مدعوم للرفع إلى Drive.');
+  const md5 = createHash('md5').update(buffer).digest('hex');
+  const siblings = (await listChildren(folderId, ` and name = '${driveQuote(fileName)}'`)).filter(f => f.mimeType !== FOLDER_MIME);
+  const same = siblings.find(f => f.md5Checksum === md5);
+  if (same) return { id: same.id, name: same.name, size: Number(same.size) || buffer.length, reused: true };
+  let name = fileName;
+  if (siblings.length) { const dot = fileName.lastIndexOf('.'); name = `${fileName.slice(0, dot)} - ${md5.slice(0, 6)}${fileName.slice(dot)}`; }
+  const start = await writeFetch(`${GOOGLE_API}/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=${encodeURIComponent('id,name,size')}`, {
+    method: 'POST', headers: { 'content-type': 'application/json; charset=UTF-8', 'x-upload-content-type': mimeType, 'x-upload-content-length': String(buffer.length) },
+    body: JSON.stringify({ name, mimeType, parents: [folderId], ...(description ? { description: String(description).slice(0, 900) } : {}) }),
+  });
+  const session = start.headers.get('location');
+  if (!session) throw new Error('تعذر بدء رفع الأصل إلى Drive.');
+  const done = await (await writeFetch(session, { method: 'PUT', headers: { 'content-type': mimeType, 'content-length': String(buffer.length) }, body: buffer })).json();
+  return { id: done.id, name: done.name || name, size: Number(done.size) || buffer.length, reused: false };
+}

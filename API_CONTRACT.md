@@ -17,6 +17,20 @@ All APIs same origin. No PDF/image-source endpoint or dependency.
 - POST /api/stt audio/wav (16kHz mono PCM16): {text,engine,warnings?:[string]}; optional local service, use browser recognition when unavailable and disclose browser service/network possibility.
 - GET /api/health: {ok:true,pdfFree:true,...}
 
+### User contributions (signed-in individual accounts; admin routes require the admin role)
+
+- GET /api/contributions/config: {canSubmit,reason,kinds:[{id:'law'|'jurisprudence'|'research'|'study',label,hint}],noteTypes,limits:{originalBytes,originalsPerItem,...},mailNotices}
+- POST /api/contributions/file (body = raw bytes, header x-file-name=encodeURIComponent(name)): 201 {id:'f_<20 hex>',name,ext:'pdf'|'png'|'jpg'|'webp'|'docx'|'txt',size}. Magic-byte sniffed; executables/HTML rejected (415); stored temporarily in MongoDB (TTL 24 h while unattached). GET /api/contributions/file?id= returns the caller's own file only. POST /api/contributions/file/delete {id}.
+- POST /api/contributions/extract (docx/txt bytes): {text}. PDF and images are read in the browser (pdf.js text layer, Tesseract ara+fra); no Gemini.
+- POST /api/contributions/addition {kind,title,issuedAt,source,sourceUrl?,issuer?,reference?,note?,text,fileIds:[≥1 owned unattached originals]}: 201 {id,status:'pending'}. Duplicate text → 409; quotas → 429.
+- POST /api/contributions/note {documentId,noteType:'error'|'missing'|'suggestion'|'other',message,excerpt?}: 201 {id,status:'pending'}.
+- GET /api/contributions/mine → {items:[{id,type,kind,kindLabel,title,issuedAt,status,statusLabel,reply,originals,unread,publishedDocumentId?,createdAt}]}; GET /api/contributions/unread → {unread}; POST /api/contributions/seen.
+- Statuses: pending «قيد الدرس» → reviewing (draft exists) → published | declined (additions); pending → accepted | declined (notes). Each change notifies the user in-app and by email (Brevo, when configured).
+- Admin: GET /api/admin/contributions?type=&status=&q=&page= → {items,total,page,pages,counts:{additions:{status:n},notes:{status:n}},statuses}; GET /api/admin/contributions/item?id= (full record incl. text and originalFiles); GET /api/admin/contributions/file?id=[&mode=download]; POST /api/admin/contributions/draft {id} → {documentId} (creates a managed draft with origin:'contribution', carrying issuer and originalFiles); POST /api/admin/contributions/resolve {id,status:'declined'|'accepted',reply} (decline requires a reply and purges the originals).
+- POST /api/admin/content/publish {documentId,confirmReviewed:true,driveSubfolder?} → {ok,documentId,status:'published',originals:{total,moved,failed,folder,error}}. Publishing moves pending originals to Drive (section folder, or a titled subfolder inside it) and deletes them from MongoDB; a Drive failure never blocks publication.
+- GET /api/admin/originals/drive → {ready,mode,root,sharedDrive,error,note}; GET /api/admin/originals/section?kind=&type=&category=&title=&issuer= → {id,label,court}; POST /api/admin/originals/transfer {documentId,driveSubfolder?} retries a failed move for a published document.
+- GET /api/original?doc=&file=[&mode=download]: public (reader) access to an original still held on the server for a published document; once moved, originals are served through /api/drive/file?id=<driveId>. Document.originalFiles: [{id,name,ext,size,driveId?}].
+
 Result: {id,title,type,category,subcategory,date,textKind:'extracted_text'|'source_summary'|'image_only',reviewStatus,issues:[string],snippet,score,lawNumber,decisionNumber,abrogated}
 Document: all Result fields + {text,headings:[{key,label,number,marker,start,end}],citation,sourceLabel,caseNumber,chars,sha256,sourceTextSha256,originalTitle,sourceUrl,presentation,readingAssessment}
 text is the continuous reading presentation. start/end are JS UTF-16 positions into this text. sha256 hashes the reading text; sourceTextSha256 hashes the preserved compressed source transcription. Presentation removes layout breaks and evidenced pagination without inventing missing wording.

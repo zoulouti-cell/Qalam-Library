@@ -52,7 +52,7 @@
       import('https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.esm.min.js'),
     ]);
     pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
-    return { pdfjs, tesseract };
+    return { pdfjs, tesseract: tesseract.default || tesseract };
   }
 
   async function recognizeImage(worker, file) {
