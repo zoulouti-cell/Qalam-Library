@@ -21,6 +21,7 @@ import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
 import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,judicialFolderIdFor,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
+import { createPasswordReset } from './src/password-reset.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -116,6 +117,8 @@ const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
+/* استعادة كلمة المرور بالبريد؛ تصفير محاولات الدخول الفاشلة بعد نجاحها لأن صاحب الصندوق أثبت ملكيته. */
+const passwordReset=createPasswordReset({store:adminStore,afterReset:(ip,email)=>clearLoginFailures(ip,email)});
 async function ensureBootstrapAdmin(){
   if(!adminStore||!bootstrapAdminEmail)return;
   if(!validEmail(bootstrapAdminEmail)){console.error('LIBRARY_BOOTSTRAP_ADMIN_EMAIL is not a valid e-mail address; ignored.');return;}
@@ -225,7 +228,7 @@ async function read(req,max){const chunks=[];let size=0;for await(const c of req
 async function jsonBody(req,max=40000){try{return JSON.parse((await read(req,max)).toString('utf8'));}catch(e){if(e.status)throw e;const error=new Error('صيغة الطلب غير صالحة.');error.status=400;throw error;}}
 function sameOrigin(req){if(!req.headers.origin)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production';try{const u=new URL(req.headers.origin);return u.host===req.headers.host;}catch{return false;}}
 function authCookie(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(s=>s.trim().split(/=(.*)/s).slice(0,2)).filter(x=>x.length===2))['qalam_session']||'';}
-function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production'?{role:'admin',account:'env'}:null;const parts=authCookie(req).split('.'),expiry=parts[0],role=parts[1],account=parts.length===4?parts[2]:'legacy',signature=parts.length===4?parts[3]:parts[2],legacy=!['reader','admin'].includes(role);if(parts.length>4||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return null;const payload=legacy?expiry:parts.length===4?expiry+'.'+role+'.'+account:expiry+'.'+role,signed=legacy?role:signature;if(legacy&&!/^[a-f0-9]{64}$/i.test(signed||''))return null;const expected=createHmac('sha256',sessionSecret).update(payload).digest('hex'),a=Buffer.from(signed||''),b=Buffer.from(expected);if(!(a.length===b.length&&timingSafeEqual(a,b)))return null;const info={role:legacy?'reader':role,account:legacy?'legacy':account};return info.role==='admin'&&['env','legacy'].includes(info.account)&&!sharedAdminEnabled?null:info;}
+function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production'?{role:'admin',account:'env'}:null;const parts=authCookie(req).split('.'),expiry=parts[0],role=parts[1],account=parts.length===4?parts[2]:'legacy',signature=parts.length===4?parts[3]:parts[2],legacy=!['reader','admin'].includes(role);if(parts.length>4||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return null;const payload=legacy?expiry:parts.length===4?expiry+'.'+role+'.'+account:expiry+'.'+role,signed=legacy?role:signature;if(legacy&&!/^[a-f0-9]{64}$/i.test(signed||''))return null;const expected=createHmac('sha256',sessionSecret).update(payload).digest('hex'),a=Buffer.from(signed||''),b=Buffer.from(expected);if(!(a.length===b.length&&timingSafeEqual(a,b)))return null;const info={role:legacy?'reader':role,account:legacy?'legacy':account,issuedAt:Number(expiry)-7*86400000};return info.role==='admin'&&['env','legacy'].includes(info.account)&&!sharedAdminEnabled?null:info;}
 function sessionRole(req){return sessionInfo(req)?.role||null;}
 function auditActor(req){const account=sessionInfo(req)?.account||'admin';if(account==='env'||account==='legacy')return'admin';try{return Buffer.from(account,'base64url').toString('utf8').slice(0,160)||'admin';}catch{return'admin';}}
 /* الجلسة تحمل الدور سبعة أيام؛ لذا يُطابَق الحساب الفردي بقاعدة البيانات عند كل طلب إداري كي يسري خفض الدور أو إيقاف الحساب فورًا.
@@ -256,6 +259,18 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
     if(p.startsWith('/api/')&&!['GET','POST','HEAD'].includes(req.method))return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
     if(p==='/api/health')return send(req,res,200,{ok:true});
+    /* جلسة صدرت قبل آخر تغيير لكلمة المرور (استعادة) تسقط قبل أي مسار: يُنزع كوكيها من الطلب فتعاملها بقية المسارات كطلب بلا جلسة،
+       ويُمسح من المتصفح. المستخدم المحمَّل هنا يستعمله الحارس العام أدناه فلا استعلام ثانٍ. */
+    let sessionUser=null;
+    {const early=sessionInfo(req);
+      if(adminStore&&early&&!['legacy','env'].includes(early.account)){
+        try{sessionUser=await adminStore.users.findOne({email:Buffer.from(early.account,'base64url').toString('utf8')},{projection:{mustChangePassword:1,active:1,passwordChangedAt:1}});}catch{sessionUser=null;}
+        if(sessionUser?.passwordChangedAt&&early.issuedAt<new Date(sessionUser.passwordChangedAt).getTime()){
+          req.headers.cookie=String(req.headers.cookie||'').split(';').filter(part=>!part.trim().startsWith('qalam_session=')).join(';');
+          res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');sessionUser=null;
+        }
+      }
+    }
     if(p==='/api/partner/account-status'&&req.method==='GET'){
       // نقطة ربط بين منصة قلم والمكتبة الرقمية: تتحقق من وجود حساب فعّال بهذا البريد دون كشف أي بيانات أخرى عنه.
       if(!(process.env.QALAM_PARTNER_SECRET||''))return send(req,res,503,{error:'الربط مع منصة قلم غير مهيأ.'});
@@ -338,6 +353,14 @@ const server=http.createServer(async(req,res)=>{
       try{await notifyOwner('activated',user.email,await configuredOwnerEmail());await adminStore.users.updateOne({email:user.email},{$set:{activationNoticeSentAt:new Date()}});}catch(error){console.error('Owner activation notice failed:',error?.message||'delivery_error');}
       return send(req,res,200,{ok:true,message:'تم تفعيل الحساب. يمكنك تسجيل الدخول الآن.'});
     }
+    if(p==='/api/password-reset/request'&&req.method==='POST'){
+      const result=await passwordReset.request(await jsonBody(req,4000),clientIp(req));
+      return send(req,res,result.status,result.body);
+    }
+    if(p==='/api/password-reset/confirm'&&req.method==='POST'){
+      const result=await passwordReset.confirm(await jsonBody(req,4000),clientIp(req));
+      return send(req,res,result.status,result.body);
+    }
     if(p==='/api/session'){const session=sessionInfo(req);let mustChangePassword=false,email='',effectiveRole;if(session?.account&&session.account!=='legacy'&&session.account!=='env'&&adminStore){const decoded=Buffer.from(session.account,'base64url').toString('utf8'),user=await adminStore.users.findOne({email:decoded},{projection:{email:1,mustChangePassword:1,active:1,role:1}});if(!user?.active)return send(req,res,200,{authenticated:false});email=user.email;mustChangePassword=!!user.mustChangePassword;if(session.role==='admin'&&user.role!=='admin')effectiveRole=user.role==='reader'?'reader':null;}const shownRole=effectiveRole===undefined?(session?.role||null):effectiveRole;return send(req,res,200,{authenticated:!!session,role:shownRole,canAdmin:shownRole==='admin',mustChangePassword,email});}
     if(p==='/api/account/profile'&&req.method==='GET'){
       const current=sessionInfo(req);
@@ -392,8 +415,8 @@ const server=http.createServer(async(req,res)=>{
       const body=await jsonBody(req),email=Buffer.from(session.account,'base64url').toString('utf8'),password=String(body.password||'');if(password.length<12)return send(req,res,400,{error:'اختر كلمة مرور من 12 حرفاً على الأقل.'});const saved=hashPassword(password),result=await adminStore.users.updateOne({email,active:true},{$set:{passwordSalt:saved.salt,passwordHash:saved.hash,mustChangePassword:false,updatedAt:new Date()}});if(!result.matchedCount)return send(req,res,401,{error:'الحساب غير موجود أو معطل.'});await recordAudit(adminStore,email,'password_changed',email);return send(req,res,200,{ok:true});
     }
     if(p==='/api/logout'&&req.method==='POST'){const current=sessionInfo(req);if(adminStore&&current?.account&&!['legacy','env'].includes(current.account)){const email=Buffer.from(current.account,'base64url').toString('utf8');await adminStore.users.updateOne({email},{$set:{lastSeenAt:null}});}res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');return send(req,res,200,{ok:true});}
-    const loginAsset=['/','/home.html','/robots.txt','/sitemap.xml','/login','/login.html','/login.js','/login.css','/google-login.js','/password-toggle.js','/activate','/activate.html','/activate.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg','/assets/gateway-office-emblem.svg','/assets/gateway-library-emblem.svg','/assets/gateway-pen-animated.mp4','/assets/gateway-pen-hero.jpg','/home.js','/assets/cairo-arabic-800.woff2','/assets/cairo-latin-800.woff2','/assets/ibm-plex-arabic-400.woff2','/assets/ibm-plex-latin-400.woff2','/sw.js','/manifest.webmanifest','/assets/library-icon-192.png','/assets/library-icon-512.png'].includes(p);
-    const session=sessionInfo(req);if(session&&session.account!=='legacy'&&session.account!=='env'&&adminStore&&!['/api/session','/api/logout','/api/change-password','/change-password','/change-password.html','/change-password.js'].includes(p)){const email=Buffer.from(session.account,'base64url').toString('utf8'),user=await adminStore.users.findOne({email},{projection:{mustChangePassword:1,active:1}});if(!user?.active){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,401,{error:'الحساب غير مفعّل.'});}if(user.mustChangePassword){if(req.method==='GET'&&!p.startsWith('/api/')&&String(req.headers.accept||'').includes('text/html')){res.writeHead(302,{Location:'/change-password','Cache-Control':'no-store'});return res.end();}return send(req,res,428,{error:'غيّر كلمة المرور المؤقتة أولاً.'});}}
+    const loginAsset=['/','/home.html','/robots.txt','/sitemap.xml','/login','/login.html','/login.js','/login.css','/google-login.js','/password-toggle.js','/activate','/activate.html','/activate.js','/forgot-password','/forgot-password.html','/forgot-password.js','/reset-password','/reset-password.html','/reset-password.js','/admin-login.html','/admin-login.js','/change-password.html','/change-password.js','/admin.css','/assets/library-login-logo.png','/assets/library-login-hero.jpg','/assets/logo-word-ar.png','/assets/logo-word-ar-dark.webp','/assets/qalam-q-logo.png','/assets/qalam-signature.png','/assets/brand-office-scene.webp','/assets/almarai-regular.ttf','/assets/almarai-bold.ttf','/assets/qaf-favicon.svg','/assets/gateway-office-emblem.svg','/assets/gateway-library-emblem.svg','/assets/gateway-pen-animated.mp4','/assets/gateway-pen-hero.jpg','/home.js','/assets/cairo-arabic-800.woff2','/assets/cairo-latin-800.woff2','/assets/ibm-plex-arabic-400.woff2','/assets/ibm-plex-latin-400.woff2','/sw.js','/manifest.webmanifest','/assets/library-icon-192.png','/assets/library-icon-512.png'].includes(p);
+    const session=sessionInfo(req);if(session&&session.account!=='legacy'&&session.account!=='env'&&adminStore&&!['/api/session','/api/logout','/api/change-password','/change-password','/change-password.html','/change-password.js'].includes(p)){const email=Buffer.from(session.account,'base64url').toString('utf8'),user=sessionUser||await adminStore.users.findOne({email},{projection:{mustChangePassword:1,active:1}});if(!user?.active){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,401,{error:'الحساب غير مفعّل.'});}if(user.mustChangePassword){if(req.method==='GET'&&!p.startsWith('/api/')&&String(req.headers.accept||'').includes('text/html')){res.writeHead(302,{Location:'/change-password','Cache-Control':'no-store'});return res.end();}return send(req,res,428,{error:'غيّر كلمة المرور المؤقتة أولاً.'});}}
     const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
     if(adminPage&&!(await adminSessionLive(req))){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/login?next=admin'});return res.end();}
     if(p.startsWith('/api/admin/')&&!(await adminSessionLive(req)))return send(req,res,403,{error:'هذه الوظيفة مخصصة لمدير المكتبة.'});
@@ -917,8 +940,8 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p.startsWith('/api/'))return send(req,res,404,{error:'الخدمة غير موجودة.'});
     if(!['GET','HEAD'].includes(req.method))return send(req,res,405,'Method not allowed','text/plain');
-    if(process.env.QALAM_DESKTOP_MODE==='1'&&['/login','/login.html','/home.html','/account','/account.html'].includes(p)){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/'});return res.end();}
-    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/account'?'/account.html':p==='/archive'?'/archive.html':p==='/login'?'/login.html':p==='/activate'?'/activate.html':p==='/change-password'?'/change-password.html':p==='/'?(process.env.QALAM_DESKTOP_MODE==='1'||validSession(req)?'/index.html':'/home.html'):p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
+    if(process.env.QALAM_DESKTOP_MODE==='1'&&['/login','/login.html','/home.html','/account','/account.html','/forgot-password','/forgot-password.html','/reset-password','/reset-password.html'].includes(p)){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/'});return res.end();}
+    const relative=decodeURIComponent(p==='/admin'?'/admin.html':p==='/account'?'/account.html':p==='/archive'?'/archive.html':p==='/login'?'/login.html':p==='/activate'?'/activate.html':p==='/forgot-password'?'/forgot-password.html':p==='/reset-password'?'/reset-password.html':p==='/change-password'?'/change-password.html':p==='/'?(process.env.QALAM_DESKTOP_MODE==='1'||validSession(req)?'/index.html':'/home.html'):p).replace(/^\/+/,''),target=path.resolve(PUBLIC,relative);
     if(!target.startsWith(PUBLIC+path.sep)||relative.includes('\0'))return send(req,res,403,'Forbidden','text/plain');
     const type=MIME[path.extname(target).toLowerCase()];if(!type||!fs.existsSync(target)||!fs.statSync(target).isFile())return send(req,res,404,'Not found','text/plain');
     let bytes=fs.readFileSync(target);if(process.env.QALAM_DESKTOP_MODE==='1'&&relative==='index.html')bytes=Buffer.from(bytes.toString('utf8').replace('<html lang="ar" dir="rtl">','<html lang="ar" dir="rtl" data-qalam-desktop="true">'));const etag='"'+createHash('sha1').update(bytes).digest('hex')+'"';
