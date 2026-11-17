@@ -12,7 +12,14 @@ const REFERENCES = {
   'المادة الإدارية':['03.01','55.19','54.19','54.05','1.75.168','10.03'], 'المادة العقارية':['التحفيظ العقاري','الحقوق العينية'],
   'المادة الانتخابية':['الانتخابات'], 'مادة النقل':['مدونة السير'],
 };
+// Legacy index categories are aliases, not independent Drive folders.
+// Keep their documents searchable, but use the single canonical agreement label.
+export const AGREEMENTS_CATEGORY = 'الاتفاقيات الدولية';
+export function isAgreementCategory(name) {
+  return /(?:اتفاقيات|معاهدات)/u.test(String(name || '').normalize('NFKC'));
+}
 export function catalogCategory(row) {
+  if (isAgreementCategory(row.category)) return AGREEMENTS_CATEGORY;
   if (row.category === 'اجتهادات قضائية - الخبرة والخبراء') return 'محكمة النقض - الخبرة';
   if (row.id === 'national:5298') return 'المادة البيئية';
   if (row.id === 'national:5825') return 'مادة الفلاحة';
