@@ -220,7 +220,7 @@
   function categoryLabel() { return state.topic || state.category || (state.view === 'saved' ? 'المحفوظات' : state.view === 'history' ? 'سجل القراءة' : 'جميع المجالات'); }
   function renderCategories(filter = '') {
     const needle = normalize(filter);
-    const categories = state.categories.filter(c => c.name.trim() !== 'المعاهدات الدولية' && normalize(c.name).includes(needle));
+    const categories = state.categories.filter(c => !/^المعاهدات(?:\s+الدولية)?$/u.test(normalize(c.name.trim())) && normalize(c.name).includes(needle));
     let group = '', tier = '';
     const rows = [];
     categories.forEach((c, index) => {
@@ -255,7 +255,7 @@
     $('browseGroups').hidden = true;
     if (state.browseGroup === 'agreements') { browseAgreements(); return; }
     const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
-    const rows = state.categories.filter(c => c.name.trim() !== 'المعاهدات الدولية' && groups[state.browseGroup].includes(c.group));
+    const rows = state.categories.filter(c => !/^المعاهدات(?:\s+الدولية)?$/u.test(normalize(c.name.trim())) && groups[state.browseGroup].includes(c.group));
     // Drive-only French court folders must remain discoverable even without SQLite records.
     // Do not expose Moroccan Cassation's pending-review folder through this public navigation.
     const frenchCourts = state.browseGroup === 'judicial'
