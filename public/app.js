@@ -246,7 +246,7 @@
     if (!needle) {
       rows.push('<h3 class="category-group">القانون والقضاء الفرنسيين</h3>');
       for (const [label,id] of [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
-      for (const label of ['دراسات','مستجدات']) rows.push('<button type="button" class="category-button" data-french-pending="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
+      for (const [label,id] of [['دراسات','1Z_7bTdHSLS5Eoe1ZTA6Di-fHAym7Pz5o'],['مستجدات','1uC93axFQpHQbPfloOZiU0-tZqRnU87rw']]) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
     }
     $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
   }
@@ -943,7 +943,6 @@
       if (!button || button.disabled) return;
       if (button.dataset.driveOpen) { if(button.dataset.driveName){openMatchedDrive(button.dataset.driveOpen,button.dataset.driveSource,button.dataset.driveMode||'preview',button.dataset.driveName,button.dataset.drivePath||'');}else findDriveSource(button.dataset.driveOpen); return; }
       if (button.dataset.driveSearch) { findDriveSource(button.dataset.driveSearch); return; }
-      if (button.dataset.frenchPending) { toast('فرع '+button.dataset.frenchPending+' الفرنسي أُنشئ، ولم يُربط بعد بمجلد مصادر موثّق.'); return; }
       if (button.dataset.driveFolder) { browseDriveFolder(button.dataset.driveFolder,button.dataset.driveName); return; }
       if (button.dataset.agreementSidebar) { const branch=button.dataset.agreementSidebar; state.agreementBranch=branch; state.agreementCountry=''; state.agreementSection=button.dataset.agreementSection||''; state.scope='agreements';state.scopeTouched=true;document.querySelectorAll('[data-scope]').forEach(b=>{const active=b.dataset.scope==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});state.browseGroup='agreements'; document.querySelectorAll('[data-browse-group]').forEach(b=>{const active=b.dataset.browseGroup==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));}); $('browsePanel').hidden=false; $('browseToggle').setAttribute('aria-expanded','true'); $('browseGroups').hidden=true; $('browseContent').hidden=false; browseAgreements(branch); if (!state.agreementSection) $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'}); return; }
       if (button.dataset.agreementGroup) { state.agreementSection=''; renderAgreementFiles(state.agreementFiles,button.dataset.agreementGroup); return; }
