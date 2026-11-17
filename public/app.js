@@ -260,7 +260,7 @@
       : [];
     const driveRootRows = ({
       materials: [['المواد القانونية — أصول Drive','1YcLFtdRsfdbRmuhPDpLq8ywYbBi1I572']],
-      studies: [],
+      studies: [['مستجدات','1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0']],
       institutions: []
     })[state.browseGroup] || [];
     const constitutionalRows = state.browseGroup === 'materials'
