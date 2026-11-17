@@ -713,13 +713,13 @@ const server=http.createServer(async(req,res)=>{
       if(!categories.includes(category))return send(req,res,400,{error:'اختر تصنيفاً موجوداً في فهرس المكتبة؛ لا تنشئ تصنيفاً موازياً.'});
       const type=['national','judicial','juriscassation'].includes(body.type)?body.type:'national';
       const kind=['law','jurisprudence','study'].includes(body.kind)?body.kind:(type==='national'?'law':'jurisprudence');
-      const date=String(body.date||'').trim();if(date&&!/^\\d{4}(?:-\\d{2}(?:-\\d{2})?)?$/.test(date))return send(req,res,400,{error:'صيغة التاريخ غير صحيحة؛ استعمل YYYY أو YYYY-MM أو YYYY-MM-DD.'});
+      const date=String(body.date||'').trim();if(date&&!/^\d{4}(?:-\d{2}(?:-\d{2})?)?$/.test(date))return send(req,res,400,{error:'صيغة التاريخ غير صحيحة؛ استعمل YYYY أو YYYY-MM أو YYYY-MM-DD.'});
       const subcategory=String(body.subcategory||'').trim().slice(0,180),issuer=String(body.issuer||'').trim().slice(0,180);
       const saved=await adminStore.settings.findOne({_id:'library'}),ocr=saved?.ocr||{},apiKey=geminiOcrApiKey(openSecret(ocr.geminiApiKeyEncrypted));
       if(!geminiOcrEnabled(ocr.engine)||!apiKey)return send(req,res,409,{error:'فعّل Gemini OCR في متغير GEMINI_OCR_ENABLED أو إعدادات المكتبة، وأضف مفتاح Gemini.'});
       if(activeDriveOcr)return send(req,res,409,{error:'هناك عملية OCR سحابية قيد التنفيذ. انتظر اكتمالها قبل بدء أخرى.'});activeDriveOcr=true;
       try{
-        const {bytes,url:finalUrl}=await fetchOfficialPdf(sourceUrl),fileName=decodeURIComponent(new URL(finalUrl).pathname.split('/').filter(Boolean).at(-1)||'وثيقة من الرابط الرسمي').replace(/\\.pdf$/i,'').slice(0,500);
+        const {bytes,url:finalUrl}=await fetchOfficialPdf(sourceUrl),fileName=decodeURIComponent(new URL(finalUrl).pathname.split('/').filter(Boolean).at(-1)||'وثيقة من الرابط الرسمي').replace(/\.pdf$/i,'').slice(0,500);
         const title=String(body.title||fileName).trim().slice(0,500);if(title.length<3)throw new Error('عنوان الوثيقة غير كافٍ.');
         const prompt='استخرج النص الظاهر في هذا المستند كاملاً وبأمانة حرفية، باللغة العربية كما كُتب. حافظ على أرقام المواد والفصول والتواريخ وعلامات الترقيم والنفي، وعلى ترتيب الصفحات والفقرات. لا تلخص ولا تشرح ولا تصحح ولا تضف عناوين من عندك. أزل رقم الصفحة المنفصل فقط إذا كان واضحاً أنه ترويسة أو تذييل وليس جزءاً من النص. أعد النص المستخرج وحده. إذا تعذر قراءة موضع فضع [غير مقروء] بدلاً من التخمين.';
         const model=geminiOcrModel(),{text,pageCount,chunks}=await extractGeminiPdf(model,apiKey,bytes,prompt);
@@ -900,7 +900,7 @@ const server=http.createServer(async(req,res)=>{
         try{fs.rmSync(stopFile,{force:true});}catch{}
         let progress={};try{progress=ingestionSnapshot(JSON.parse(fs.readFileSync(path.join(work,'ingestion-status.json'),'utf8')));}catch{}
         if(ingestionChild||progress.running===true)return send(req,res,200,{ok:true,running:true,message:'المعالجة تعمل بالفعل؛ أزيل طلب الإيقاف المؤقت إن وُجد.'});
-        const candidates=[process.env.QALAM_OCR_PYTHON,process.env.PYTHON,'C:\\Users\\z\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe','python'].filter(Boolean),python=candidates.find(x=>!path.isAbsolute(x)||fs.existsSync(x));
+        const candidates=[process.env.QALAM_OCR_PYTHON,process.env.PYTHON,'C:\\Users\\z\\.cache\\codex-runtimes\\codex-primary-runtime\dependencies\\python\\python.exe','python'].filter(Boolean),python=candidates.find(x=>!path.isAbsolute(x)||fs.existsSync(x));
         if(!python)return send(req,res,503,{error:'لم أجد Python. عيّن QALAM_OCR_PYTHON إلى مسار python.exe.'});
         ingestionLaunchError='';const args=['-X','utf8',path.join(ROOT,'tools','read-originals.py'),'--workers',String(workers)];if(maxPages)args.push('--max-pages',String(maxPages));
         try{ingestionChild=spawn(python,args,{cwd:ROOT,windowsHide:true,stdio:'ignore'});ingestionChild.once('error',error=>{ingestionLaunchError=error.message;ingestionChild=null;});ingestionChild.once('exit',()=>{ingestionChild=null;});return send(req,res,202,{ok:true,running:true,workers,maxPages});}
