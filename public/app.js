@@ -229,11 +229,17 @@
       if (c.group && c.group !== group) { group = c.group; tier = ''; heading += '<h3 class="category-group">' + esc(c.groupLabel) + '</h3>'; }
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
+      if (c.name === 'المادة الدستورية') {
+        rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
+        rows.push('<button type="button" class="category-button" data-drive-folder="1UbD-sKzCIi6K__-QLmyGxtta9EiY_YbI" data-drive-name="دساتير المملكة"><span>↳ دساتير المملكة</span></button>');
+        rows.push('<button type="button" class="category-button" data-drive-folder="1fADBvOD4Sjt45vf6RbLgZC56OvfITJ0g" data-drive-name="قرارات المحكمة الدستورية"><span>↳ قرارات المحكمة الدستورية</span></button>');
+        return;
+      }
       rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
       if (!needle && c.group === 'materials' && categories[index + 1]?.group !== 'materials') {
-        rows.push('<h3 class="category-group agreement-sidebar-heading">الاتفاقيات الدولية</h3>');
-        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-agreement-sidebar="ثنائية" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>اتفاقيات ثنائية</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
-        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' ? ' selected' : '') + '" data-agreement-sidebar="متعددة" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة') + '"><span>اتفاقيات متعددة الأطراف</span><b>' + (state.agreementBranchCounts.multilateral === null ? '—' : fmt(state.agreementBranchCounts.multilateral)) + '</b></button>');
+        rows.push('<button type="button" class="category-group agreement-sidebar-heading" data-drive-folder="1ow2jcXugNyKSYNjlj-VjWoiPTXf60GPN" data-drive-name="الاتفاقيات الدولية">الاتفاقيات الدولية ←</button>');
+        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-drive-folder="1CeJUqly_roFmt_daXM21lb-0WfAdRPhG" data-drive-name="ثنائية الاطراف" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>ثنائية الاطراف</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
+        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' ? ' selected' : '') + '" data-drive-folder="19rz1FCNLSyx9MsAJFB-moxKqMKBaNgZx" data-drive-name="متعددة الاطراف" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة') + '"><span>متعددة الاطراف</span><b>' + (state.agreementBranchCounts.multilateral === null ? '—' : fmt(state.agreementBranchCounts.multilateral)) + '</b></button>');
         /* لا نكرر فئة إقليمية قديمة كعنوان ثالث؛ فرعا الاتفاقيات هما الثنائية ومتعددة الأطراف. */
       }
     });
@@ -244,7 +250,7 @@
     const pane = $('browseContent'); pane.hidden = !state.browseGroup;
     if (!state.browseGroup) { pane.innerHTML = ''; $('browseGroups').hidden = false; return; }
     $('browseGroups').hidden = true;
-    if (state.browseGroup === 'agreements') { state.driveBrowseStack = []; browseAgreements(state.agreementBranch || ''); return; }
+    if (state.browseGroup === 'agreements') { browseDriveFolder('1ow2jcXugNyKSYNjlj-VjWoiPTXf60GPN','الاتفاقيات الدولية',true); return; }
     const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
     const rows = state.categories.filter(c => c.name.trim() !== 'المعاهدات الدولية' && groups[state.browseGroup].includes(c.group));
     // Drive-only French court folders must remain discoverable even without SQLite records.
@@ -252,7 +258,10 @@
     const frenchCourts = state.browseGroup === 'judicial'
       ? [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]
       : [];
-    const driveCourtRows = frenchCourts.map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
+    const constitutionalRows = state.browseGroup === 'materials'
+      ? [['دساتير المملكة','1UbD-sKzCIi6K__-QLmyGxtta9EiY_YbI'],['قرارات المحكمة الدستورية','1fADBvOD4Sjt45vf6RbLgZC56OvfITJ0g']]
+      : [];
+    const driveCourtRows = [...frenchCourts,...constitutionalRows].map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
   }
   async function browseAgreements(agreementBranch = '') {
