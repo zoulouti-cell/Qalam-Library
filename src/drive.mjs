@@ -24,6 +24,12 @@ const JUDICIAL_FOLDERS=new Map([
   ['محكمة الاستئناف التجارية بمراكش','1ORjSANaCyyCCGDrc_KpHiWS3y-r_5UAF'],['محكمة الاستئناف التجارية بالدار البيضاء','1i922Pcbht3bmzJ4ta9ha0CPz08G-a-Oh'],
   ['محكمة الاستئناف التجارية بفاس','16VRWsB8sPCSBK9MWDSRc79Wmud96YnNn'],['محكمة الاستئناف بتازة','1P1MNS1LP-SXSabRfmJCAsTlpR9OAM_1B'],
 ]);
+const FRENCH_JUDICIAL_FOLDERS=new Map([
+  ['محكمة النقض','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['cour de cassation','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],
+  ['المجلس الدستوري','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['conseil constitutionnel','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],
+  ['مجلس الدولة','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X'],['conseil d état','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X'],
+]);
+export const FRENCH_UPDATES_FOLDER_ID='1uC93axFQpHQbPfloOZiU0-tZqRnU87rw';
 const judicialFileCache=new Map();
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K';
@@ -502,6 +508,12 @@ export function judicialFolderIdFor(courtName = '') {
   for (const [name, id] of JUDICIAL_FOLDERS) { const key = compactName(name); if (key === wanted || wanted.includes(key)) return id; }
   return '';
 }
+export function frenchJudicialFolderIdFor(courtName = '') {
+  const wanted = compactName(courtName);
+  if (wanted.length < 4) return '';
+  for (const [name, id] of FRENCH_JUDICIAL_FOLDERS) { const key = compactName(name); if (key === wanted || wanted.includes(key)) return id; }
+  return '';
+}
 export async function driveOriginalsStatus() {
   if (LOCAL_ORIGINALS_ROOT) return { ready: false, mode: 'local', error: 'وضع الأصول المحلية مفعّل؛ لا يمكن نقل الأصول إلى Drive.' };
   let via = 'service', account = '';
@@ -552,4 +564,13 @@ export async function uploadOriginalFile({ folderId, fileName, ext, buffer, desc
   if (!session) throw new Error('تعذر بدء رفع الأصل إلى Drive.');
   const done = await (await writeFetch(session, { method: 'PUT', headers: { 'content-type': mimeType, 'content-length': String(buffer.length) }, body: buffer })).json();
   return { id: done.id, name: done.name || name, size: Number(done.size) || buffer.length, reused: false };
+}
+export async function moveOriginalDriveFile(fileId, targetFolderId) {
+  const item = await withinLibrary(fileId), target = await withinLibrary(targetFolderId);
+  if (target.mimeType !== FOLDER_MIME) throw new Error('وجهة نقل الأصل ليست مجلداً صالحاً.');
+  const parent = item.parents?.[0] || '';
+  if (parent === target.id) return { id: item.id, moved: false };
+  const query = new URLSearchParams({ addParents: target.id, ...(parent ? { removeParents: parent } : {}), supportsAllDrives: 'true', fields: 'id,parents' });
+  await writeFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(item.id)}?${query}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{}' });
+  return { id: item.id, moved: true };
 }

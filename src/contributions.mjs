@@ -197,11 +197,17 @@ export function draftFromContribution(c, documentId) {
 /* ───────── وجهة الأصول في Drive: القسم المخصص حسب نوع الوثيقة، أو مجلد جديد بعنوان يحدّده المدير ───────── */
 export const DRIVE_SECTIONS = {
   law: { id: 'law', label: 'المواد القانونية', aliases: ['المواد القانونية'] },
+  french: { id: 'french', label: 'القانون و القضاء الفرنسيين', aliases: ['القانون والقضاء الفرنسيين', 'القانون و القضاء الفرنسيين'] },
+  updates: { id: 'updates', label: 'المستجدات', aliases: ['المستجدات'] },
+  cassationPending: { id: 'cassation-pending', label: 'إضافات النقض', aliases: ['اضافات النقض', 'إضافات النقض'] },
   treaty: { id: 'treaty', label: 'الاتفاقيات و المعاهدات', aliases: ['الاتفاقيات و المعاهدات'] },
   jurisprudence: { id: 'jurisprudence', label: 'الاجتهادات القضائية', aliases: ['الاجتهادات القضائية'] },
   research: { id: 'research', label: 'الأبحاث و الدراسات', aliases: ['الأبحاث و الدراسات', 'الأبحات و الدراسات'] },
 };
 export function originalsSection(doc = {}) {
+  if (doc.pendingCassation === true) return DRIVE_SECTIONS.cassationPending;
+  if (doc.kind === 'update' || doc.kind === 'justice_digital') return DRIVE_SECTIONS.updates;
+  if (doc.country === 'fr') return DRIVE_SECTIONS.french;
   if (doc.kind === 'jurisprudence' || doc.type === 'juriscassation') return DRIVE_SECTIONS.jurisprudence;
   if (doc.kind === 'study' || /دراس|أبحاث|بحث/.test(String(doc.category || ''))) return DRIVE_SECTIONS.research;
   if (/اتفاقي|معاهد/.test(String(doc.category || '') + ' ' + String(doc.title || ''))) return DRIVE_SECTIONS.treaty;
