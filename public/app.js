@@ -230,6 +230,15 @@
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
       rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
+      if (!needle && c.group === 'judicial' && categories[index + 1]?.group !== 'judicial') {
+        const existing = new Set(categories.map(item => normalize(item.name)));
+        for (const [label,id] of [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]) {
+          if (!existing.has(normalize(label))) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
+        }
+      }
+      if (!needle && c.group === 'studies' && categories[index + 1]?.group !== 'studies') {
+        if (!categories.some(item => normalize(item.name) === normalize('مستجدات'))) rows.push('<button type="button" class="category-button" data-drive-folder="1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0" data-drive-name="مستجدات"><span>مستجدات</span></button>');
+      }
       if (!needle && c.group === 'materials' && categories[index + 1]?.group !== 'materials') {
         rows.push('<button type="button" class="category-group agreement-sidebar-heading" data-agreement-sidebar="">الاتفاقيات الدولية</button>');
         rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-agreement-sidebar="ثنائية" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>ثنائية الاطراف</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
@@ -237,19 +246,6 @@
         /* لا نكرر فئة إقليمية قديمة كعنوان ثالث؛ فرعا الاتفاقيات هما الثنائية ومتعددة الأطراف. */
       }
     });
-    // Preserve the existing category hierarchy; expose only genuinely new Drive branches.
-    if (!needle) {
-      const existing = new Set(categories.map(c => normalize(c.name)));
-      const extra = (label,id) => {
-        if (!existing.has(normalize(label))) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
-      };
-      rows.push('<h3 class="category-group">الفروع القضائية الفرنسية</h3>');
-      extra('محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t');
-      extra('المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx');
-      extra('مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X');
-      rows.push('<h3 class="category-group">الأبحاث والدراسات — إضافات</h3>');
-      extra('مستجدات','1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0');
-    }
     $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
   }
   function renderBrowseGroup(group) {    state.browseGroup = state.browseGroup === group ? '' : group;
