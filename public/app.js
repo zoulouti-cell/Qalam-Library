@@ -220,7 +220,7 @@
   function categoryLabel() { return state.topic || state.category || (state.view === 'saved' ? 'المحفوظات' : state.view === 'history' ? 'سجل القراءة' : 'جميع المجالات'); }
   function renderCategories(filter = '') {
     const needle = normalize(filter);
-    const categories = state.categories.filter(c => normalize(c.name).includes(needle));
+    const categories = state.categories.filter(c => c.name.trim() !== 'المعاهدات الدولية' && normalize(c.name).includes(needle));
     let group = '', tier = '';
     const rows = [];
     categories.forEach((c, index) => {
@@ -246,7 +246,7 @@
     $('browseGroups').hidden = true;
     if (state.browseGroup === 'agreements') { state.driveBrowseStack = []; browseAgreements(state.agreementBranch || ''); return; }
     const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
-    const rows = state.categories.filter(c => groups[state.browseGroup].includes(c.group));
+    const rows = state.categories.filter(c => c.name.trim() !== 'المعاهدات الدولية' && groups[state.browseGroup].includes(c.group));
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>');
   }
   async function browseAgreements(agreementBranch = '') {
