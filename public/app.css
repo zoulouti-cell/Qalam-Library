@@ -106,3 +106,4 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 /* زر ملء الشاشة لا جدوى منه على الهاتف (لا يدعمه أغلب المتصفحات بالشكل نفسه، والواجهة تملأ الشاشة أصلاً). */
 @media(max-width:720px){#fullscreenBtn{display:none}}
 .agreement-card-title{margin:0;font:inherit;line-height:inherit}.agreement-card-title .result-open{width:100%;text-align:start;cursor:pointer}.agreement-card-title .result-open:hover,.agreement-card-title .result-open:focus-visible{color:var(--green);text-decoration:underline}.agreement-sidebar-sub{margin-inline-start:14px;width:calc(100% - 14px);font-size:10.5px}.agreement-regional-section{margin-bottom:22px}
+.reader-body{direction:rtl;text-align:right;unicode-bidi:plaintext}

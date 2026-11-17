@@ -30,6 +30,8 @@ const FRENCH_JUDICIAL_FOLDERS=new Map([
   ['مجلس الدولة','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X'],['conseil d état','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X'],
 ]);
 export const FRENCH_UPDATES_FOLDER_ID='1uC93axFQpHQbPfloOZiU0-tZqRnU87rw';
+/* مستجدات المغرب محفوظة داخل «الأبحات و الدراسات»، لا في جذر الأصول. */
+export const MOROCCAN_UPDATES_FOLDER_ID='1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0';
 const judicialFileCache=new Map();
 
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1-Bcn4VPhTjoW-z6ZERbd_mGMEy1KZ1-K';

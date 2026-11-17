@@ -20,7 +20,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
+import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { dueReports,renderReport,makeObservation } from './src/legal-monitoring.mjs';
@@ -156,7 +156,7 @@ const fileMeta=f=>({id:f.id,name:f.name,ext:f.ext,size:f.size});
 async function moveOriginalsToDrive(doc,{subfolder=''}={}){
   const all=Array.isArray(doc.originalFiles)?doc.originalFiles:[],pending=all.filter(f=>!f.driveId);
   const result={total:all.length,moved:0,failed:0,error:'',folder:''};if(!pending.length)return result;
-  let folder;const section=originalsSection(doc),court=section.id==='jurisprudence'?judicialFolderIdFor(doc.issuer||''):'',frenchCourt=doc.country==='fr'&&['decision','jurisprudence'].includes(doc.kind)?frenchJudicialFolderIdFor(doc.issuer||''):'',fixedFolder=doc.pendingCassation?PENDING_CASSATION_FOLDER_ID:(doc.country==='fr'&&doc.kind==='update'?FRENCH_UPDATES_FOLDER_ID:frenchCourt),resolve=folderId=>resolveOriginalsFolder({sectionLabel:section.label,sectionAliases:section.aliases,subfolder,folderId});
+  let folder;const section=originalsSection(doc),court=section.id==='jurisprudence'?judicialFolderIdFor(doc.issuer||''):'',frenchCourt=doc.country==='fr'&&['decision','jurisprudence'].includes(doc.kind)?frenchJudicialFolderIdFor(doc.issuer||''):'',fixedFolder=doc.pendingCassation?PENDING_CASSATION_FOLDER_ID:(doc.country==='ma'&&['update','justice_digital'].includes(doc.kind)?MOROCCAN_UPDATES_FOLDER_ID:(doc.country==='fr'&&doc.kind==='update'?FRENCH_UPDATES_FOLDER_ID:frenchCourt)),resolve=folderId=>resolveOriginalsFolder({sectionLabel:section.label,sectionAliases:section.aliases,subfolder,folderId});
   if(doc.country==='fr'&&['decision','jurisprudence'].includes(doc.kind)&&!frenchCourt)return {...result,failed:pending.length,error:'حدد المحكمة أو المجلس الفرنسي بالاسم المعتمد قبل نقل الأصل.'};
   const targetFolder=fixedFolder||court;
   try{folder=await resolve(targetFolder);}catch(first){try{if(!targetFolder)throw first;folder=await resolve('');}catch(error){return {...result,failed:pending.length,error:error.message||'تعذر تحديد مجلد الأصول في Drive.'};}}
@@ -838,7 +838,7 @@ const server=http.createServer(async(req,res)=>{
         const [status,saved]=await Promise.all([driveOriginalsStatus(),adminStore.settings.findOne({_id:'library'},{projection:{driveWrite:1}})]),link=saved?.driveWrite;
         return send(req,res,200,{...status,connectable:googleLoginConfig().available,connection:link?{email:link.email||'',connectedAt:link.connectedAt||null}:null});
       }
-      if(p==='/api/admin/originals/section'&&req.method==='GET'){const q=k=>String(url.searchParams.get(k)||'').slice(0,300),doc={kind:q('kind'),type:q('type'),category:q('category'),title:q('title')},section=originalsSection(doc),court=section.id==='jurisprudence'&&!!judicialFolderIdFor(q('issuer'));return send(req,res,200,{id:section.id,label:section.label,court});}
+      if(p==='/api/admin/originals/section'&&req.method==='GET'){const q=k=>String(url.searchParams.get(k)||'').slice(0,300),doc={kind:q('kind'),type:q('type'),category:q('category'),title:q('title'),country:q('country')},section=originalsSection(doc),court=section.id==='jurisprudence'&&!!judicialFolderIdFor(q('issuer'));return send(req,res,200,{id:section.id,label:section.label,court});}
       if(p==='/api/admin/originals/transfer'&&req.method==='POST'){
         let body;try{body=await jsonBody(req);}catch(error){return send(req,res,error.status||400,{error:error.message});}
         const doc=await adminStore.content.findOne({documentId:String(body.documentId||'').slice(0,120),status:'published'});if(!doc)return send(req,res,404,{error:'الوثيقة المنشورة غير موجودة.'});

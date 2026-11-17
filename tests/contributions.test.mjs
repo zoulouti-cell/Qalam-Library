@@ -61,7 +61,7 @@ test('قسم Drive المخصص حسب نوع الوثيقة وتسمية الم
   assert.equal(originalsSection({ kind: 'jurisprudence', category: 'اجتهادات المحاكم' }).id, 'jurisprudence');
   assert.equal(originalsSection({ kind: 'study', category: 'أبحاث ودراسات' }).id, 'research');
   assert.equal(originalsSection({ pendingCassation: true }).id, 'cassation-pending');
-  assert.equal(originalsSection({ kind: 'update', country: 'ma' }).id, 'updates');
+  assert.equal(originalsSection({ kind: 'update', country: 'ma' }).id, 'moroccan-updates');
   assert.equal(originalsSection({ country: 'fr', kind: 'decision' }).id, 'french');
   assert.equal(originalDriveName({ title: 'دراسة في التحكيم', date: '2022-05-01' }, 'pdf'), 'دراسة في التحكيم (2022-05-01).pdf');
   assert.equal(originalDriveName({ title: 'قرار', date: '' }, 'jpg', 1, 3), 'قرار - 2.jpg');

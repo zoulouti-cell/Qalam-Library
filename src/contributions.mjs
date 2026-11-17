@@ -199,6 +199,7 @@ export const DRIVE_SECTIONS = {
   law: { id: 'law', label: 'المواد القانونية', aliases: ['المواد القانونية'] },
   french: { id: 'french', label: 'القانون و القضاء الفرنسيين', aliases: ['القانون والقضاء الفرنسيين', 'القانون و القضاء الفرنسيين'] },
   updates: { id: 'updates', label: 'المستجدات', aliases: ['المستجدات'] },
+  moroccanUpdates: { id: 'moroccan-updates', label: 'مستجدات', aliases: ['الأبحات و الدراسات', 'الأبحاث و الدراسات', 'مستجدات'] },
   cassationPending: { id: 'cassation-pending', label: 'إضافات النقض', aliases: ['اضافات النقض', 'إضافات النقض'] },
   treaty: { id: 'treaty', label: 'الاتفاقيات و المعاهدات', aliases: ['الاتفاقيات و المعاهدات'] },
   jurisprudence: { id: 'jurisprudence', label: 'الاجتهادات القضائية', aliases: ['الاجتهادات القضائية'] },
@@ -206,6 +207,7 @@ export const DRIVE_SECTIONS = {
 };
 export function originalsSection(doc = {}) {
   if (doc.pendingCassation === true) return DRIVE_SECTIONS.cassationPending;
+  if (doc.country === 'ma' && (doc.kind === 'update' || doc.kind === 'justice_digital')) return DRIVE_SECTIONS.moroccanUpdates;
   if (doc.kind === 'update' || doc.kind === 'justice_digital') return DRIVE_SECTIONS.updates;
   if (doc.country === 'fr') return DRIVE_SECTIONS.french;
   if (doc.kind === 'jurisprudence' || doc.type === 'juriscassation') return DRIVE_SECTIONS.jurisprudence;

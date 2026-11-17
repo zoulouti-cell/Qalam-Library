@@ -175,11 +175,11 @@
   function schedulePlan() { clearTimeout(planTimer); planTimer = setTimeout(refreshPlan, 250); }
   async function refreshPlan() {
     const box = $('publishDest'); if (!box || box.hidden) return;
-    const q = new URLSearchParams({ kind: $('docKind').value, type: $('docType').value, category: $('docCategory').value, title: $('docTitle').value, issuer: S.editor?.issuer || '' });
+    const q = new URLSearchParams({ kind: $('docKind').value, type: $('docType').value, category: $('docCategory').value, title: $('docTitle').value, country: $('docCountry')?.value || 'ma', issuer: $('docIssuer')?.value || S.editor?.issuer || '' });
     try { S.plan = await api('/api/admin/originals/section?' + q); } catch { S.plan = null; }
     const mode = box.querySelector('[name=destMode]:checked')?.value, sub = ($('driveSubfolder').value || '').trim();
     $('destSection').textContent = S.plan ? `القسم المخصص: «${S.plan.label}»${S.plan.court ? ' — في مجلد المحكمة المعنية إن وُجد' : ''}.` : 'يُحدَّد القسم من نوع الوثيقة وتصنيفها.';
-    if (mode === 'new' && sub) $('destSection').textContent += ` وسيُنشأ داخله المجلد «${sub}».`;
+    if (mode === 'new' && sub) $('destSection').textContent += ` وسيُستخدم المجلد المجهز مسبقاً «${sub}».`;
     const d = await driveStatus();
     $('destStatus').className = 'muted ' + (d.ready ? 'ok' : 'warn');
     if (d.ready) $('destStatus').textContent = d.via === 'user' && d.account ? `ربط Drive جاهز للكتابة بحساب ${d.account}.` : 'ربط Drive جاهز للكتابة.';
@@ -290,7 +290,7 @@
     /* بعد الربط من تبويب آخر (رابط المحرر) تُحدَّث حالة Drive عند العودة إلى هذا التبويب */
     document.addEventListener('visibilitychange', () => { if (!document.hidden && S.drive && !S.drive.ready) { S.drive = null; if (!$('publishDest')?.hidden) refreshPlan(); } });
     setTimeout(handleDriveReturn, 0);
-    ['docKind', 'docType', 'docCategory', 'docTitle'].forEach(id => $(id).addEventListener('input', schedulePlan));
+    ['docKind', 'docType', 'docCategory', 'docTitle', 'docCountry', 'docIssuer'].forEach(id => $(id)?.addEventListener('input', schedulePlan));
     $('publishDest').addEventListener('change', event => {
       if (event.target.name === 'destMode') { const input = $('driveSubfolder'); input.hidden = event.target.value !== 'new'; if (!input.hidden) input.focus(); refreshPlan(); }
     });
