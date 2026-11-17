@@ -23,6 +23,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,judicialFolderIdFor,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
+import { dueReports,renderReport,makeObservation } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -206,6 +207,27 @@ const driveMonitorTimer=setInterval(async()=>{
   catch(error){console.error('Scheduled Drive metadata scan failed:',error?.message||'unknown error');}
 },60*60_000);
 driveMonitorTimer.unref();
+let legalReportRun=null;
+async function runLegalReports(){
+  if(!adminStore||legalReportRun)return;
+  legalReportRun=(async()=>{
+    const now=new Date();
+    for(const slot of dueReports(now)){
+      const reportId=`${slot.type}:${slot.localDate}`;
+      try{
+        const existing=await adminStore.legalMonitorReports.findOne({_id:reportId},{projection:{_id:1}});if(existing)continue;
+        const from=new Date(now.getTime()-(slot.type==='daily'?24:168)*60*60_000);
+        const observations=await adminStore.legalMonitorItems.find({receivedAt:{$gte:from},'source.official':true,'source.verified':true}).sort({eventDate:-1}).limit(500).toArray();
+        const report={_id:reportId,type:slot.type,localDate:slot.localDate,title:renderReport(slot.type,[],{localDate:slot.localDate}).split('\n')[0],text:renderReport(slot.type,observations,{localDate:slot.localDate,generatedAt:now}),observationIds:observations.map(item=>item.id),status:'generated',generatedAt:now,sourceCount:observations.length};
+        const result=await adminStore.legalMonitorReports.updateOne({_id:reportId},{$setOnInsert:report},{upsert:true});
+        if(result.upsertedCount)await recordAudit(adminStore,'scheduler','legal_report_generated',reportId,{type:slot.type,sourceCount:observations.length});
+      }catch(error){console.error('Scheduled legal report failed:',slot.type,error?.message||'unknown error');}
+    }
+  })().finally(()=>{legalReportRun=null;});
+  return legalReportRun;
+}
+const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
+legalReportTimer.unref();
 const headers={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',
   'Content-Security-Policy':"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
@@ -641,6 +663,27 @@ const server=http.createServer(async(req,res)=>{
       }
       return send(req,res,404,{error:'الخدمة غير موجودة.'});
     }
+    if(p==='/api/admin/legal-monitor/reports'&&req.method==='GET'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
+      const rows=await adminStore.legalMonitorReports.find({}).sort({generatedAt:-1}).limit(30).toArray();
+      return send(req,res,200,{timeZone:'Africa/Casablanca',reports:rows.map(({_id,type,localDate,title,text,status,generatedAt,sourceCount})=>({id:_id,type,localDate,title,text,status,generatedAt,sourceCount}))});
+    }
+    if(p==='/api/admin/legal-monitor/items'&&(req.method==='GET'||req.method==='POST')){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
+      if(req.method==='GET'){
+        const state=['held','ready','published'].includes(url.searchParams.get('state'))?url.searchParams.get('state'):'';
+        const rows=await adminStore.legalMonitorItems.find(state?{state}:{}).sort({receivedAt:-1}).limit(100).toArray();
+        return send(req,res,200,{items:rows.map(({_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt})=>({id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt}))});
+      }
+      let body;try{body=await jsonBody(req,30000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+      const checked=makeObservation(body);if(checked.error)return send(req,res,400,{error:checked.error});
+      const item=checked.record;
+      try{
+        const inserted=await adminStore.legalMonitorItems.updateOne({_id:item.id},{$setOnInsert:{...item,receivedBy:auditActor(req)}},{upsert:true});
+        if(inserted.upsertedCount)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
+        return send(req,res,inserted.upsertedCount?201:200,{ok:true,id:item.id,duplicate:!inserted.upsertedCount,state:item.state,holdReason:item.holdReason});
+      }catch(error){return send(req,res,503,{error:'تعذر حفظ سجل الرصد بأمان؛ لم يتم نشر أي محتوى.'});}
+    }
     if(p==='/api/admin/overview'&&req.method==='GET'){
       const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
       const documents=library.db.prepare("SELECT id,title,category,text_kind,review_status,chars FROM documents WHERE review_status IN ('needs_review','automated_review') ORDER BY CASE review_status WHEN 'needs_review' THEN 0 ELSE 1 END, rowid LIMIT 60").all();
@@ -743,13 +786,16 @@ const server=http.createServer(async(req,res)=>{
       let body;try{body=JSON.parse((await read(req,2200000)).toString('utf8'));}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
       const title=String(body.title||'').trim().slice(0,500),text=String(body.text||'').trim(),reason=String(body.reason||'').trim().slice(0,2000);if(title.length<3||text.length<40||!reason)return send(req,res,400,{error:'أدخل عنواناً ونصاً كاملاً وسبباً موثقاً للتعديل.'});
       const documentId=String(body.documentId||'managed_'+randomBytes(12).toString('hex')).slice(0,120);const prevDraft=await adminStore.content.findOne({documentId,status:'draft'},{sort:{updatedAt:-1}}),prevPublished=prevDraft?null:await adminStore.content.findOne({documentId,status:'published'},{projection:{origin:1,originalFiles:1,issuer:1}}),carried=prevDraft||prevPublished;let base=null;try{base=library.document(documentId);}catch{}if(!base&&!documentId.startsWith('managed_'))return send(req,res,404,{error:'الوثيقة الأصلية غير موجودة في فهرس المكتبة.'});
-      const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(prevDraft?.type||base?.type||'national'),category:String(body.category||prevDraft?.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||prevDraft?.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||prevDraft?.date||base?.date||'').slice(0,20),kind:String(body.kind||prevDraft?.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:String(body.sourceLabel||prevDraft?.sourceLabel||base?.sourceLabel||'').slice(0,300),reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin',...(carried?.origin==='contribution'?{origin:'contribution',issuer:carried.issuer||'',originalFiles:carried.originalFiles||[],...(prevDraft?.contributionId?{contributionId:prevDraft.contributionId}:{})}:{})};
+      const sourceLanguage=body.sourceLanguage==='fr'?'fr':'ar',originalTitle=String(body.originalTitle||'').trim().slice(0,500),professionalArabicReviewed=body.professionalArabicReviewed===true;
+      if(sourceLanguage==='fr'&&(!originalTitle||!professionalArabicReviewed))return send(req,res,400,{error:'للأصل الفرنسي، أدخل العنوان الرسمي بالفرنسية وأكد مراجعة الصياغة العربية القانونية قبل حفظ المسودة.'});
+      const sourceLabel=String(body.sourceLabel||prevDraft?.sourceLabel||base?.sourceLabel||'').slice(0,300),translationLabel=sourceLanguage==='fr'?[sourceLabel,'الأصل بالفرنسية — البطاقة ونافذة الاطلاع بالعربية القانونية المهنية'].filter(Boolean).join(' — ').slice(0,300):sourceLabel;
+      const record={documentId,title,text,type:['national','judicial','juriscassation'].includes(body.type)?body.type:(prevDraft?.type||base?.type||'national'),category:String(body.category||prevDraft?.category||base?.category||'مواد قانونية').trim().slice(0,180),subcategory:String(body.subcategory||prevDraft?.subcategory||base?.subcategory||'').trim().slice(0,180),date:String(body.date||prevDraft?.date||base?.date||'').slice(0,20),kind:String(body.kind||prevDraft?.kind||base?.kind||'law'),textKind:'extracted_text',sourceUrl:String(body.sourceUrl||'').trim().slice(0,1200),sourceLabel:translationLabel,sourceLanguage,originalTitle,professionalArabicReviewed,reason,status:'draft',createdAt:new Date(),updatedAt:new Date(),updatedBy:'admin',...(carried?.origin==='contribution'?{origin:'contribution',issuer:carried.issuer||'',originalFiles:carried.originalFiles||[],...(prevDraft?.contributionId?{contributionId:prevDraft.contributionId}:{})}:{})};
       if(record.origin!=='contribution'&&!/^https:\/\//i.test(record.sourceUrl))return send(req,res,400,{error:'أدخل رابط المصدر الرسمي أو رابط أصل Drive بصيغة https:// قبل حفظ المسودة.'});
       await adminStore.content.updateMany({documentId,status:'draft'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.insertOne(record);await recordAudit(adminStore,'admin','draft_saved',documentId,{title,sourceUrl:record.sourceUrl});return send(req,res,201,{ok:true,documentId,status:'draft'});
     }
     if(p==='/api/admin/content/publish'&&req.method==='POST'){
       let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),draft=await adminStore.content.findOne({documentId,status:'draft'},{sort:{updatedAt:-1}});
-      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||(draft.origin!=='contribution'&&(!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر.'});
+      if(!draft)return send(req,res,404,{error:'لا توجد مسودة جاهزة لهذا النص.'});if(!body.confirmReviewed||(draft.origin!=='contribution'&&(!draft.sourceUrl||!/^https:\/\//i.test(draft.sourceUrl))))return send(req,res,400,{error:'يلزم تأكيد المراجعة والتحقق من رابط المصدر.'});if(draft.sourceLanguage==='fr'&&(!draft.originalTitle||!draft.professionalArabicReviewed))return send(req,res,400,{error:'لا يمكن نشر أصل فرنسي قبل توثيق عنوانه ومراجعة صياغته العربية القانونية.'});
       await adminStore.content.updateMany({documentId,status:'published'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.updateOne({_id:draft._id},{$set:{status:'published',publishedAt:new Date(),publishedBy:'admin',updatedAt:new Date()}});await recordAudit(adminStore,'admin','content_published',documentId,{title:draft.title,sourceUrl:draft.sourceUrl});library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());if(draft.contributionId){const done=await moveContribution(draft.contributionId,'published',{publishedDocumentId:documentId,publishedAt:new Date()});if(done)void mailContributor(done,'published');}
       let originals={total:0,moved:0,failed:0};if(draft.originalFiles?.length){try{originals=await moveOriginalsToDrive(draft,{subfolder:String(body.driveSubfolder||'')});}catch(error){originals={total:draft.originalFiles.length,moved:0,failed:draft.originalFiles.length,error:error.message||'تعذر نقل الأصول إلى Drive.'};}await recordAudit(adminStore,'admin','originals_to_drive',documentId,{moved:originals.moved,failed:originals.failed,folder:originals.folder||'',error:originals.error||''});}
       return send(req,res,200,{ok:true,documentId,status:'published',originals});
@@ -836,8 +882,8 @@ const server=http.createServer(async(req,res)=>{
       const result=library.search({q,scope:'all',limit:20});return send(req,res,200,{results:result.results.map(d=>({id:d.id,title:d.title,category:d.category,textKind:d.textKind,reviewStatus:d.reviewStatus,chars:d.chars,sourceLabel:d.sourceLabel}))});
     }
     if(p==='/api/admin/document'&&req.method==='GET'){
-      const id=(url.searchParams.get('id')||'').slice(0,120),draft=adminStore?await adminStore.content.findOne({documentId:id,status:'draft'},{sort:{updatedAt:-1}}):null;const doc=draft?{id:draft.documentId,title:draft.title,text:draft.text,category:draft.category,type:draft.type,textKind:draft.textKind,reviewStatus:'draft',sourceUrl:draft.sourceUrl,sourceLabel:draft.sourceLabel,reason:draft.reason,date:draft.date,kind:draft.kind,origin:draft.origin||'',originalFiles:draft.originalFiles||[]}:library.document(id);if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
-      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,reason:draft?.reason||'',origin:draft?.origin||'',issuer:draft?.issuer||'',contributionId:draft?.contributionId||'',originalFiles:draft?.originalFiles||doc.originalFiles||[]});
+      const id=(url.searchParams.get('id')||'').slice(0,120),draft=adminStore?await adminStore.content.findOne({documentId:id,status:'draft'},{sort:{updatedAt:-1}}):null;const doc=draft?{id:draft.documentId,title:draft.title,text:draft.text,category:draft.category,type:draft.type,textKind:draft.textKind,reviewStatus:'draft',sourceUrl:draft.sourceUrl,sourceLabel:draft.sourceLabel,sourceLanguage:draft.sourceLanguage||'ar',originalTitle:draft.originalTitle||'',professionalArabicReviewed:!!draft.professionalArabicReviewed,reason:draft.reason,date:draft.date,kind:draft.kind,origin:draft.origin||'',originalFiles:draft.originalFiles||[]}:library.document(id);if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      return send(req,res,200,{id:doc.id,title:doc.title,category:doc.category,subcategory:doc.subcategory,type:doc.type,kind:doc.kind,date:doc.date,textKind:doc.textKind,reviewStatus:doc.reviewStatus,issues:doc.issues,chars:doc.chars,text:doc.text,sourceUrl:doc.sourceUrl,sourceLabel:doc.sourceLabel,sourceLanguage:doc.sourceLanguage||'ar',originalTitle:doc.originalTitle||'',professionalArabicReviewed:!!doc.professionalArabicReviewed,reason:draft?.reason||'',origin:draft?.origin||'',issuer:draft?.issuer||'',contributionId:draft?.contributionId||'',originalFiles:draft?.originalFiles||doc.originalFiles||[]});
     }
     if(p.startsWith('/api/editorial/')){
       if(!localEditor(req)&&!(p==='/api/editorial/ocr/worker'&&req.method==='GET'&&sessionRole(req)==='admin'))return send(req,res,403,{error:'أدوات التحرير متاحة محلياً على هذا الجهاز فقط.'});

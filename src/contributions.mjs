@@ -208,7 +208,7 @@ export function originalsSection(doc = {}) {
   return DRIVE_SECTIONS.law;
 }
 export const originalDriveName = (doc, ext, index = 0, total = 1) =>
-  safeFileName(`${oneLine(doc.title, 140)}${doc.date ? ` (${String(doc.date).slice(0, 10)})` : ''}${total > 1 ? ` - ${index + 1}` : ''}`, ext);
+  safeFileName(`${oneLine(doc.sourceLanguage === 'fr' && doc.originalTitle ? doc.originalTitle : doc.title, 140)}${doc.date ? ` (${String(doc.date).slice(0, 10)})` : ''}${total > 1 ? ` - ${index + 1}` : ''}`, ext);
 
 /* ───────── عرض آمن للمستخدم ───────── */
 export const userView = c => ({

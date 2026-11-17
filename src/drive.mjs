@@ -488,6 +488,12 @@ async function ensureFolder(parentId, name, aliases = [name]) {
   const created = await (await writeFetch(`${GOOGLE_API}/drive/v3/files?supportsAllDrives=true&fields=id,name`, { method: 'POST', headers: { 'content-type': 'application/json; charset=UTF-8' }, body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }) })).json();
   return { id: created.id, name: created.name || name, created: true };
 }
+async function existingFolder(parentId, name, aliases = [name]) {
+  const wanted = new Set(aliases.map(compactName));
+  const existing = (await listChildren(parentId, ` and mimeType = '${FOLDER_MIME}'`)).find(f => wanted.has(compactName(f.name)));
+  if (!existing) throw new Error(`المجلد «${name}» غير موجود في qalam-library. جهّزوه في Drive أولاً؛ لا تنشئ المكتبة مجلدات تلقائياً.`);
+  return { id: existing.id, name: existing.name };
+}
 const cleanFolderName = value => String(value || '').replace(/[\u0000-\u001f\u007f/\\:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
 
 export function judicialFolderIdFor(courtName = '') {
@@ -518,15 +524,15 @@ export async function probeDriveWriteAccess(accessTokenValue) {
   const root = await response.json().catch(() => ({}));
   return root.capabilities?.canAddChildren ? { ok: true, rootName: root.name || '' } : { ok: false, reason: 'readonly' };
 }
-/* القسم المخصص يُوجد إن كان قائمًا ويُنشأ إن لم يوجد؛ ومجلد فرعي بعنوان جديد اختياري يحدّده المدير. */
+/* لا تنشئ المكتبة مجلدات في qalam-library: يستعمل النقل المجلدات التي أعدها المدير فقط. */
 export async function resolveOriginalsFolder({ sectionLabel, sectionAliases = [], subfolder = '', folderId = '' } = {}) {
   if (LOCAL_ORIGINALS_ROOT) throw new Error('وضع الأصول المحلية مفعّل؛ لا يمكن نقل الأصول إلى Drive.');
   let base;
   if (folderId) { const item = await withinLibrary(folderId); if (item.mimeType !== FOLDER_MIME) throw new Error('المجلد المحدد غير صالح.'); base = { id: item.id, name: item.name }; }
-  else base = await ensureFolder(DRIVE_ROOT_FOLDER_ID, sectionLabel, [sectionLabel, ...sectionAliases]);
+  else base = await existingFolder(DRIVE_ROOT_FOLDER_ID, sectionLabel, [sectionLabel, ...sectionAliases]);
   const sub = cleanFolderName(subfolder);
   if (!sub) return { id: base.id, path: base.name };
-  const child = await ensureFolder(base.id, sub);
+  const child = await existingFolder(base.id, sub);
   return { id: child.id, path: `${base.name} / ${child.name}` };
 }
 export async function uploadOriginalFile({ folderId, fileName, ext, buffer, description = '' }) {
