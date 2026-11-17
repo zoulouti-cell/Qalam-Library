@@ -261,7 +261,7 @@
     const driveRootRows = ({
       materials: [['المواد القانونية — أصول Drive','1YcLFtdRsfdbRmuhPDpLq8ywYbBi1I572']],
       studies: [['الأبحاث والدراسات — أصول Drive','10-Bp3BUlI7OodtfMjlMynB9BY7349CvE']],
-      institutions: [['القوانين المنظمة للمؤسسات والهيئات — أصول Drive','1S-Yt4_csky1Yanxn7k80vD6KBaL9BDXC']]
+      institutions: []
     })[state.browseGroup] || [];
     const constitutionalRows = state.browseGroup === 'materials'
       ? [['دساتير المملكة','1UbD-sKzCIi6K__-QLmyGxtta9EiY_YbI'],['قرارات المحكمة الدستورية','1fADBvOD4Sjt45vf6RbLgZC56OvfITJ0g']]
