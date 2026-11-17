@@ -247,7 +247,13 @@
     if (state.browseGroup === 'agreements') { state.driveBrowseStack = []; browseAgreements(state.agreementBranch || ''); return; }
     const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
     const rows = state.categories.filter(c => c.name.trim() !== 'المعاهدات الدولية' && groups[state.browseGroup].includes(c.group));
-    pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>');
+    // Drive-only French court folders must remain discoverable even without SQLite records.
+    // Do not expose Moroccan Cassation's pending-review folder through this public navigation.
+    const frenchCourts = state.browseGroup === 'judicial'
+      ? [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]
+      : [];
+    const driveCourtRows = frenchCourts.map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
+    pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
   }
   async function browseAgreements(agreementBranch = '') {
     const pane=$('browseContent');
