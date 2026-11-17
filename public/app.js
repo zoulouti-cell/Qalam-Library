@@ -258,10 +258,15 @@
     const frenchCourts = state.browseGroup === 'judicial'
       ? [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]
       : [];
+    const driveRootRows = ({
+      materials: [['المواد القانونية — أصول Drive','1YcLFtdRsfdbRmuhPDpLq8ywYbBi1I572']],
+      studies: [['الأبحاث والدراسات — أصول Drive','10-Bp3BUlI7OodtfMjlMynB9BY7349CvE']],
+      institutions: [['القوانين المنظمة للمؤسسات والهيئات — أصول Drive','1S-Yt4_csky1Yanxn7k80vD6KBaL9BDXC']]
+    })[state.browseGroup] || [];
     const constitutionalRows = state.browseGroup === 'materials'
       ? [['دساتير المملكة','1UbD-sKzCIi6K__-QLmyGxtta9EiY_YbI'],['قرارات المحكمة الدستورية','1fADBvOD4Sjt45vf6RbLgZC56OvfITJ0g']]
       : [];
-    const driveCourtRows = [...frenchCourts,...constitutionalRows].map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
+    const driveCourtRows = [...driveRootRows,...frenchCourts,...constitutionalRows].map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
   }
   async function browseAgreements(agreementBranch = '') {
