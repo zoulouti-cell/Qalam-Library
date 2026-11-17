@@ -24,7 +24,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { dueReports,renderReport,makeObservation } from './src/legal-monitoring.mjs';
+import { dueReports,renderReport,makeObservation,mergeLegislativeObservation } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -689,9 +689,12 @@ const server=http.createServer(async(req,res)=>{
       const checked=makeObservation(body);if(checked.error)return send(req,res,400,{error:checked.error});
       const item=checked.record;
       try{
-        const inserted=await adminStore.legalMonitorItems.updateOne({_id:item.id},{$setOnInsert:{...item,receivedBy:auditActor(req)}},{upsert:true});
-        if(inserted.upsertedCount)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
-        return send(req,res,inserted.upsertedCount?201:200,{ok:true,id:item.id,duplicate:!inserted.upsertedCount,state:item.state,holdReason:item.holdReason});
+        const previous=await adminStore.legalMonitorItems.findOne({_id:item.id});
+        const stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;
+        await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
+        if(!previous)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
+        else if(item.kind==='bill'||item.kind==='legislation')await recordAudit(adminStore,auditActor(req),'legal_monitor_item_updated',item.id,{country:item.country,stage:stored.currentStage,title:stored.title});
+        return send(req,res,previous?200:201,{ok:true,id:item.id,updated:!!previous,state:stored.state,stage:stored.currentStage,holdReason:stored.holdReason});
       }catch(error){return send(req,res,503,{error:'تعذر حفظ سجل الرصد بأمان؛ لم يتم نشر أي محتوى.'});}
     }
     if(p==='/api/admin/overview'&&req.method==='GET'){

@@ -8,6 +8,7 @@ export const REPORTS = Object.freeze({
 export const REPORT_TIME_ZONE = 'Africa/Casablanca';
 export const STAGES = Object.freeze(['project', 'study', 'approved', 'issued', 'published', 'effective']);
 export const STATES = Object.freeze(['discovered', 'verifying', 'held', 'ready', 'published']);
+const stageRank = stage => Math.max(0, STAGES.indexOf(stage));
 
 const oneLine = (value, max = 500) => String(value ?? '').normalize('NFC').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 const isoDate = value => {
@@ -36,7 +37,13 @@ export function makeObservation(input = {}) {
   const eventDate = isoDate(input.eventDate), receivedAt = input.receivedAt ? new Date(input.receivedAt) : new Date();
   if (!country || !kind || title.length < 3 || summary.length < 40 || !eventDate || Number.isNaN(receivedAt.getTime()) || !officialSource(source)) return { error: 'الملاحظة ناقصة أو مصدرها الرسمي غير متحقق منه.' };
   const reference = oneLine(input.reference, 300), court = oneLine(input.court, 200), caseNumber = oneLine(input.caseNumber, 120);
-  const key = [country, kind, oneLine(input.officialNumber, 150), eventDate, title.toLocaleLowerCase()].join('|');
+  // مشروع القانون والقانون المنشور مرحلتان للسجل التشريعي نفسه. نعتمد مرجعاً
+  // رسمياً ثابتاً كي لا تنشئ كل متابعة بطاقة جديدة عند الاعتماد أو النشر أو النفاذ.
+  const legislative = kind === 'legislation' || kind === 'bill';
+  const stableReference = oneLine(input.officialNumber, 150) || reference || title.toLocaleLowerCase();
+  const key = legislative
+    ? [country, 'legislation', stableReference.toLocaleLowerCase()].join('|')
+    : [country, kind, oneLine(input.officialNumber, 150), eventDate, title.toLocaleLowerCase()].join('|');
   const id = createHash('sha256').update(key).digest('hex');
   const restrictedCassation = country === 'ma' && kind === 'case_law' && /محكمة\s+النقض/.test(court);
   const hasReservation = input.legalReservation === true || input.scientificReservation === true || input.technicalReservation === true;
@@ -50,6 +57,21 @@ export function makeObservation(input = {}) {
     readyForAutomaticPublication, original: input.original && typeof input.original === 'object' ? { driveId: oneLine(input.original.driveId, 200), url: sourceUrl(input.original.url), name: oneLine(input.original.name, 300) } : null,
     history: [{ state: readyForAutomaticPublication ? 'ready' : 'held', at: receivedAt, reason: restrictedCassation ? 'manager_approval_required' : hasReservation ? 'reservation' : 'verification_incomplete' }],
   } };
+}
+
+/**
+ * يدمج متابعة لاحقة في السجل التشريعي نفسه. لا يسمح لدليل متأخر أو أضعف
+ * بإرجاع حالة منشورة/نافذة إلى «مشروع»، ويحتفظ بسجل المراحل القابل للمراجعة.
+ */
+export function mergeLegislativeObservation(existing = null, incoming = {}) {
+  if (!existing) return incoming;
+  const prior = STAGES.includes(existing.currentStage) ? existing.currentStage : '';
+  const next = STAGES.includes(incoming.currentStage) ? incoming.currentStage : prior;
+  const currentStage = prior && stageRank(next) < stageRank(prior) ? prior : next;
+  const changed = currentStage !== prior || incoming.source?.url !== existing.source?.url || incoming.eventDate !== existing.eventDate;
+  const history = Array.isArray(existing.history) ? [...existing.history] : [];
+  if (changed) history.push({ state: incoming.state || existing.state || 'held', stage: currentStage, at: incoming.receivedAt || new Date(), reason: 'official_follow_up', source: incoming.source?.url || existing.source?.url || '' });
+  return { ...existing, ...incoming, kind: currentStage === 'published' || currentStage === 'effective' ? 'legislation' : incoming.kind, currentStage, history };
 }
 
 export function mayAutoPublish(record = {}) {

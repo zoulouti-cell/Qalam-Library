@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dueReports,makeObservation,mayAutoPublish,renderReport } from '../src/legal-monitoring.mjs';
+import { dueReports,makeObservation,mayAutoPublish,renderReport,mergeLegislativeObservation } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -33,6 +33,17 @@ test('holds legal text updates and reservations from automatic publication',()=>
   assert.equal(mayAutoPublish(law),false);
   assert.equal(reserved.state,'held');
   assert.equal(mayAutoPublish(reserved),false);
+});
+
+test('the legislative card advances from a bill to publication without duplication',()=>{
+  const project=makeObservation({...base,kind:'bill',officialNumber:'60.26',reference:'قانون المالية 2027',currentStage:'approved'}).record;
+  const published=makeObservation({...base,kind:'legislation',officialNumber:'60.26',reference:'قانون المالية 2027',eventDate:'2026-12-05',currentStage:'published'}).record;
+  assert.equal(project.id,published.id);
+  const merged=mergeLegislativeObservation(project,published);
+  assert.equal(merged.currentStage,'published');
+  assert.equal(merged.kind,'legislation');
+  assert.equal(merged.history.length,2);
+  assert.equal(mergeLegislativeObservation(merged,project).currentStage,'published');
 });
 
 test('schedules reports at the required Morocco wall-clock times',()=>{
