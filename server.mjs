@@ -185,7 +185,7 @@ async function runDriveMetadataScan(actor='system'){
     await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{status:'running',startedAt:now,error:''}},{upsert:true});
     try{
       const files=await scanLibraryPdfs();
-      if(files.length>=30000)throw new Error('تجاوز الفحص حد 30,000 ملف؛ لم تُعتمد نتيجة جزئية.');
+      // scanLibraryPdfs لا تُعيد إلا جرداً مكتمل التصفح؛ لا ترفض المكتبات الكبيرة بسبب حد اعتباطي.
       const previous=await adminStore.driveMonitorFiles.find({present:true}).project({_id:1,name:1,folder:1,modifiedTime:1,size:1}).toArray(),old=new Map(previous.map(x=>[x._id,x]));
       const added=[],changed=[],operations=[];
       for(const f of files){const next={name:String(f.name||'').slice(0,500),folder:String(f.path||'').slice(0,1000),modifiedTime:f.modifiedTime||'',size:Number(f.size)||0,present:true,checkedAt:now};const before=old.get(f.id);if(!before&&!baseline)added.push({name:next.name,folder:next.folder,status:'جديد'});else if(before&&(before.name!==next.name||before.folder!==next.folder||before.modifiedTime!==next.modifiedTime||before.size!==next.size))changed.push({name:next.name,folder:next.folder,status:'معدّل'});old.delete(f.id);operations.push({updateOne:{filter:{_id:f.id},update:{$set:next},upsert:true}});}
