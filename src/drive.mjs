@@ -186,6 +186,21 @@ async function withinLibrary(id) {
   throw new Error('هذا العنصر خارج مجلد أصول المكتبة.');
 }
 
+export const PENDING_CASSATION_FOLDER_ID = '19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE';
+export async function isPendingCassationDriveItem(id) {
+  if (!id) return false;
+  let item = await withinLibrary(id);
+  const seen = new Set();
+  for (let depth = 0; depth < 16 && item; depth++) {
+    if (item.id === PENDING_CASSATION_FOLDER_ID) return true;
+    const parent = item.parents?.[0];
+    if (!parent || seen.has(parent)) return false;
+    seen.add(parent);
+    item = await metadata(parent);
+  }
+  return false;
+}
+
 export async function listDriveFolder(folderId = LOCAL_ORIGINALS_ROOT ? 'local-folder:' : DRIVE_ROOT_FOLDER_ID, includeSourceMetadata = false) {
   if (LOCAL_ORIGINALS_ROOT) return listLocalFolder(folderId || 'local-folder:');
   const folder = await withinLibrary(folderId);
