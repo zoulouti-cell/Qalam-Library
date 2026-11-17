@@ -6,7 +6,7 @@ export const bundledLegalMonitoringContent = Object.freeze([
   {
     status: published, documentId: 'monitor-ma-cc-295-26-2026-11-11', country: 'ma',
     title: 'المحكمة الدستورية المغربية: التصريح بشغور مقعد بمجلس النواب',
-    type: 'judicial', kind: 'decision', category: 'الاجتهادات القضائية', subcategory: 'المحكمة الدستورية — القضاء الانتخابي', date: '2026-11-11',
+    type: 'judicial', kind: 'decision', category: 'المحكمة الدستورية', subcategory: 'القضاء الانتخابي', date: '2026-11-11',
     textKind: 'source_summary', reviewStatus: 'human_verified',
     sourceLabel: 'المحكمة الدستورية المغربية — قرار 295/26',
     sourceUrl: 'https://courconstitutionnelle.ma/Decision?Page=Decision&id=2159',

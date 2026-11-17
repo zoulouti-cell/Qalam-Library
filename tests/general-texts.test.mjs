@@ -4,6 +4,13 @@ import { GENERAL_TEXTS, orderedCategories, withGeneralTexts } from '../src/catal
 
 const row = (name, count = 1) => ({ name, count, legislationCount: count, jurisprudenceCount: 0, studiesCount: 0 });
 
+test('«المادة الدستورية» تسبق القوانين الوطنية وتضم الدساتير ثم المحكمة الدستورية', () => {
+  const list = orderedCategories([row('المادة المدنية'), row('المحكمة الدستورية'), row('الدساتير')]);
+  assert.deepEqual(list.slice(0, 2).map(item => item.name), ['الدساتير', 'المحكمة الدستورية']);
+  assert.ok(list.slice(0, 2).every(item => item.group === 'constitutional' && item.groupLabel === 'المادة الدستورية'));
+  assert.equal(list[2].group, 'materials');
+});
+
 test('«نصوص عامة» تُضاف فارغة في آخر القوانين الوطنية قبل السلطات', () => {
   const list = withGeneralTexts(orderedCategories([row('المادة المدنية', 5), row('مادة الفلاحة', 2), row('السلطة التنفيذية', 3), row('محكمة النقض', 4), row('دراسات قانونية', 1)]));
   const names = list.map(c => c.name);
