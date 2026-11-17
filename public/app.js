@@ -47,7 +47,7 @@
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, assistantEngine: 'groq', ...storedPreferences };
   const state = {
     view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementTopic: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
-    categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
+    canAdmin: false, categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, translation: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
     document: null, documentId: '', askDocument: null, chat: [], suggestions: [], selectedSuggestion: -1,
     searchSequence: 0, searchAbort: null, suggestAbort: null, documentAbort: null, searchTimer: null, suggestTimer: null,
@@ -231,6 +231,7 @@
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
       rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
       if (!needle && c.group === 'judicial' && categories[index + 1]?.group !== 'judicial') {
+        if (state.canAdmin) rows.push('<button type="button" class="category-button" data-drive-folder="19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE" data-drive-name="إضافات النقض"><span>إضافات النقض</span></button>');
         const existing = new Set(categories.map(item => normalize(item.name)));
         for (const [label,id] of [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]) {
           if (!existing.has(normalize(label))) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
@@ -266,6 +267,7 @@
       studies: [['مستجدات','1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0']],
       institutions: []
     })[state.browseGroup] || [];
+    if(state.browseGroup === 'judicial' && state.canAdmin) frenchCourts.push(['إضافات النقض','19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE']);
     const driveCourtRows = [...driveRootRows,...frenchCourts].map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
     pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
   }
@@ -1081,6 +1083,7 @@
     if (responses[0].status === 'fulfilled') {
       applyStats(responses[0].value);
     } else { $('connectionPill').textContent = 'الخدمة غير متاحة'; }
+    if (responses[3].status === 'fulfilled') state.canAdmin = responses[3].value.canAdmin === true;
     if (responses[1].status === 'fulfilled') { state.categories = responses[1].value.categories || []; renderCategories(); } else $('categoryList').innerHTML = '<div class="sidebar-loading">تعذّر تحميل المجالات.</div>';
     if (responses[2].status === 'fulfilled') state.capabilities = responses[2].value;
     if (responses[4].status === 'fulfilled') {state.agreementCount=Number(responses[4].value.total)||0;state.agreementBranchCounts=responses[4].value.branches||state.agreementBranchCounts;$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();}
