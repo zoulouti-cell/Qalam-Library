@@ -229,20 +229,27 @@
       if (c.group && c.group !== group) { group = c.group; tier = ''; heading += '<h3 class="category-group">' + esc(c.groupLabel) + '</h3>'; }
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
-      if (c.name === 'المادة الدستورية') {
-        rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
-        rows.push('<button type="button" class="category-button" data-drive-folder="1UbD-sKzCIi6K__-QLmyGxtta9EiY_YbI" data-drive-name="دساتير المملكة"><span>↳ دساتير المملكة</span></button>');
-        rows.push('<button type="button" class="category-button" data-drive-folder="1fADBvOD4Sjt45vf6RbLgZC56OvfITJ0g" data-drive-name="قرارات المحكمة الدستورية"><span>↳ قرارات المحكمة الدستورية</span></button>');
-        return;
-      }
       rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
       if (!needle && c.group === 'materials' && categories[index + 1]?.group !== 'materials') {
-        rows.push('<button type="button" class="category-group agreement-sidebar-heading" data-drive-folder="1ow2jcXugNyKSYNjlj-VjWoiPTXf60GPN" data-drive-name="الاتفاقيات الدولية">الاتفاقيات الدولية</button>');
-        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-drive-folder="1CeJUqly_roFmt_daXM21lb-0WfAdRPhG" data-drive-name="ثنائية الاطراف" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>ثنائية الاطراف</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
-        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' ? ' selected' : '') + '" data-drive-folder="19rz1FCNLSyx9MsAJFB-moxKqMKBaNgZx" data-drive-name="متعددة الاطراف" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة') + '"><span>متعددة الاطراف</span><b>' + (state.agreementBranchCounts.multilateral === null ? '—' : fmt(state.agreementBranchCounts.multilateral)) + '</b></button>');
+        rows.push('<button type="button" class="category-group agreement-sidebar-heading" data-agreement-sidebar="">الاتفاقيات الدولية</button>');
+        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية' ? ' selected' : '') + '" data-agreement-sidebar="ثنائية" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'ثنائية') + '"><span>ثنائية الاطراف</span><b>' + (state.agreementBranchCounts.bilateral === null ? '—' : fmt(state.agreementBranchCounts.bilateral)) + '</b></button>');
+        rows.push('<button class="category-button agreement-sidebar-link' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة' ? ' selected' : '') + '" data-agreement-sidebar="متعددة" aria-pressed="' + (state.scope === 'agreements' && state.agreementBranch === 'متعددة') + '"><span>متعددة الاطراف</span><b>' + (state.agreementBranchCounts.multilateral === null ? '—' : fmt(state.agreementBranchCounts.multilateral)) + '</b></button>');
         /* لا نكرر فئة إقليمية قديمة كعنوان ثالث؛ فرعا الاتفاقيات هما الثنائية ومتعددة الأطراف. */
       }
     });
+    // Preserve the existing category hierarchy; expose only genuinely new Drive branches.
+    if (!needle) {
+      const existing = new Set(categories.map(c => normalize(c.name)));
+      const extra = (label,id) => {
+        if (!existing.has(normalize(label))) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
+      };
+      rows.push('<h3 class="category-group">الفروع القضائية الفرنسية</h3>');
+      extra('محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t');
+      extra('المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx');
+      extra('مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X');
+      rows.push('<h3 class="category-group">الأبحاث والدراسات — إضافات</h3>');
+      extra('مستجدات','1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0');
+    }
     $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
   }
   function renderBrowseGroup(group) {    state.browseGroup = state.browseGroup === group ? '' : group;
