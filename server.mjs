@@ -1031,7 +1031,7 @@ const server=http.createServer(async(req,res)=>{
       const items=tickerItems(rows.map(r=>({...r,id:r._id})));
       /* للمدير وحده: ما رصده الجامع ولم يُعتمد بعد يظهر في الشريط موسوماً «بانتظار الاعتماد» ليراه فوراً. */
       if(await adminSessionLive(req)){
-        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','justice_digital']},state:{$in:['held','ready']},receivedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({receivedAt:-1}).limit(40).toArray();
+        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','legislation','justice_digital']},state:{$in:['held','ready']},receivedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({receivedAt:-1}).limit(40).toArray();
         for(const r of pend){const url=r.source?.url||'';if(/^https?:\/\//i.test(url))items.push({id:String(r._id),title:r.title,country:r.country,kind:r.kind,url,eventDate:r.eventDate,pending:true});}
       }
       return send(req,res,200,{items});
