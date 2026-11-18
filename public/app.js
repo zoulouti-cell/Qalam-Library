@@ -1095,7 +1095,7 @@
     try {
       const data = await api('/api/legal-monitor/ticker');
       const dismissed = new Set(prefs.tickerDismissed || []);
-      const fresh = (data.items || []).filter(u => !dismissed.has(u.id) && /^https?:\/\//i.test(u.url));
+      const fresh = (data.items || []).filter(u => (u.pending || !dismissed.has(u.id)) && /^https?:\/\//i.test(u.url));
       const old = $('newsTicker'); if (old) old.remove();
       if (!fresh.length) return;
       const bar = document.createElement('section'); bar.id = 'newsTicker'; bar.className = 'news-ticker'; bar.setAttribute('aria-label', 'شريط الأخبار القانونية');
@@ -1111,7 +1111,7 @@
       const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
       close.addEventListener('click', () => { prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
       bar.append(label, track, close);
-      const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(bar, anchor);
+      bar.style.margin = '0 0 14px'; $('main').prepend(bar); /* أول ما يراه المدير عند الفتح، فوق شريط البحث */
     } catch {}
   }
   /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
