@@ -232,6 +232,7 @@
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
       rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="'+esc(c.name)+'" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
+      if (!needle && c.name === 'نصوص عامة' && state.canAdmin) rows.push('<button type="button" class="category-button" data-drive-folder="14fPme5j1TWFO458B9N-8N93X7w2yt-3W" data-drive-name="نصوص التحيين"><span>↳ نصوص التحيين</span></button>');
       if (!needle && c.group === 'judicial' && categories[index + 1]?.group !== 'judicial') {
         if (state.canAdmin) rows.push('<button type="button" class="category-button" data-drive-folder="19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE" data-drive-name="إضافات النقض"><span>إضافات النقض</span></button>');
       }
