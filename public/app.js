@@ -1103,7 +1103,7 @@
       const lane = document.createElement('div'); lane.className = 'news-ticker-lane'; lane.style.animationDuration = Math.max(25, fresh.length * 9) + 's';
       for (const u of fresh) {
         const a = document.createElement('a'); a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        a.textContent = u.title + ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب');
+        a.textContent = u.title + ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب') + (u.pending ? ' · بانتظار الاعتماد' : '');
         lane.append(a);
       }
       track.append(lane);

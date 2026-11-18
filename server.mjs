@@ -1026,7 +1026,13 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/legal-monitor/ticker'&&req.method==='GET'){
       if(!adminStore)return send(req,res,200,{items:[]});
       const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({publishedAt:-1}).limit(60).toArray();
-      return send(req,res,200,{items:tickerItems(rows.map(r=>({...r,id:r._id})))});
+      const items=tickerItems(rows.map(r=>({...r,id:r._id})));
+      /* للمدير وحده: ما رصده الجامع ولم يُعتمد بعد يظهر في الشريط موسوماً «بانتظار الاعتماد» ليراه فوراً. */
+      if(await adminSessionLive(req)){
+        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','justice_digital']},state:{$in:['held','ready']},createdAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({createdAt:-1}).limit(40).toArray();
+        for(const r of pend){const url=r.source?.url||'';if(/^https?:\/\//i.test(url))items.push({id:String(r._id),title:r.title,country:r.country,kind:r.kind,url,eventDate:r.eventDate,pending:true});}
+      }
+      return send(req,res,200,{items});
     }
     if(p==='/api/legal-monitor/alerts'&&req.method==='GET'){
       if(!adminStore)return send(req,res,200,{alerts:[]});
