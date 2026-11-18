@@ -195,9 +195,9 @@ async function publishPendingCassationOriginals(doc){
 async function moveContribution(id,status,extra={}){const now=new Date();return adminStore.contributions.findOneAndUpdate({id},{$set:{status,statusChangedAt:now,updatedAt:now,userNotifyPending:true,...extra}},{returnDocument:'after'});}
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
-/* نطاق المراقبة: الرفوف الفرنسية، «الأبحاث والدراسات» وما تحته، «إضافات النقض». ما سواها (الاتفاقيات والقوانين والاجتهادات الأساسية) خارج المراقبة فلا يُحتسب تغييره. */
+/* نطاق المراقبة: الرفوف الفرنسية، «الأبحاث والدراسات» وما تحته، «إضافات النقض»، «قرارات المحكمة الدستورية»، «نصوص التحيين» (أصول النصوص التشريعية المغربية بانتظار اعتماد المدير). ما سواها (الاتفاقيات والقوانين والاجتهادات الأساسية) خارج المراقبة فلا يُحتسب تغييره. */
 const MONITOR_SCOPE_VERSION=2;
-const MONITORED_FOLDERS=[...FRENCH_SHELVES.map(name=>({id:DRIVE_SHELVES[name],path:name})),{id:'10-Bp3BUlI7OodtfMjlMynB9BY7349CvE',path:'الأبحاث والدراسات'},{id:'19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE',path:'الاجتهادات القضائية / إضافات النقض'},{id:DRIVE_SHELVES['القضاء الدستوري'],path:'المادة الدستورية / قرارات المحكمة الدستورية'}];
+const MONITORED_FOLDERS=[...FRENCH_SHELVES.map(name=>({id:DRIVE_SHELVES[name],path:name})),{id:'10-Bp3BUlI7OodtfMjlMynB9BY7349CvE',path:'الأبحاث والدراسات'},{id:'19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE',path:'الاجتهادات القضائية / إضافات النقض'},{id:DRIVE_SHELVES['القضاء الدستوري'],path:'المادة الدستورية / قرارات المحكمة الدستورية'},{id:'14fPme5j1TWFO458B9N-8N93X7w2yt-3W',path:'القوانين / نصوص التحيين'}];
 let driveScanPromise=null;
 async function runDriveMetadataScan(actor='system'){
   if(!adminStore)throw new Error('قاعدة إدارة المكتبة غير متاحة؛ تعذر حفظ نتيجة الفحص.');
