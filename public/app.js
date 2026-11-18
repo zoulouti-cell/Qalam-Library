@@ -253,7 +253,7 @@
     if (!state.browseGroup) { pane.innerHTML = ''; $('browseGroups').hidden = false; return; }
     $('browseGroups').hidden = true;
     if (state.browseGroup === 'agreements') { browseAgreements(); return; }
-    const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','agencies','org'],french:['french'],studies:['studies']};
+    const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','bodies','agencies','org'],french:['french'],studies:['studies']};
     const rows = state.categories.filter(c => !/(?:اتفاقيات|معاهدات)/u.test(normalize(c.name.trim())) && groups[state.browseGroup].includes(c.group));
     const frenchCourts = [];
     const driveRootRows = ({

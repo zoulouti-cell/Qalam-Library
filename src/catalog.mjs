@@ -1,7 +1,7 @@
 // The original library's navigation and reference priorities, kept separately
 // from full-text relevance. Removing unavailable records never renumbers titles.
 const MAJOR = ['المادة الدستورية','المادة المدنية','المادة الجنائية','المادة التجارية','المادة الاجتماعية','المادة الإدارية','المادة الأسرية','المادة العقارية','المادة المالية','المادة الانتخابية','المادة البيئية'];
-const GROUPS = [['constitutional','المادة الدستورية'],['materials','القوانين الوطنية'],['authorities','السلطات'],['councils','المجالس'],['agencies','الهيئات والوكالات'],['judicial','الاجتهادات القضائية'],['studies','الأبحاث والدراسات'],['org','التنظيم الهيكلي لوزارة العدل'],['french','القانون والقضاء الفرنسيين']];
+const GROUPS = [['constitutional','المادة الدستورية'],['materials','القوانين الوطنية'],['authorities','السلطات'],['councils','المجالس'],['bodies','الهيئات والمؤسسات'],['agencies','الوكالات'],['judicial','الاجتهادات القضائية'],['studies','الأبحاث والدراسات'],['org','التنظيم الهيكلي لوزارة العدل'],['french','القانون والقضاء الفرنسيين']];
 /* هذه فئات مؤسسات عامة محددة بالاسم. لا نضم إليها الهيئات المهنية أو
    كل عبارة عابرة فيها «مجلس» أو «هيئة»، حتى لا يتكرر العنوان أو يختلط المجال. */
 const INSTITUTIONS = [
@@ -17,13 +17,13 @@ const INSTITUTIONS = [
   ['المجلس الاستشاري للشباب والعمل الجمعوي', 'councils', /المجلس الاستشاري للشباب والعمل الجمعوي/u],
   ['المجلس الأعلى للحسابات', 'councils', /المجلس الأعلى للحسابات/u],
   ['المجلس العلمي الأعلى', 'councils', /المجلس العلمي الأعلى/u],
-  ['الهيئة الوطنية للنزاهة والوقاية من الرشوة ومحاربتها', 'agencies', /الهيئة الوطنية للنزاهة.*الرشوة/u],
-  ['الهيئة العليا للاتصال السمعي البصري', 'agencies', /الهي(?:ئة|أة) العليا للإ?تصال السمعي/u],
-  ['هيئة المناصفة ومكافحة كل أشكال التمييز', 'agencies', /هيئة المناصفة ومكافحة كل أشكال التمييز/u],
-  ['الهيئة المغربية لسوق الرساميل', 'agencies', /الهيئة المغربية لسوق الرساميل/u],
-  ['الهيئة الوطنية لضبط الكهرباء', 'agencies', /الهيئة الوطنية لضبط الكهرباء/u],
-  ['الهيئة الوطنية للمعلومات المالية', 'agencies', /الهيئة الوطنية للمعلومات المالية/u],
-  ['مؤسسة الوسيط', 'agencies', /مؤسسة (?:«)?الوسيط|ديوان المظالم/u],
+  ['الهيئة الوطنية للنزاهة والوقاية من الرشوة ومحاربتها', 'bodies', /الهيئة الوطنية للنزاهة.*الرشوة/u],
+  ['الهيئة العليا للاتصال السمعي البصري', 'bodies', /الهي(?:ئة|أة) العليا للإ?تصال السمعي/u],
+  ['هيئة المناصفة ومكافحة كل أشكال التمييز', 'bodies', /هيئة المناصفة ومكافحة كل أشكال التمييز/u],
+  ['الهيئة المغربية لسوق الرساميل', 'bodies', /الهيئة المغربية لسوق الرساميل/u],
+  ['الهيئة الوطنية لضبط الكهرباء', 'bodies', /الهيئة الوطنية لضبط الكهرباء/u],
+  ['الهيئة الوطنية للمعلومات المالية', 'bodies', /الهيئة الوطنية للمعلومات المالية/u],
+  ['مؤسسة الوسيط', 'bodies', /مؤسسة (?:«)?الوسيط|ديوان المظالم/u],
   ['الوكالة الوطنية لحماية الطفولة', 'agencies', /الوكالة الوطنية لحماية الطفولة/u],
   ['الوكالة الوطنية للمياه والغابات', 'agencies', /الوكالة الوطنية للمياه والغابات/u],
   ['الوكالة المغربية للأدوية والمنتجات الصحية', 'agencies', /الوكالة المغربية للأدوية والمنتجات الصحية/u],
@@ -92,7 +92,7 @@ function categoryRank(name) {
   if(name.startsWith('السلطة'))return 110;
   if(name.includes('محكمة')||name.startsWith('اجتهادات قضائية')||name==='المجلس الأعلى'||name==='قواعد قضائية')return 120;
   const institution = INSTITUTIONS.find(([label]) => label === name);
-  if(institution)return institution[1] === 'councils' ? 130 : 135;
+  if(institution)return institution[1] === 'councils' ? 130 : institution[1] === 'bodies' ? 135 : 136;
   if(name==='محكمة النقض الفرنسية'||name==='مجلس الدولة الفرنسي'||name==='المجلس الدستوري الفرنسي'||name==='مستجدات فرنسية')return 125;
   if(/دراسات|مجلة|أبحاث|ابحاث|بحوث|نشرة/.test(name))return 140;
   if(name.includes('التنظيم الهيكلي'))return 150;
@@ -100,7 +100,7 @@ function categoryRank(name) {
 }
 function judicialRank(name){return name==='المجلس الأعلى'?0:name==='محكمة النقض'?1:name==='محكمة النقض - الخبرة'?2:name==='قواعد قضائية'?3:name.includes('محكمة الاستئناف')?4:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?5:name.startsWith('اجتهادات قضائية')?6:7;}
 function institutionRank(name){const rank=INSTITUTION_PRIORITY.indexOf(name);return rank<0?99:rank;}
-function groupOf(name){if(['محكمة النقض الفرنسية','مجلس الدولة الفرنسي','المجلس الدستوري الفرنسي','مستجدات فرنسية'].includes(name))return 'french';return ({'-2':'constitutional','-1':'constitutional',110:'authorities',120:'judicial',130:'councils',135:'agencies',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
+function groupOf(name){if(['محكمة النقض الفرنسية','مجلس الدولة الفرنسي','المجلس الدستوري الفرنسي','مستجدات فرنسية'].includes(name))return 'french';return ({'-2':'constitutional','-1':'constitutional',110:'authorities',120:'judicial',130:'councils',135:'bodies',136:'agencies',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
 /**
  * «نصوص عامة»: عنوان محجوز في آخر «القوانين الوطنية» (بعد المواد القانونية كلها) يحيل إليه فهرس المكتب في تطبيق قلم.
  * يظهر ولو كان فارغًا، وتُودَع فيه النصوص التي لا تنتمي إلى مادة بعينها (من لوحة الإدارة بوضع الفئة «نصوص عامة»).
@@ -120,7 +120,7 @@ export function orderedCategories(categories, original={}) {
   return GROUPS.flatMap(([group,groupLabel])=>{
     const members=sorted.filter(c=>groupOf(c.name)===group);
     if(group==='judicial')members.sort((a,b)=>judicialRank(a.name)-judicialRank(b.name));
-    if(group==='councils'||group==='agencies')members.sort((a,b)=>institutionRank(a.name)-institutionRank(b.name)||b.count-a.count);
+    if(group==='councils'||group==='bodies'||group==='agencies')members.sort((a,b)=>institutionRank(a.name)-institutionRank(b.name)||b.count-a.count);
     return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':'',driveFolderId:DRIVE_SHELVES[c.name]||''}));
   });
 }
