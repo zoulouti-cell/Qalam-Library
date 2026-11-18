@@ -18,7 +18,7 @@
       for(const report of r.reports){const article=document.createElement('article');article.className='result';const h=document.createElement('strong');h.textContent=report.title+' · '+report.localDate;const meta=document.createElement('small');meta.textContent='المصادر المتحققة: '+fmt(report.sourceCount)+' · '+new Date(report.generatedAt).toLocaleString('ar-MA');const pre=document.createElement('pre');pre.textContent=report.text;pre.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;max-height:32rem;overflow:auto;font:inherit';article.append(h,meta,pre);reports.append(article);}
       items.innerHTML=i.items.length?'':'<p class="empty">لا توجد مستجدات موثقة مسجلة بعد.</p>';
       for(const item of i.items){const article=document.createElement('article');article.className='result';const h=document.createElement('strong');h.textContent=item.title;const meta=document.createElement('span');meta.textContent=(item.country==='ma'?'المغرب':'فرنسا')+' · '+item.eventDate+' · '+item.state;const reason=document.createElement('small');reason.textContent=item.holdReason||item.source?.label||'';article.append(h,meta,reason);
-        const when=document.createElement('small');when.textContent=item.state==='ready'&&item.autoPublishAt?'يُنشر تلقائياً بعد: '+new Date(item.autoPublishAt).toLocaleString('ar-MA')+(item.effectiveDate?' · النفاذ: '+item.effectiveDate:''):(item.state==='ready'?'بانتظار اعتمادك للنشر':'')+(item.effectiveDate?(item.state==='ready'?' · ':'')+'النفاذ: '+item.effectiveDate:'');
+        const when=document.createElement('small');when.textContent=item.state==='ready'&&item.autoPublishAt&&item.autoPublishable!==false?'يُنشر تلقائياً بعد: '+new Date(item.autoPublishAt).toLocaleString('ar-MA')+(item.effectiveDate?' · النفاذ: '+item.effectiveDate:''):(item.state==='ready'?'بانتظار اعتمادك للنشر':'')+(item.effectiveDate?(item.state==='ready'?' · ':'')+'النفاذ: '+item.effectiveDate:'');
         const bar=document.createElement('div');bar.style.cssText='display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem';
         const act=(label,action,confirmText)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',async()=>{if(confirmText&&!confirm(confirmText))return;try{await api('/api/admin/legal-monitor/items/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id,action})});loadLegalReports();}catch(error){message(error.message);}});bar.append(b);};
         const isLaw=['legislation','bill'].includes(item.kind),stageOk=!isLaw||['published','effective'].includes(item.currentStage);
@@ -33,7 +33,7 @@
           });bar.append(b);
           if(item.state==='ready')act('تحفظ','hold');
         }
-        if(item.state==='held')act('رفع التحفظ ونشره بعد 24 ساعة','release');
+        if(item.state==='held')act(item.autoPublishable===false?'رفع التحفظ (يبقى بانتظار اعتمادك)':'رفع التحفظ ونشره بعد 24 ساعة','release');
         act('حذف','delete','يُحذف هذا المستجد من السجل ومن المكتبة ولن يعيد الجامع استيراده. متابعة؟');
         article.append(when,bar);items.append(article);}
     }catch(error){reports.textContent=error.message;items.textContent=error.message;}
