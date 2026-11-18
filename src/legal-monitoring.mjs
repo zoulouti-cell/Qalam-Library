@@ -55,7 +55,7 @@ export function makeObservation(input = {}) {
     id, country, kind, title, summary, eventDate, receivedAt, source, reference, court, caseNumber,
     officialNumber: oneLine(input.officialNumber, 150), currentStage: STAGES.includes(input.currentStage) ? input.currentStage : '',
     state: readyForAutomaticPublication ? 'ready' : 'held',
-    effectiveDate: isoDate(input.effectiveDate), autoPublishAt: null, /* لا نشر تلقائي بعد مهلة 24 ساعة: النشر باعتماد المدير يدوياً */
+    effectiveDate: isoDate(input.effectiveDate), autoPublishAt: readyForAutomaticPublication && !(country === 'ma' && legislative) ? new Date(receivedAt.getTime() + PUBLICATION_DELAY_MS) : null, /* القوانين المغربية ومشاريعها وقرارات النقض المغربية باعتماد المدير يدوياً؛ وما عداها يُنشر تلقائياً بعد 24 ساعة */
     holdReason: restrictedCassation ? 'قرار محكمة النقض المغربية يتطلب اعتماد المدير حصراً.' : hasReservation ? 'توجد ملاحظة قانونية أو علمية أو تقنية تستلزم المراجعة.' : !input.complete ? 'بيانات الإضافة أو التحقق غير مكتملة.' : !publishableKind ? 'هذا النوع لا ينشر تلقائياً؛ يلزم اعتماد المدير.' : '',
     readyForAutomaticPublication, original: input.original && typeof input.original === 'object' ? { driveId: oneLine(input.original.driveId, 200), url: sourceUrl(input.original.url), name: oneLine(input.original.name, 300) } : null,
     history: [{ state: readyForAutomaticPublication ? 'ready' : 'held', at: receivedAt, reason: restrictedCassation ? 'manager_approval_required' : hasReservation ? 'reservation' : 'verification_incomplete' }],
@@ -78,11 +78,14 @@ export function mergeLegislativeObservation(existing = null, incoming = {}) {
 }
 
 export function mayAutoPublish(record = {}) {
-  /* ألغيت مهلة الـ24 ساعة والنشر التلقائي: كل نشر باعتماد المدير يدوياً من نافذة الاطلاع. */
-  return false && record.state === 'ready' && record.readyForAutomaticPublication === true &&
+  /* الاعتماد اليدوي وحده: قرارات محكمة النقض المغربية والقوانين المغربية ومشاريعها والرقمنة القضائية.
+     القسم الفرنسي والمحكمة الدستورية وسائر المستجدات تُنشر تلقائياً بعد 24 ساعة (ونص فرنسي تشريعي لا يُنشر قبل استيفاء مراحله). */
+  return record.state === 'ready' && record.readyForAutomaticPublication === true &&
     record.source?.official === true && record.source?.verified === true &&
     !(record.country === 'ma' && record.kind === 'case_law' && /محكمة\s+النقض/.test(record.court || '')) &&
-    record.kind !== 'justice_digital' && record.kind !== 'legislation' && record.kind !== 'bill';
+    !(record.country === 'ma' && ['legislation', 'bill'].includes(record.kind)) &&
+    record.kind !== 'justice_digital' &&
+    (record.kind !== 'legislation' || ['published', 'effective'].includes(record.currentStage));
 }
 
 /* النص التشريعي لا يُعتمد للنشر قبل استيفاء مراحله: النشر في الجريدة الرسمية أو النفاذ. */
