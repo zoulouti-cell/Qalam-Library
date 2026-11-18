@@ -63,5 +63,7 @@ test('النصوص المضمنة تُربط بملفاتها وتُعرض في 
   assert.equal(byPrefix('4608').textDocumentId, 'agreement-4608');
   assert.ok(byPrefix('4608').textOrder > 0);
   assert.equal(byPrefix('4608').agreementSubcategory, 'اتفاقيات دولية');
-  assert.ok(!byPrefix('2632').textDocumentId, 'الوثيقة الثنائية لا تُدرج في سجل النصوص متعددة الأطراف');
+  /* الثنائية صار لها نص مضمّن أيضًا (استُخرج من أصل Drive) ويبقى أصلها ظاهرًا. */
+  assert.equal(byPrefix('2632').textDocumentId, 'agreement-2632');
+  assert.equal(byPrefix('2632').agreementKind, 'ثنائية');
 });

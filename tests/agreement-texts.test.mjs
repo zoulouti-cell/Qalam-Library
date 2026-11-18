@@ -21,16 +21,20 @@ after(() => { try { library?.db.close(); } catch {} fs.rmSync(dir, { recursive: 
 const byId = id => bundledAgreementTexts.find(d => String(d.treatyId) === String(id));
 const MARINE = byId('10038'), BANK = byId('6652'), HAMBURG = byId('4608'), SOLAS = byId('7692');
 
-test('فهرس الاتفاقيات يضم الأصول متعددة الأطراف كلها دون إدخال ملفات الفرع الثنائي', () => {
-  assert.equal(bundledAgreementTexts.length, 167);
-  assert.equal(new Set(bundledAgreementTexts.map(d => String(d.treatyId))).size, 167);
-  const multilateral = bundledAgreementTexts.filter(d => d.category === 'اتفاقيات ومعاهدات');
+test('فهرس الاتفاقيات يضم الأصول متعددة الأطراف كلها ونصوص الفرع الثنائي المستخرجة (331 من 332)', () => {
+  const bilateral = bundledAgreementTexts.filter(d => d.agreementKind === 'ثنائية'), multi = bundledAgreementTexts.filter(d => d.agreementKind !== 'ثنائية');
+  assert.equal(multi.length, 167);
+  assert.equal(bilateral.length, 331);
+  assert.equal(bundledAgreementTexts.length, 498);
+  assert.equal(new Set(bundledAgreementTexts.map(d => String(d.treatyId))).size, 498);
+  for (const d of bilateral) { assert.equal(d.status, 'published'); assert.ok(d.text.length > 300, d.treatyId); assert.ok(d.subcategory, d.treatyId); assert.match(d.originalSha256, /^[0-9a-f]{64}$/); }
+  const multilateral = multi.filter(d => d.category === 'اتفاقيات ومعاهدات');
   assert.equal(multilateral.length, 165);
   assert.deepEqual(Object.fromEntries([...new Set(multilateral.map(d => d.subcategory))].sort().map(n => [n, multilateral.filter(d => d.subcategory === n).length])), {
     'اتفاقيات إقليمية': 38, 'اتفاقيات جنيف': 15, 'اتفاقيات دولية': 70, 'اتفاقيات حقوق الإنسان': 22, 'اتفاقيات لاهاي': 9, 'اتفاقيات منظمة العمل الدولية': 11,
   });
   assert.equal(AGREEMENT_SECTION, 'اتفاقيات إقليمية');
-  for (const d of bundledAgreementTexts) {
+  for (const d of multi) {
     assert.equal(d.status, 'published');
     assert.match(d.originalFiles[0].driveId, /^[\w-]{20,}$/);
     assert.ok(d.originalFiles[0].name.toLowerCase().endsWith('.pdf'));
