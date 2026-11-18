@@ -59,3 +59,9 @@ test('الفئة المضافة من لوحة الإدارة بلا مجموعة
   assert.equal(list[at].group, 'materials');
   assert.equal(list[at - 1].name, 'المادة المدنية');
 });
+
+test('رفوف فرنسا تُرتَّب ترتيباً ثابتاً: «دراسات فرنسية» بعد «قوانين فرنسية» مهما كان العدد', () => {
+  const row = (name, count) => ({ name, count, legislationCount: 0, jurisprudenceCount: 0, studiesCount: 0 });
+  const names = orderedCategories([row('دراسات فرنسية', 90), row('قوانين فرنسية', 1), row('محكمة النقض الفرنسية', 5)]).map(c => c.name);
+  assert.deepEqual(names, ['محكمة النقض الفرنسية', 'قوانين فرنسية', 'دراسات فرنسية']);
+});

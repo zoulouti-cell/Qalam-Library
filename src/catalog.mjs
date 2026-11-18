@@ -150,6 +150,7 @@ export function orderedCategories(categories, original={}) {
   return GROUPS.flatMap(([group,groupLabel])=>{
     const members=sorted.filter(c=>groupOf(c.name)===group);
     if(group==='judicial')members.sort((a,b)=>judicialRank(a.name)-judicialRank(b.name));
+    if(group==='french')members.sort((a,b)=>FRENCH_SHELVES.indexOf(a.name)-FRENCH_SHELVES.indexOf(b.name));
     if(group==='councils'||group==='bodies'||group==='agencies')members.sort((a,b)=>institutionRank(a.name)-institutionRank(b.name)||b.count-a.count);
     return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':'',driveFolderId:DRIVE_SHELVES[c.name]||''}));
   });
