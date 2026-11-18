@@ -26,7 +26,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,publicationRecord,effectiveToday,recentUpdates,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
+import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -739,7 +739,7 @@ const server=http.createServer(async(req,res)=>{
       try{
         if(action==='hold'){await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'held',holdReason:'تحفظ المدير على النشر.',autoPublishAt:null},$push:{history:{state:'held',at:now,reason:'manager_reservation'}}});}
         else if(action==='release'){if(item.state!=='held')return send(req,res,409,{error:'السجل ليس محجوزاً.'});await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'ready',holdReason:'',readyForAutomaticPublication:true,autoPublishAt:new Date(now.getTime()+PUBLICATION_DELAY_MS)},$push:{history:{state:'ready',at:now,reason:'manager_release'}}});}
-        else if(action==='publish'){await publishLegalItem({...item,id},actor);}
+        else if(action==='publish'||action==='approve'){if(!['ready','held'].includes(item.state))return send(req,res,409,{error:'السجل منشور أصلاً.'});if(!lawStagesComplete(item))return send(req,res,409,{error:'لم يستوفِ النص التشريعي مراحله بعد؛ لا يُعتمد قبل نشره في الجريدة الرسمية أو نفاذه.'});const category=String(body.category||'').trim().slice(0,80);if(category)await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{publishCategory:category}});await publishLegalItem({...item,id,...(category?{publishCategory:category}:{})},actor);}
         else if(action==='delete'){
           const docId=item.documentId||`monitor-${String(id).slice(0,20)}`;
           await adminStore.content.deleteMany({documentId:docId,origin:'legal-monitor'});

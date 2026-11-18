@@ -81,7 +81,12 @@ export function mayAutoPublish(record = {}) {
   return record.state === 'ready' && record.readyForAutomaticPublication === true &&
     record.source?.official === true && record.source?.verified === true &&
     !(record.country === 'ma' && record.kind === 'case_law' && /محكمة\s+النقض/.test(record.court || '')) &&
-    record.kind !== 'justice_digital';
+    record.kind !== 'justice_digital' && record.kind !== 'legislation' && record.kind !== 'bill';
+}
+
+/* النص التشريعي لا يُعتمد للنشر قبل استيفاء مراحله: النشر في الجريدة الرسمية أو النفاذ. */
+export function lawStagesComplete(record = {}) {
+  return !['legislation', 'bill'].includes(record.kind) || ['published', 'effective'].includes(record.currentStage);
 }
 
 function partsAt(date, timeZone = REPORT_TIME_ZONE) {
@@ -116,6 +121,9 @@ export function renderReport(type, records, { localDate, generatedAt = new Date(
 
 /* الفئة التي ينشر فيها المستجد بحسب البلد ونوعه والجهة. */
 export function publicationCategory(record = {}) {
+  const chosen = String(record.publishCategory || '').trim();
+  if (chosen) return chosen.slice(0, 80);
+  if (record.country === 'ma' && record.kind === 'case_law' && /محكمة\s+النقض/.test(String(record.court || ''))) return 'إضافات النقض';
   const court = String(record.court || '');
   if (record.kind === 'case_law') {
     if (record.country === 'ma') return /المحكمة\s+الدستورية|المجلس\s+الدستوري/.test(court) ? 'القضاء الدستوري' : 'مستجدات';
