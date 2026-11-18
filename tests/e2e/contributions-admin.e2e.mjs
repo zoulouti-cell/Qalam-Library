@@ -11,6 +11,8 @@ const require = createRequire(import.meta.url), { chromium } = require('playwrig
 const SHOTS = process.env.SHOTS || fs.mkdtempSync(path.join(os.tmpdir(), 'qalam-admin-shots-')), USER = 'avocat@example.com';
 fs.mkdirSync(SHOTS, { recursive: true });
 const drive = await startFakeDrive();
+/* المكتبة لا تنشئ المجلدات تلقائيًا: المجلد الفرعي معدّ سلفًا في Drive */
+{ const sec = [...drive.files.values()].find(f => f.name === 'الاجتهادات القضائية'); drive.files.set('sub_seed_2021', { id: 'sub_seed_2021', name: 'اجتهادات 2021', mimeType: 'application/vnd.google-apps.folder', parents: [sec.id] }); }
 const server = await bootServer({ env: { NODE_ENV: 'test', QALAM_TEST_GOOGLE_ORIGIN: drive.origin, GOOGLE_SERVICE_ACCOUNT_JSON: drive.serviceAccountJson, DRIVE_ROOT_FOLDER_ID: ROOT_ID } });
 await server.seedUser(USER);
 const browser = await chromium.launch();
