@@ -161,7 +161,7 @@
     const sourceMissing=!uf.length&&!judicialMapped&&!driveId&&!mapped;
     const sourceLookup=sourceMissing?'<button type="button" class="'+cls+'" data-drive-search="'+esc(doc?.title||'')+'" aria-label="العثور على الأصل في Drive" title="العثور على الأصل في Drive">'+icon('search')+'</button>':'';
     const sourceStatus=sourceMissing?'<small class="drive-link-status" title="لا يوجد ربط مباشر بعد؛ استعمل زر العدسة للتحقق من الأصل الموجود في Drive.">الأصل غير مربوط بالبطاقة بعد.</small>':'';
-    const moreOriginals=uf.slice(1).map((f,i)=>'<a class="'+cls+' source-action-word" href="'+esc(ufUrl(f,'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل '+(i+2)+'" title="الأصل '+(i+2)+': '+esc(f.name||'')+'"><span aria-hidden="true">'+(i+2)+'</span></a>').join('');
+    const moreOriginals=uf.slice(1).map((f,i)=>'<a class="'+cls+' source-action-word" href="'+esc(ufUrl(f,'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل '+(i+2)+'" title="الأصل '+(i+2)+': '+esc(f.name||'')+'"><span aria-hidden="true">'+esc(String(f.ext||'').toUpperCase()||(i+2))+'</span></a>').join('');
     const officialAction=officialUrl?'<a class="'+cls+'" href="'+esc(officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي على الإنترنت" title="المصدر الرسمي">'+icon('official')+'</a>':'';
     return '<span class="source-actions" dir="ltr" aria-label="معاينة الأصل والمصدر الرسمي والتنزيل">'+previewAction+officialAction+alternateWord+moreOriginals+downloadAction+sourceLookup+sourceStatus+'</span>';
   }
