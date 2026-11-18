@@ -5,7 +5,8 @@ import { Readable } from 'node:stream';
 import { brotliDecompressSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { googleLoginConfig, refreshGoogleAccessToken } from './google-login.mjs';
-import { agreementTextFor } from './agreement-texts.mjs';
+import { agreementTextFor, bundledAgreementTexts } from './agreement-texts.mjs';
+import os from 'node:os';
 
 const treatyTitleIndex = JSON.parse(fs.readFileSync(fileURLToPath(new URL('../data/treaty-titles.json', import.meta.url)), 'utf8')).documents || {};
 const treatyTitleByDriveTimestamp = Object.fromEntries(Object.values(treatyTitleIndex).flatMap(entry => {
@@ -172,6 +173,22 @@ async function driveFetch(url, options = {}) {
 const fields = 'id,name,mimeType,size,modifiedTime,md5Checksum,webViewLink,description,parents';
 let pdfIndexCache = { at: 0, promise: null, files: [] };
 let agreementIndexCache = { at: 0, promise: null, files: [] };
+/* آخر فهرس ناجح للاتفاقيات يُحفظ على القرص؛ فإذا أُعيد تشغيل الخادم عُرض فوراً ثم جُدّد في الخلفية. */
+const AGREEMENT_CACHE_FILE = path.join(os.tmpdir(), 'qalam-agreement-index-v1.json');
+try {
+  if (process.env.NODE_ENV === 'test' || LOCAL_ORIGINALS_ROOT) throw new Error('no disk cache');
+  const saved = JSON.parse(fs.readFileSync(AGREEMENT_CACHE_FILE, 'utf8'));
+  if (Array.isArray(saved.files) && saved.files.length && Date.now() - Number(saved.at || 0) < 24 * 3600_000) agreementIndexCache = { at: 1, promise: null, files: saved.files };
+} catch {}
+/* ما يُعرف دون Drive: نصوص الاتفاقيات متعددة الأطراف المضمّنة؛ تُعرض فور فتح القسم ريثما يكتمل مسح الثنائية. */
+function bundledAgreementFiles() {
+  return bundledAgreementTexts.filter(d => d.category === 'اتفاقيات ومعاهدات' && d.originalFiles?.[0]?.driveId).map(d => {
+    const original = d.originalFiles[0], entry = treatyTitleIndex[String(d.treatyId)] || {};
+    const subcategory = d.subcategory && d.subcategory !== 'اتفاقيات متعددة الأطراف' ? d.subcategory : '';
+    return { id: original.driveId, name: original.name || '', size: 0, md5Checksum: '', modifiedTime: '', path: ['الاتفاقيات الدولية', 'متعددة الأطراف', subcategory].filter(Boolean).join(' / '), webViewLink: '', officialUrl: entry.sourceUrl ? String(entry.sourceUrl).replace(/^http:\/\//i, 'https://') : '', title: d.title, fullTitle: entry.fullTitle || d.title, treatyId: String(d.treatyId), country: entry.country || '', textDocumentId: d.documentId, textOrder: d.order || 99, agreementSubcategory: subcategory, agreementKind: 'متعددة' };
+  });
+}
+export function warmAgreementIndex() { return listAgreementPdfs('', 1, 1).catch(() => {}); }
 async function metadata(id) {
   const query = new URLSearchParams({ fields, supportsAllDrives: 'true' });
   const response = await driveFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(id)}?${query}`);
@@ -340,6 +357,10 @@ async function allPdfsBelow(folderId, rootPath = '') {
   }
   return files;
 }
+export async function countShelfPdfs(folderId) {
+  if (LOCAL_ORIGINALS_ROOT) return null;
+  return (await allPdfsBelow(folderId)).length;
+}
 export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   if (Date.now() - agreementIndexCache.at >= 15 * 60_000) {
     if (!agreementIndexCache.promise) agreementIndexCache.promise = (async () => {
@@ -365,10 +386,14 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
       });
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };
+      try { if (process.env.NODE_ENV !== 'test' && !LOCAL_ORIGINALS_ROOT) fs.writeFileSync(AGREEMENT_CACHE_FILE, JSON.stringify({ at: Date.now(), files })); } catch {}
       return files;
     })().catch(error => { agreementIndexCache.promise = null; throw error; });
   }
-  const files = agreementIndexCache.at ? agreementIndexCache.files : await agreementIndexCache.promise;
+  const background = !LOCAL_ORIGINALS_ROOT && process.env.NODE_ENV !== 'test';
+  if (background && agreementIndexCache.promise) agreementIndexCache.promise.catch(() => {});
+  const files = agreementIndexCache.at ? agreementIndexCache.files : background ? bundledAgreementFiles() : await agreementIndexCache.promise;
+  const indexing = !agreementIndexCache.at;
   const needle = normalizeDriveName(query), tokens = needle.split(/\s+/).filter(Boolean);
   const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path} ${file.title || ''} ${file.fullTitle || ''} ${file.country || ''}`).includes(token))) : files;
   const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 20)), safePage = Math.max(1, Number(page) || 1);
@@ -380,6 +405,7 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
     page: safePage,
     limit: safeLimit,
     indexedFiles: files.length,
+    indexing,
     branches: {
       bilateral: matched.filter(isBilateral).length,
       multilateral: matched.filter(isMultilateral).length
@@ -393,9 +419,28 @@ export function driveSourceForDocument(id) {
   return judicial?{name:judicial.name,path:'الاجتهادات القضائية/'+courtPath,judicialIndex:true,status:judicialDriveIds.has(String(id))?'verified':'unverified'}:sourceDocumentIndex[String(id||'')]||null;
 }
 
+/* بحث مباشر باسم الملف المطابق تماماً (طلب واحد إلى Drive) بدل مسح الجذر كله عند أول فتح لأي أصل.
+   لا يُعتمد إلا ملف واحد (أو نسخ متطابقة البصمة) داخل مجلد المكتبة؛ وما سوى ذلك يعود إلى المطابقة الشاملة. */
+const sourceLookupCache = new Map();
+async function findSourcePdfByName(name, expectedPath = '') {
+  if (LOCAL_ORIGINALS_ROOT || !name) return null;
+  const key = name + '\u0000' + expectedPath, cached = sourceLookupCache.get(key);
+  if (cached && cached.until > Date.now()) return cached.item;
+  const query = new URLSearchParams({ q: `name = '${String(name).replaceAll('\\', '\\\\').replaceAll("'", "\\'")}' and mimeType = 'application/pdf' and trashed = false`, pageSize: '10', fields: `files(${fields})`, supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' });
+  const data = await (await driveFetch(`${GOOGLE_API}/drive/v3/files?${query}`)).json();
+  let found = (data.files || []).filter(item => item.name === name);
+  if (found.length > 1 && found.every(item => item.md5Checksum && item.md5Checksum === found[0].md5Checksum)) found = [found[0]];
+  if (found.length !== 1) return null;
+  await withinLibrary(found[0].id);
+  sourceLookupCache.set(key, { item: found[0], until: Date.now() + 15 * 60_000 });
+  if (sourceLookupCache.size > 500) sourceLookupCache.delete(sourceLookupCache.keys().next().value);
+  return found[0];
+}
+
 export async function resolveDocumentSourcePdf(documentId) {
   const source = driveSourceForDocument(documentId);
   if (!source?.name) throw new Error('لا يتوفر اسم موثوق لملف الأصل في فهرس المكتبة.');
+  try { const direct = await findSourcePdfByName(source.name, source.path || ''); if (direct) return { ...direct, score: 1, sourceExact: true, titleExact: true }; } catch {}
   let result = await matchDrivePdf('', '', source.name, source.path || '');
   if (LOCAL_ORIGINALS_ROOT && !result.match && !result.candidates?.length) result = await matchDrivePdf('', '', source.name, '');
   if (result.match) return result.match;
