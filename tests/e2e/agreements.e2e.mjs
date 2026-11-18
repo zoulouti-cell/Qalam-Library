@@ -47,7 +47,7 @@ for (const [label, viewport, mobile] of [['desktop', { width: 1280, height: 900 
   const internationalCard = international.locator('.agreement-search-card', { hasText: 'النقل البحري للبضائع' });
   check(`${label}: اتفاقية هامبورغ مرتبطة بنص القراءة المضمن`, (await internationalCard.locator('button.result-open[data-open="agreement-4608"]').count()) === 1 && /النص متاح للاطلاع/.test(await internationalCard.locator('.status-badge').textContent()));
   const unindexedCard = international.locator('.agreement-search-card').filter({ hasNot: page.locator('button.result-open') });
-  check(`${label}: الوثيقة غير المفهرسة تظهر ضمن مجلدها وتحتفظ بخيارات الأصل`, (await unindexedCard.locator('button.result-open').count()) === 0 && /النص متاح للاطلاع/.test(await unindexedCard.locator('.status-badge').textContent()));
+  check(`${label}: الوثيقة غير المفهرسة تظهر ضمن مجلدها وتحتفظ بخيارات الأصل`, (await unindexedCard.locator('button.result-open').count()) === 0 && /النص غير مستخرج/.test(await unindexedCard.locator('.status-badge').textContent()));
   await regionalTopic.click();
   const regional = page.locator('.agreement-search-card', { hasText: 'التلوث البحري' });
   const eye = regional.locator('a[aria-label*="معاينة"]'), href = await eye.first().getAttribute('href');
