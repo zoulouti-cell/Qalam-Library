@@ -13,6 +13,8 @@ permissions:
 
 jobs:
   docker-build:
+    # لا يُبنى ولا يُنشر على Render إلا بعد نجاح الاختبارات وسيناريوهات المتصفح.
+    needs: [library-tests, library-e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

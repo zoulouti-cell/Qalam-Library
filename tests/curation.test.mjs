@@ -104,3 +104,12 @@ test('النص المنسوب خطأً إلى وثيقة أخرى يُسحب و�
   after.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('قسم السلطة القضائية: نصوص المجلس الأعلى للسلطة القضائية أول ما يظهر', async () => {
+  const { compareOriginalDocuments } = await import('../src/catalog.mjs');
+  const mk = (title, kind, pos) => ({ title, kind, category: 'السلطة القضائية', type: 'national', abrogated: 0, rowid: pos, source_position: pos });
+  const docs = [mk('ظهير شريف بمثابة النظام الأساسي للقضاة', 'dahir', 1), mk('مرسوم يتعلق بالقضاة', 'decree', 2), mk('القانون التنظيمي المتعلق بالمجلس الأعلى للسلطة القضائية', 'organic', 3)];
+  assert.equal(docs.sort(compareOriginalDocuments)[0].title.includes('المجلس الأعلى للسلطة القضائية'), true);
+  const other = [{ ...mk('المجلس الأعلى للسلطة القضائية', 'law', 2), category: 'مدونة التجارة' }, { ...mk('نص آخر', 'law', 1), category: 'مدونة التجارة' }];
+  assert.equal(other.sort(compareOriginalDocuments)[0].title, 'نص آخر', 'القاعدة خاصة بقسم السلطة القضائية وحده');
+});

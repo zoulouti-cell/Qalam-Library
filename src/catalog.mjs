@@ -164,9 +164,11 @@ export function institutionSearchTerms(name) {
 }
 function kindRank(d){const primaryReference=d.type==='national'&&((d.law_number&&referenceRank(d)<99)||d.title.includes('بالمصادقة على مجموعة القانون الجنائي'));const kind=primaryReference&&['other','dahir'].includes(d.kind)?'law':d.kind;return ({law:0,dahir:1,decree:2,order:3,other:4,decision:5,jurisprudence:6,study:7})[kind]??9;}
 function referenceRank(d){const n=(REFERENCES[d.category]||[]).findIndex(t=>d.title.includes(t));return n<0?99:n;}
+/* قسم السلطة القضائية: نصوص المجلس الأعلى للسلطة القضائية أول ما يظهر فيه. */
+function superiorCouncilRank(d){return d.category==='السلطة القضائية'&&/المجلس الأعلى للسلطة القضائية/u.test(d.title||'')?0:1;}
 export function compareOriginalDocuments(a,b){
   const ar=referenceRank(a),br=referenceRank(b);
-  return a.abrogated-b.abrogated||kindRank(a)-kindRank(b)||(ar<99?0:1)-(br<99?0:1)||(GENERAL.some(t=>a.title.includes(t))?0:1)-(GENERAL.some(t=>b.title.includes(t))?0:1)||ar-br||(a.source_position??a.rowid)-(b.source_position??b.rowid);
+  return a.abrogated-b.abrogated||superiorCouncilRank(a)-superiorCouncilRank(b)||kindRank(a)-kindRank(b)||(ar<99?0:1)-(br<99?0:1)||(GENERAL.some(t=>a.title.includes(t))?0:1)-(GENERAL.some(t=>b.title.includes(t))?0:1)||ar-br||(a.source_position??a.rowid)-(b.source_position??b.rowid);
 }
 export function installCatalogOrder(db,original={},originalIds=[]) {
   db.exec('CREATE TABLE IF NOT EXISTS original_sequence(doc_id TEXT PRIMARY KEY,position INTEGER NOT NULL)');
