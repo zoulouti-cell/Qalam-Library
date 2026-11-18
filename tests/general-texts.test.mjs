@@ -17,6 +17,9 @@ test('التصنيف المؤسسي يضع كل مؤسسة عامة باسمها
   assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون يتعلق بمجلس المنافسة' }), 'مجلس المنافسة');
   assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون بإحداث الوكالة الوطنية للمياه والغابات' }), 'الوكالة الوطنية للمياه والغابات');
   assert.equal(catalogCategory({ type: 'national', category: 'مادة المهن', title: 'نظام هيئة مهنية' }), 'مادة المهن');
+  assert.equal(catalogCategory({ type: 'national', category: 'مجلس الوصاية', title: '90.15 — مجلس الوصاية' }), 'مجلس الوصاية');
+  assert.equal(catalogCategory({ type: 'national', category: 'مادة حماية حقوق الإنسان والنهوض بها', title: '14.16 — مؤسسة الوسيط' }), 'مؤسسة الوسيط');
+  assert.equal(catalogCategory({ type: 'national', category: 'السلطة القضائية', title: '100.13 — المجلس الأعلى للسلطة القضائية' }), 'السلطة القضائية');
 });
 
 test('«نصوص عامة» تُضاف فارغة في آخر القوانين الوطنية قبل السلطات', () => {

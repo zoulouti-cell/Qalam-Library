@@ -5,7 +5,7 @@ const GROUPS = [['constitutional','المادة الدستورية'],['materials
 /* هذه فئات مؤسسات عامة محددة بالاسم. لا نضم إليها الهيئات المهنية أو
    كل عبارة عابرة فيها «مجلس» أو «هيئة»، حتى لا يتكرر العنوان أو يختلط المجال. */
 const INSTITUTIONS = [
-  ['المجلس الأعلى للسلطة القضائية', 'councils', /المجلس الأعلى للسلطة القضائية/u],
+  ['مجلس الوصاية', 'councils', /مجلس الوصاية/u],
   ['مجلس المنافسة', 'councils', /مجلس المنافسة/u],
   ['المجلس الاقتصادي والاجتماعي والبيئي', 'councils', /المجلس الاقتصادي والاجتماعي(?: والبيئي)?/u],
   ['المجلس الوطني لحقوق الإنسان', 'councils', /المجلس الوطني لحقوق الإنسان/u],
@@ -19,6 +19,7 @@ const INSTITUTIONS = [
   ['الهيئة المغربية لسوق الرساميل', 'agencies', /الهيئة المغربية لسوق الرساميل/u],
   ['الهيئة الوطنية لضبط الكهرباء', 'agencies', /الهيئة الوطنية لضبط الكهرباء/u],
   ['الهيئة الوطنية للمعلومات المالية', 'agencies', /الهيئة الوطنية للمعلومات المالية/u],
+  ['مؤسسة الوسيط', 'agencies', /مؤسسة الوسيط/u],
   ['الوكالة الوطنية للمياه والغابات', 'agencies', /الوكالة الوطنية للمياه والغابات/u],
   ['الوكالة المغربية للأدوية والمنتجات الصحية', 'agencies', /الوكالة المغربية للأدوية والمنتجات الصحية/u],
   ['الوكالة المغربية للدم ومشتقاته', 'agencies', /الوكالة المغربية للدم ومشتقاته/u],
@@ -49,6 +50,7 @@ export function catalogCategory(row) {
   const title = String(row.title || ''), category = String(row.category || '');
   if (/المحكمة الدستورية|المجلس الدستوري/u.test(`${title} ${category}`)) return 'القضاء الدستوري';
   if (row.type === 'national' && /الإضراب/u.test(title)) return 'مادة الحقوق والحريات';
+  if (row.type === 'national' && /المجلس الأعلى للسلطة القضائية/u.test(title)) return 'السلطة القضائية';
   if (row.type === 'national') {
     const institution = INSTITUTIONS.find(([, , matcher]) => matcher.test(title));
     if (institution) return institution[0];
@@ -103,9 +105,12 @@ export function orderedCategories(categories, original={}) {
     return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':'',driveFolderId:DRIVE_SHELVES[c.name]||''}));
   });
 }
-export function institutionSearchLabel(name) {
-  if (name === 'المجلس الاقتصادي والاجتماعي والبيئي') return 'المجلس الاقتصادي والاجتماعي';
-  return INSTITUTIONS.find(([label]) => label === name)?.[0] || '';
+export function institutionSearchTerms(name) {
+  if (name === 'المجلس الاقتصادي والاجتماعي والبيئي') return ['المجلس الاقتصادي والاجتماعي'];
+  if (name === 'الهيئة العليا للاتصال السمعي البصري') return ['الهيئة العليا للاتصال السمعي'];
+  if (name === 'الوكالة الوطنية للأنشطة المائية') return ['الوكالة الوطنية لتنمية تربية الأحياء المائية'];
+  const label = INSTITUTIONS.find(([item]) => item === name)?.[0] || '';
+  return label ? [label] : [];
 }
 function kindRank(d){const primaryReference=d.type==='national'&&((d.law_number&&referenceRank(d)<99)||d.title.includes('بالمصادقة على مجموعة القانون الجنائي'));const kind=primaryReference&&['other','dahir'].includes(d.kind)?'law':d.kind;return ({law:0,dahir:1,decree:2,order:3,other:4,decision:5,jurisprudence:6,study:7})[kind]??9;}
 function referenceRank(d){const n=(REFERENCES[d.category]||[]).findIndex(t=>d.title.includes(t));return n<0?99:n;}

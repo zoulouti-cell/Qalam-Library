@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { brotliDecompressSync } from 'node:zlib';
 import { normalizeSearch,tokens,meaningfulTokens,relatedQueries,snippet,citationOf,isAnswerReady,kindOf } from './text.mjs';
-import { orderedCategories, catalogCategory, withGeneralTexts, FIXED_SHELF_CATEGORIES, institutionSearchLabel } from './catalog.mjs';
+import { orderedCategories, catalogCategory, withGeneralTexts, FIXED_SHELF_CATEGORIES, institutionSearchTerms } from './catalog.mjs';
 import { instrumentOrderSql, legislationHeading } from './legislation.mjs';
 import { reflowReading } from './reading.mjs';
 import { driveSourceForDocument } from './drive.mjs';
@@ -68,7 +68,7 @@ export class Library {
     if(['national','judicial','juriscassation'].includes(params.type)){clauses.push('d.type=?');values.push(params.type);}
     if(params.category==='الدساتير'){clauses.push("d.category='المادة الدستورية'");}
     else if(params.category==='القضاء الدستوري'){clauses.push("d.category IN ('المحكمة الدستورية','المجلس الدستوري')");}
-    else if(institutionSearchLabel(params.category)){clauses.push("d.type='national' AND d.title LIKE ?");values.push('%'+institutionSearchLabel(params.category)+'%');}
+    else if(institutionSearchTerms(params.category).length){const terms=institutionSearchTerms(params.category);clauses.push("d.type='national' AND ("+terms.map(()=>"d.title LIKE ?").join(' OR ')+")");values.push(...terms.map(term=>'%'+term+'%'));}
     else if(params.category==='مادة الحقوق والحريات'){clauses.push("(d.category=? OR (d.type='national' AND d.title LIKE '%الإضراب%'))");values.push(params.category);}
     else if(params.category==='المادة البيئية'){clauses.push("(d.category=? OR d.title LIKE '%الأجزاء التابعة%الملك العمومي%')");values.push(params.category);}
     else if(params.category==='مادة الفلاحة'){clauses.push("(d.category=? OR (d.category='قوانين وتشريعات وطنية' AND d.title NOT LIKE '%الأجزاء التابعة%'))");values.push(params.category);}
