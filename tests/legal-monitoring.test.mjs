@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { REPORTS,dueReports,makeObservation,mayAutoPublish,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates } from '../src/legal-monitoring.mjs';
+import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -30,7 +30,12 @@ test('legal text updates wait 24 hours before automatic publication; reservation
   const law=makeObservation({...base,kind:'legislation'}).record;
   const reserved=makeObservation({...base,scientificReservation:true}).record;
   assert.equal(law.state,'ready');
-  assert.equal(mayAutoPublish(law),true);
+  assert.equal(mayAutoPublish(law),false,'laws need manager approval');
+  assert.equal(lawStagesComplete({...law,currentStage:'project'}),false);
+  assert.equal(lawStagesComplete({...law,currentStage:'published'}),true);
+  assert.equal(lawStagesComplete({kind:'case_law'}),true);
+  assert.equal(publicationCategory({country:'ma',kind:'case_law',court:'محكمة النقض'}),'إضافات النقض');
+  assert.equal(publicationCategory({country:'ma',kind:'legislation',publishCategory:'قانون الأسرة'}),'قانون الأسرة');
   assert.equal(law.autoPublishAt.getTime()-law.receivedAt.getTime(),PUBLICATION_DELAY_MS);
   assert.equal(reserved.state,'held');
   assert.equal(reserved.autoPublishAt,null);
