@@ -46,7 +46,7 @@
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, assistantEngine: 'groq', ...storedPreferences };
   const state = {
-    view: 'library', type: 'all', scope: 'all', category: '', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementTopic: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
+    view: 'library', type: 'all', scope: 'all', category: 'الدساتير', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementTopic: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
     canAdmin: false, categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, translation: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
     document: null, documentId: '', askDocument: null, chat: [], suggestions: [], selectedSuggestion: -1,
@@ -229,8 +229,7 @@
       if (c.group && c.group !== group) { group = c.group; tier = ''; heading += '<h3 class="category-group">' + esc(c.groupLabel) + '</h3>'; }
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
-      const action=c.driveFolderId?' data-drive-folder="'+esc(c.driveFolderId)+'" data-drive-name="'+esc(c.name)+'"':' data-category="'+esc(c.name)+'"';
-      rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '"'+action+' title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
+      rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="'+esc(c.name)+'" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
       if (!needle && c.group === 'judicial' && categories[index + 1]?.group !== 'judicial') {
         if (state.canAdmin) rows.push('<button type="button" class="category-button" data-drive-folder="19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE" data-drive-name="إضافات النقض"><span>إضافات النقض</span></button>');
       }
@@ -262,7 +261,7 @@
     })[state.browseGroup] || [];
     if(state.browseGroup === 'judicial' && state.canAdmin) frenchCourts.push(['إضافات النقض','19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE']);
     const driveCourtRows = [...driveRootRows,...frenchCourts].map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
-    pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => c.driveFolderId?'<button type="button" class="browse-leaf-button" data-drive-folder="'+esc(c.driveFolderId)+'" data-drive-name="'+esc(c.name)+'">'+esc(c.name)+'<span>أصول Drive ←</span></button>':'<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
+    pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
   }
   async function browseAgreements(agreementBranch = '') {
     const pane=$('browseContent');
@@ -396,7 +395,8 @@
       const result = await api('/api/search?' + params, { signal: controller.signal });
       if (sequence !== state.searchSequence) return;
       state.results = result.results || []; state.total = result.total || 0; state.page = result.page || state.page;
-      $('results').innerHTML = state.results.length ? state.results.map(renderCard).join('') : emptyState('لم نعثر على نتائج مطابقة', 'جرّب عبارة أقصر أو رقم القانون، أو أزل بعض المرشحات. اختلاف الصياغة وحالة النص قد يؤثران في النتائج.', { key: 'clear-filters', label: 'مسح التصفية' });
+      const frenchEmpty=['محكمة النقض الفرنسية','المجلس الدستوري الفرنسي','مجلس الدولة الفرنسي','مستجدات فرنسية'].includes(state.category);
+      $('results').innerHTML = state.results.length ? state.results.map(renderCard).join('') : frenchEmpty ? emptyState('لا توجد بطاقة منشورة في هذا المجلد حالياً', 'المجلد موجود ضمن القانون والقضاء الفرنسيين، لكن لا يُعرض محتوى غير مفهرس أو غير منشور كبطاقة قانونية.', { key: 'clear-filters', label: 'مسح التصفية' }) : emptyState('لم نعثر على نتائج مطابقة', 'جرّب عبارة أقصر أو رقم القانون، أو أزل بعض المرشحات. اختلاف الصياغة وحالة النص قد يؤثران في النتائج.', { key: 'clear-filters', label: 'مسح التصفية' });
       const first = state.total ? (state.page - 1) * state.limit + 1 : 0;
       const last = Math.min(state.page * state.limit, state.total);
       $('resultsMeta').textContent = state.total ? fmt(first) + '–' + fmt(last) + ' من ' + fmt(state.total) + ' نتيجة' + (Number.isFinite(result.elapsedMs) ? ' · ' + fmt(Math.round(result.elapsedMs)) + ' مللي ثانية' : '') : 'لا توجد نتائج';

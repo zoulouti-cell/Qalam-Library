@@ -28,6 +28,15 @@ const INSTITUTIONS = [
   ['الوكالة الوطنية للمحافظة العقارية والمسح العقاري والخرائطية', 'agencies', /الوكالة الوطنية للمحافظة العقارية/u],
   ['الوكالة الوطنية للأنشطة المائية', 'agencies', /الوكالة الوطنية لتنمية تربية الأحياء المائية/u],
 ];
+const INSTITUTION_PRIORITY = [
+  'مؤسسة الوسيط', 'الهيئة الوطنية للنزاهة والوقاية من الرشوة ومحاربتها',
+  'الهيئة العليا للاتصال السمعي البصري', 'الهيئة المغربية لسوق الرساميل',
+  'الهيئة الوطنية للمعلومات المالية', 'الهيئة الوطنية لضبط الكهرباء',
+  'مجلس الوصاية', 'مجلس المنافسة', 'المجلس الاقتصادي والاجتماعي والبيئي',
+  'المجلس الوطني لحقوق الإنسان', 'المجلس الأعلى للحسابات',
+  'المجلس الأعلى للتربية والتكوين والبحث العلمي', 'المجلس الوطني للصحافة',
+  'المجلس الوطني للغات والثقافة المغربية', 'المجلس العلمي الأعلى',
+];
 export const DRIVE_SHELVES = Object.freeze({
   'محكمة النقض الفرنسية': '1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t',
   'مجلس الدولة الفرنسي': '1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X',
@@ -82,6 +91,7 @@ function categoryRank(name) {
   return 100;
 }
 function judicialRank(name){return name==='المجلس الأعلى'?0:name==='محكمة النقض'?1:name==='محكمة النقض - الخبرة'?2:name==='قواعد قضائية'?3:name.includes('محكمة الاستئناف')?4:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?5:name.startsWith('اجتهادات قضائية')?6:7;}
+function institutionRank(name){const rank=INSTITUTION_PRIORITY.indexOf(name);return rank<0?99:rank;}
 function groupOf(name){if(['محكمة النقض الفرنسية','مجلس الدولة الفرنسي','المجلس الدستوري الفرنسي','مستجدات فرنسية'].includes(name))return 'french';return ({'-2':'constitutional','-1':'constitutional',110:'authorities',120:'judicial',130:'councils',135:'agencies',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
 /**
  * «نصوص عامة»: عنوان محجوز في آخر «القوانين الوطنية» (بعد المواد القانونية كلها) يحيل إليه فهرس المكتب في تطبيق قلم.
@@ -102,6 +112,7 @@ export function orderedCategories(categories, original={}) {
   return GROUPS.flatMap(([group,groupLabel])=>{
     const members=sorted.filter(c=>groupOf(c.name)===group);
     if(group==='judicial')members.sort((a,b)=>judicialRank(a.name)-judicialRank(b.name));
+    if(group==='councils'||group==='agencies')members.sort((a,b)=>institutionRank(a.name)-institutionRank(b.name)||b.count-a.count);
     return members.map(c=>({...c,group,groupLabel,tier:group==='judicial'&&c.name.includes('محكمة الاستئناف')?'محاكم الاستئناف':'',driveFolderId:DRIVE_SHELVES[c.name]||''}));
   });
 }
