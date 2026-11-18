@@ -1087,6 +1087,30 @@
       const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(box, anchor);
     } catch {}
   }
+  /* شريط الأخبار: مشاريع القوانين والمقترحات وأخبار المجالس والبرلمان؛ النقر يفتح الرابط الرسمي في نافذة جديدة. يُغلق وتبقى مادته أسبوعين على الأكثر. */
+  async function showNewsTicker() {
+    try {
+      const data = await api('/api/legal-monitor/ticker');
+      const dismissed = new Set(prefs.tickerDismissed || []);
+      const fresh = (data.items || []).filter(u => !dismissed.has(u.id) && /^https?:\/\//i.test(u.url));
+      const old = $('newsTicker'); if (old) old.remove();
+      if (!fresh.length) return;
+      const bar = document.createElement('section'); bar.id = 'newsTicker'; bar.className = 'news-ticker'; bar.setAttribute('aria-label', 'شريط الأخبار القانونية');
+      const label = document.createElement('strong'); label.textContent = 'أخبار';
+      const track = document.createElement('div'); track.className = 'news-ticker-track';
+      const lane = document.createElement('div'); lane.className = 'news-ticker-lane'; lane.style.animationDuration = Math.max(25, fresh.length * 9) + 's';
+      for (const u of fresh) {
+        const a = document.createElement('a'); a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = u.title + ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب');
+        lane.append(a);
+      }
+      track.append(lane);
+      const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
+      close.addEventListener('click', () => { prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
+      bar.append(label, track, close);
+      const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(bar, anchor);
+    } catch {}
+  }
   /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
   async function showEffectiveAlerts() {
     try {
@@ -1107,7 +1131,7 @@
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
-    wireEvents(); showEffectiveAlerts(); showRecentUpdates(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
+    wireEvents(); showEffectiveAlerts(); showNewsTicker(); showRecentUpdates(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
     window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });

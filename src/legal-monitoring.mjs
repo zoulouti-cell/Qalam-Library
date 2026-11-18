@@ -166,10 +166,22 @@ export function effectiveToday(items = [], today = '') {
 }
 
 /* المستجدات المنشورة خلال الأيام الأخيرة (أسبوع على الأكثر) لشريط المستجدات؛ يختفي الشريط إن لم توجد. */
+/* شريط الأخبار: مشاريع القوانين والمقترحات وأخبار المجالس والبرلمان والرقمنة القضائية؛ النقر عليها يفتح الرابط الرسمي.
+   أما القرارات والقوانين والمستجدات فلكلٍّ قسمها بعنوانه، ولا تظهر في الشريط. */
+export const TICKER_KINDS = Object.freeze(['bill', 'justice_digital']);
+export const isTickerItem = item => TICKER_KINDS.includes(item?.kind);
+export function tickerItems(items = [], now = new Date(), days = 14) {
+  const since = now.getTime() - days * 24 * 60 * 60 * 1000;
+  return (items || [])
+    .filter(i => isTickerItem(i) && i.state === 'published' && i.publishedAt && new Date(i.publishedAt).getTime() >= since && /^https?:\/\//i.test(i.source?.url || ''))
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+    .map(i => ({ id: i.id, title: i.title, country: i.country, kind: i.kind, url: i.source.url, eventDate: i.eventDate, publishedAt: i.publishedAt }));
+}
+
 export function recentUpdates(items = [], now = new Date(), days = 7) {
   const since = now.getTime() - days * 24 * 60 * 60 * 1000;
   return (items || [])
-    .filter(i => i.state === 'published' && i.publishedAt && new Date(i.publishedAt).getTime() >= since)
+    .filter(i => !isTickerItem(i) && i.state === 'published' && i.publishedAt && new Date(i.publishedAt).getTime() >= since)
     .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
     .map(i => ({ id: i.id, title: i.title, country: i.country, kind: i.kind, stage: stageLabel(i.currentStage), eventDate: i.eventDate, publishedAt: i.publishedAt, documentId: `monitor-${String(i.id).slice(0, 20)}` }));
 }

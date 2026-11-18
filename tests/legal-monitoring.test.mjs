@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates } from '../src/legal-monitoring.mjs';
+import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,isTickerItem } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -94,4 +94,13 @@ test('recent updates keep published items for at most a week',()=>{
   const mk=(id,days)=>({id,title:id,country:'fr',kind:'case_law',state:'published',publishedAt:new Date(now.getTime()-days*86400000),eventDate:'2026-11-10'});
   assert.deepEqual(recentUpdates([mk('a',1),mk('b',8),{...mk('c',1),state:'held'}],now).map(x=>x.id),['a']);
   assert.deepEqual(recentUpdates([],now),[]);
+});
+
+test('شريط الأخبار: مشاريع القوانين والرقمنة القضائية فيه وحدها، وتُستثنى من المستجدات', () => {
+  const now = new Date('2026-11-18T12:00:00Z');
+  const mk = (id, kind, extra = {}) => ({ id, kind, title: id, state: 'published', publishedAt: '2026-11-17T10:00:00Z', source: { url: 'https://www.sgg.gov.ma/x' }, ...extra });
+  assert.equal(isTickerItem({ kind: 'bill' }), true);
+  assert.equal(isTickerItem({ kind: 'case_law' }), false);
+  assert.deepEqual(tickerItems([mk('a', 'bill'), mk('b', 'case_law'), mk('c', 'justice_digital'), mk('d', 'bill', { state: 'held' }), mk('e', 'bill', { source: { url: 'javascript:alert(1)' } }), mk('f', 'bill', { publishedAt: '2026-10-01T00:00:00Z' })], now).map(x => x.id).sort(), ['a', 'c']);
+  assert.deepEqual(recentUpdates([mk('a', 'bill'), mk('b', 'case_law')], now).map(x => x.id), ['b']);
 });

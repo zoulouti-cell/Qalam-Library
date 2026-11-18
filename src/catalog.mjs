@@ -57,6 +57,7 @@ export const DRIVE_SHELVES = Object.freeze({
   'دراسات فرنسية': '1Z_7bTdHSLS5Eoe1ZTA6Di-fHAym7Pz5o',
   'مستجدات فرنسية': '1uC93axFQpHQbPfloOZiU0-tZqRnU87rw',
   'مستجدات': '1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0',
+  'القضاء الدستوري': '1fADBvOD4Sjt45vf6RbLgZC56OvfITJ0g',
 });
 export const FRENCH_SHELVES = Object.freeze(['محكمة النقض الفرنسية','مجلس الدولة الفرنسي','المجلس الدستوري الفرنسي','قوانين فرنسية','دراسات فرنسية','مستجدات فرنسية']);
 export const FIXED_SHELF_CATEGORIES = Object.freeze(Object.keys(DRIVE_SHELVES));
