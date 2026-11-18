@@ -259,7 +259,7 @@ export async function listDriveFolder(folderId = LOCAL_ORIGINALS_ROOT ? 'local-f
     if (pageToken) query.set('pageToken', pageToken);
     const response = await driveFetch(`${GOOGLE_API}/drive/v3/files?${query}`);
     const data = await response.json();
-    files.push(...(data.files || []).filter((item) => item.mimeType === 'application/pdf' || item.mimeType === 'application/vnd.google-apps.folder'));
+    files.push(...(data.files || []).filter((item) => item.mimeType === 'application/pdf' || item.mimeType === 'application/vnd.google-apps.folder' || item.mimeType === 'text/markdown' || (item.mimeType === 'text/plain' && /\.md$/i.test(item.name || ''))));
     pageToken = data.nextPageToken || '';
   } while (pageToken);
   files.sort((a, b) => Number(b.mimeType === 'application/vnd.google-apps.folder') - Number(a.mimeType === 'application/vnd.google-apps.folder') || a.name.localeCompare(b.name, 'ar'));
