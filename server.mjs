@@ -721,7 +721,7 @@ const server=http.createServer(async(req,res)=>{
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
       if(req.method==='GET'){
         const state=['held','ready','published'].includes(url.searchParams.get('state'))?url.searchParams.get('state'):'';
-        const rows=await adminStore.legalMonitorItems.find(state?{state}:{}).sort({receivedAt:-1}).limit(100).toArray();
+        const rows=await adminStore.legalMonitorItems.find(state?{state}:{state:{$ne:'dismissed'}}).sort({receivedAt:-1}).limit(100).toArray();
         return send(req,res,200,{items:rows.map(({_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage})=>({id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage}))});
       }
       let body;try{body=await jsonBody(req,30000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
@@ -729,6 +729,7 @@ const server=http.createServer(async(req,res)=>{
       const item=checked.record;
       try{
         const previous=await adminStore.legalMonitorItems.findOne({_id:item.id});
+        if(previous?.state==='dismissed')return send(req,res,200,{ok:true,id:item.id,dismissed:true,skipped:true,note:'حذفه المدير؛ لا تعد استيراده ولا تُنشئ له ملفاً في Drive.'});
         let stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;if(previous?.holdReason==='تحفظ المدير على النشر.')stored={...stored,state:'held',holdReason:previous.holdReason,autoPublishAt:null,readyForAutomaticPublication:false};
         await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
         if(!previous)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
@@ -749,7 +750,8 @@ const server=http.createServer(async(req,res)=>{
         else if(action==='delete'){
           const docId=item.documentId||`monitor-${String(id).slice(0,20)}`;
           await adminStore.content.deleteMany({documentId:docId,origin:'legal-monitor'});
-          await adminStore.legalMonitorItems.deleteOne({_id:id});
+          /* شاهد حذف: يبقى المعرّف بحالة dismissed حتى لا يعيد الجامع استيراده ولا يظهر في أي قائمة. */
+          await adminStore.legalMonitorItems.replaceOne({_id:id},{_id:id,id,state:'dismissed',kind:item.kind,country:item.country,title:item.title,dismissedAt:now,dismissedBy:actor});
           library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
         }else return send(req,res,400,{error:'إجراء غير معروف.'});
         await recordAudit(adminStore,actor,'legal_monitor_item_'+action,id,{title:item.title});
@@ -1029,7 +1031,7 @@ const server=http.createServer(async(req,res)=>{
       const items=tickerItems(rows.map(r=>({...r,id:r._id})));
       /* للمدير وحده: ما رصده الجامع ولم يُعتمد بعد يظهر في الشريط موسوماً «بانتظار الاعتماد» ليراه فوراً. */
       if(await adminSessionLive(req)){
-        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','justice_digital']},state:{$in:['held','ready']},createdAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({createdAt:-1}).limit(40).toArray();
+        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','justice_digital']},state:{$in:['held','ready']},receivedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({receivedAt:-1}).limit(40).toArray();
         for(const r of pend){const url=r.source?.url||'';if(/^https?:\/\//i.test(url))items.push({id:String(r._id),title:r.title,country:r.country,kind:r.kind,url,eventDate:r.eventDate,pending:true});}
       }
       return send(req,res,200,{items});
