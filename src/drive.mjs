@@ -180,13 +180,32 @@ try {
   const saved = JSON.parse(fs.readFileSync(AGREEMENT_CACHE_FILE, 'utf8'));
   if (Array.isArray(saved.files) && saved.files.length && Date.now() - Number(saved.at || 0) < 24 * 3600_000) agreementIndexCache = { at: 1, promise: null, files: saved.files };
 } catch {}
-/* ما يُعرف دون Drive: نصوص الاتفاقيات متعددة الأطراف المضمّنة؛ تُعرض فور فتح القسم ريثما يكتمل مسح الثنائية. */
+/* فهرس الاتفاقيات كله معلوم دون Drive: 499 اتفاقية بنصوصها وعناوينها وبلدانها (فهرس العناوين + النصوص المضمّنة).
+   لا يُنتظر مسح Drive عند فتح القسم أو التنقل؛ المسح يجري في الخلفية لربط الأصول بمعرّفات ملفاتها فقط. */
+const agreementDriveIds = new Map();
+function rememberAgreementDriveIds(files) {
+  for (const file of files || []) { const id = String(file.name || '').match(/^(\d+)[_-]/)?.[1]; if (id && file.id) agreementDriveIds.set(id, file.id); }
+}
+rememberAgreementDriveIds(agreementIndexCache.files);
 function bundledAgreementFiles() {
-  return bundledAgreementTexts.filter(d => d.category === 'اتفاقيات ومعاهدات' && d.originalFiles?.[0]?.driveId).map(d => {
-    const original = d.originalFiles[0], entry = treatyTitleIndex[String(d.treatyId)] || {};
+  return bundledAgreementTexts.filter(d => d.category === 'اتفاقيات ومعاهدات').map(d => {
+    const treatyId = String(d.treatyId), entry = treatyTitleIndex[treatyId] || {}, officialUrl = entry.sourceUrl ? String(entry.sourceUrl).replace(/^http:\/\//i, 'https://') : '';
+    if (d.agreementKind === 'ثنائية') {
+      return { id: agreementDriveIds.get(treatyId) || '', name: d.originalName || '', size: 0, md5Checksum: '', modifiedTime: '', path: ['الاتفاقيات الدولية', 'ثنائية الاطراف', d.subcategory || d.country].filter(Boolean).join(' / '), webViewLink: '', officialUrl, title: d.title, fullTitle: entry.fullTitle || d.title, treatyId, country: entry.country || d.country || '', textDocumentId: d.documentId, textOrder: d.order || 99, agreementSubcategory: d.subcategory || '', agreementKind: 'ثنائية' };
+    }
+    const original = d.originalFiles?.[0]; if (!original?.driveId) return null;
     const subcategory = d.subcategory && d.subcategory !== 'اتفاقيات متعددة الأطراف' ? d.subcategory : '';
-    return { id: original.driveId, name: original.name || '', size: 0, md5Checksum: '', modifiedTime: '', path: ['الاتفاقيات الدولية', 'متعددة الأطراف', subcategory].filter(Boolean).join(' / '), webViewLink: '', officialUrl: entry.sourceUrl ? String(entry.sourceUrl).replace(/^http:\/\//i, 'https://') : '', title: d.title, fullTitle: entry.fullTitle || d.title, treatyId: String(d.treatyId), country: entry.country || '', textDocumentId: d.documentId, textOrder: d.order || 99, agreementSubcategory: subcategory, agreementKind: 'متعددة' };
-  });
+    return { id: original.driveId, name: original.name || '', size: 0, md5Checksum: '', modifiedTime: '', path: ['الاتفاقيات الدولية', 'متعددة الأطراف', subcategory].filter(Boolean).join(' / '), webViewLink: '', officialUrl, title: d.title, fullTitle: entry.fullTitle || d.title, treatyId, country: entry.country || '', textDocumentId: d.documentId, textOrder: d.order || 99, agreementSubcategory: subcategory, agreementKind: 'متعددة' };
+  }).filter(Boolean);
+}
+/* معرّف ملف Drive لأصل اتفاقية؛ يُنتظر المسح الخلفي مدة محدودة إن لم يكتمل بعد. */
+export async function agreementDriveIdFor(treatyId) {
+  const key = String(treatyId || '');
+  const known = () => agreementDriveIds.get(key) || bundledAgreementTexts.find(d => String(d.treatyId) === key)?.originalFiles?.[0]?.driveId || '';
+  if (known()) return known();
+  const wait = listAgreementPdfs('', 1, 1).catch(() => {});
+  await Promise.race([agreementIndexCache.promise || wait, new Promise(resolve => setTimeout(resolve, 25_000))]).catch(() => {});
+  return known();
 }
 export function warmAgreementIndex() { return listAgreementPdfs('', 1, 1).catch(() => {}); }
 async function metadata(id) {
@@ -395,14 +414,16 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
       files = files.filter(file => { const id = String(file.name || '').match(/^(\d+)[_-]/)?.[1] || '', timestamp = String(file.name || '').match(/(\d{10,})/)?.[1] || ''; return treatyTitleIndex[id] || treatyTitleByDriveTimestamp[timestamp] || agreementTextFor(id); });
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };
+      rememberAgreementDriveIds(files);
       try { if (process.env.NODE_ENV !== 'test' && !LOCAL_ORIGINALS_ROOT) fs.writeFileSync(AGREEMENT_CACHE_FILE, JSON.stringify({ at: Date.now(), files })); } catch {}
       return files;
     })().catch(error => { agreementIndexCache.promise = null; throw error; });
   }
   const background = !LOCAL_ORIGINALS_ROOT && process.env.NODE_ENV !== 'test';
   if (background && agreementIndexCache.promise) agreementIndexCache.promise.catch(() => {});
-  const files = agreementIndexCache.at ? agreementIndexCache.files : background ? bundledAgreementFiles() : await agreementIndexCache.promise;
-  const indexing = !agreementIndexCache.at;
+  /* الإنتاج: القائمة مضمّنة وفورية دائمًا (لا انتظار لمسح Drive)؛ الاختبار والتشغيل المحلي يبقيان على المسح. */
+  const files = background ? bundledAgreementFiles() : agreementIndexCache.at ? agreementIndexCache.files : await agreementIndexCache.promise;
+  const indexing = false;
   const needle = normalizeDriveName(query), tokens = needle.split(/\s+/).filter(Boolean);
   const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path} ${file.title || ''} ${file.fullTitle || ''} ${file.country || ''}`).includes(token))) : files;
   const safeLimit = Math.max(1, Math.min(2000, Number(limit) || 20)), safePage = Math.max(1, Number(page) || 1);

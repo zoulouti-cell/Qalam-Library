@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import { startFakeDrive, ROOT_ID } from './fixtures/fake-drive.mjs';
 
 const REGIONAL_TITLE = 'اتفاقيات إقليمية - المغرب . الجزائر. تونس. اتفاق حول التلوث البحري';
-let drive, listAgreementPdfs, titles;
+let drive, listAgreementPdfs, agreementDriveIdFor, titles;
 
 before(async () => {
   drive = await startFakeDrive({ sections: [] });
   Object.assign(process.env, { NODE_ENV: 'test', QALAM_TEST_GOOGLE_ORIGIN: drive.origin, GOOGLE_SERVICE_ACCOUNT_JSON: drive.serviceAccountJson, DRIVE_ROOT_FOLDER_ID: ROOT_ID });
-  ({ listAgreementPdfs } = await import('../src/drive.mjs'));
+  ({ listAgreementPdfs, agreementDriveIdFor } = await import('../src/drive.mjs'));
   titles = (await import('node:fs')).default.readFileSync(new URL('../data/treaty-titles.json', import.meta.url), 'utf8');
   titles = JSON.parse(titles).documents;
   let seq = 0;
@@ -66,4 +66,10 @@ test('النصوص المضمنة تُربط بملفاتها وتُعرض في 
   /* الثنائية صار لها نص مضمّن أيضًا (استُخرج من أصل Drive) ويبقى أصلها ظاهرًا. */
   assert.equal(byPrefix('2632').textDocumentId, 'agreement-2632');
   assert.equal(byPrefix('2632').agreementKind, 'ثنائية');
+});
+
+test('معرّف ملف Drive لأصل اتفاقية يُحلّ بالرقم، وغير المعلوم يعطي فراغًا', async () => {
+  const all = await listAgreementPdfs('', 1, 2000), file = all.files.find(f => f.name.startsWith('2632_'));
+  assert.equal(await agreementDriveIdFor('2632'), file.id);
+  assert.equal(await agreementDriveIdFor('4608'), all.files.find(f => f.name.startsWith('4608_')).id);
 });
