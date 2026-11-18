@@ -953,6 +953,8 @@
       if (button.dataset.category !== undefined) {
         const fromBrowse = !!button.closest('#browseContent'), group = state.browseGroup, selectedCategory = state.categories.find(c => c.name === button.dataset.category);
         state.page = 1; state.topic = ''; state.category = button.dataset.category;
+        /* اختيار قسم من القائمة يخرج من تبويب الاتفاقيات؛ وإلا بقيت بطاقات الاتفاقيات تُعرض تحت عنوان القسم الجديد */
+        if (state.scope === 'agreements') { state.scope = 'all'; state.scopeTouched = false; }
         if (selectedCategory?.group === 'materials') {
           state.topic = button.dataset.category; if (!state.scopeTouched) state.scope = 'all'; if (state.scope !== 'all') state.category = '';
         }
