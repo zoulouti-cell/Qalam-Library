@@ -193,7 +193,7 @@ async function publishPendingCassationOriginals(doc){
   return {total:pending.length,moved,targetFolderId:targetId};
 }
 async function moveContribution(id,status,extra={}){const now=new Date();return adminStore.contributions.findOneAndUpdate({id},{$set:{status,statusChangedAt:now,updatedAt:now,userNotifyPending:true,...extra}},{returnDocument:'after'});}
-if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
+if(adminStore){setTimeout(()=>refreshSupersessions(),0);try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
 /* نطاق المراقبة: الرفوف الفرنسية، «الأبحاث والدراسات» وما تحته، «إضافات النقض»، «قرارات المحكمة الدستورية»، «نصوص التحيين» (أصول النصوص التشريعية المغربية بانتظار اعتماد المدير). ما سواها (الاتفاقيات والقوانين والاجتهادات الأساسية) خارج المراقبة فلا يُحتسب تغييره. */
 const MONITOR_SCOPE_VERSION=2;
@@ -250,6 +250,7 @@ async function runLegalReports(){
 }
 const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
 /* نشر المستجدات بعد مهلة الاعتراض (24 ساعة) ما لم يُتحفَّظ عليها؛ ونشر فوري أو حذف بقرار المدير. */
+async function refreshSupersessions(){try{const rows=await adminStore.legalMonitorItems.find({state:'published',supersedesId:{$type:'string',$ne:''}}).project({supersedesId:1,documentId:1,title:1}).limit(500).toArray();library.setSupersessions(rows.map(r=>({oldId:r.supersedesId,newId:r.documentId||'',newTitle:r.title||''})));}catch{console.error('Supersession refresh failed.');}}
 async function publishLegalItem(item,actor){
   if(isTickerItem(item)){
     /* مشاريع القوانين والمقترحات وأخبار المجالس تظهر في شريط الأخبار فقط، دون بطاقة في المكتبة. */
@@ -260,7 +261,7 @@ async function publishLegalItem(item,actor){
   const record=publicationRecord(item);
   await adminStore.content.updateOne({documentId:record.documentId},{$set:record},{upsert:true});
   await adminStore.legalMonitorItems.updateOne({_id:item.id},{$set:{state:'published',publishedAt:new Date(),autoPublishAt:null,documentId:record.documentId},$push:{history:{state:'published',at:new Date(),reason:actor==='scheduler'?'auto_after_24h':'manager_publish'}}});
-  library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+  library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());await refreshSupersessions();
   await recordAudit(adminStore,actor,'legal_monitor_item_published',item.id,{title:item.title,category:record.category});
   return record.documentId;
 }
@@ -722,7 +723,7 @@ const server=http.createServer(async(req,res)=>{
       if(req.method==='GET'){
         const state=['held','ready','published'].includes(url.searchParams.get('state'))?url.searchParams.get('state'):'';
         const rows=await adminStore.legalMonitorItems.find(state?{state}:{state:{$ne:'dismissed'}}).sort({receivedAt:-1}).limit(100).toArray();
-        return send(req,res,200,{items:rows.map(row=>{const {_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage,publishCategory}=row;return {id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage,publishCategory,autoPublishable:canAutoPublishAfterRelease(row)};})});
+        return send(req,res,200,{items:rows.map(row=>{const {_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage,publishCategory,supersedesId,supersedesTitle}=row;return {id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage,publishCategory,supersedesId,supersedesTitle,autoPublishable:canAutoPublishAfterRelease(row)};})});
       }
       let body;try{body=await jsonBody(req,30000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
       const checked=makeObservation(body);if(checked.error)return send(req,res,400,{error:checked.error});
@@ -731,7 +732,7 @@ const server=http.createServer(async(req,res)=>{
         const previous=await adminStore.legalMonitorItems.findOne({_id:item.id});
         if(previous?.state==='dismissed')return send(req,res,200,{ok:true,id:item.id,dismissed:true,skipped:true,note:'حذفه المدير؛ لا تعد استيراده ولا تُنشئ له ملفاً في Drive.'});
         let stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;if(previous?.holdReason==='تحفظ المدير على النشر.')stored={...stored,state:'held',holdReason:previous.holdReason,autoPublishAt:null,readyForAutomaticPublication:false};
-        await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,...(previous?.publishCategory?{publishCategory:previous.publishCategory}:{}),_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
+        await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,...(previous?.publishCategory?{publishCategory:previous.publishCategory}:{}),...(previous?.supersedesId?{supersedesId:previous.supersedesId,supersedesTitle:previous.supersedesTitle||''}:{}),_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
         if(!previous)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
         else if(item.kind==='bill'||item.kind==='legislation')await recordAudit(adminStore,auditActor(req),'legal_monitor_item_updated',item.id,{country:item.country,stage:stored.currentStage,title:stored.title});
         return send(req,res,previous?200:201,{ok:true,id:item.id,updated:!!previous,state:stored.state,stage:stored.currentStage,holdReason:stored.holdReason});
@@ -739,12 +740,13 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/admin/legal-monitor/items/action'&&req.method==='POST'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
-      let body;try{body=await jsonBody(req,2000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+      let body;try{body=await jsonBody(req,4000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
       const id=String(body.id||'').slice(0,80),action=String(body.action||''),item=id?await adminStore.legalMonitorItems.findOne({_id:id}):null;
       if(!item)return send(req,res,404,{error:'السجل غير موجود.'});
       const actor=auditActor(req),now=new Date();
       try{
-        if(action==='category'){const cat=String(body.category||'').trim().slice(0,80);await adminStore.legalMonitorItems.updateOne({_id:id},cat?{$set:{publishCategory:cat}}:{$unset:{publishCategory:''}});}
+        if(action==='supersedes'){const oid=String(body.oldId||'').trim().slice(0,160),otitle=String(body.oldTitle||'').trim().slice(0,300);await adminStore.legalMonitorItems.updateOne({_id:id},oid?{$set:{supersedesId:oid,supersedesTitle:otitle}}:{$unset:{supersedesId:'',supersedesTitle:''}});if(item.state==='published')await refreshSupersessions();}
+        else if(action==='category'){const cat=String(body.category||'').trim().slice(0,80);await adminStore.legalMonitorItems.updateOne({_id:id},cat?{$set:{publishCategory:cat}}:{$unset:{publishCategory:''}});}
         else if(action==='hold'){await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'held',holdReason:'تحفظ المدير على النشر.',autoPublishAt:null},$push:{history:{state:'held',at:now,reason:'manager_reservation'}}});}
         else if(action==='release'){if(item.state!=='held')return send(req,res,409,{error:'السجل ليس محجوزاً.'});await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'ready',holdReason:'',readyForAutomaticPublication:true,autoPublishAt:scheduleAfterRelease(item,now)},$push:{history:{state:'ready',at:now,reason:'manager_release'}}});}
         else if(action==='publish'||action==='approve'){if(!['ready','held'].includes(item.state))return send(req,res,409,{error:'السجل منشور أصلاً.'});if(!lawStagesComplete(item))return send(req,res,409,{error:'لم يستوفِ النص التشريعي مراحله بعد؛ لا يُعتمد قبل نشره في الجريدة الرسمية أو نفاذه.'});const category=String(body.category||'').trim().slice(0,80);if(category)await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{publishCategory:category}});await publishLegalItem({...item,id,...(category?{publishCategory:category}:{})},actor);}
