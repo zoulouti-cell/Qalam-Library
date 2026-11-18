@@ -74,3 +74,33 @@ test('عدد كل فئة يساوي إجمالي قائمتها (لا فرق ب�
     }
   } finally { library.db.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('النص المنسوب خطأً إلى وثيقة أخرى يُسحب ويبقى لصاحبه', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qalam-withdraw-'));
+  const file = makeLibraryDb(path.join(dir, 'library.sqlite'));
+  const db = new DatabaseSync(file);
+  const put = db.prepare('INSERT INTO documents(id,title,title_norm,type,category,subcategory,kind,date,text_kind,review_status,issues,law_number,decision_number,case_number,abrogated,sha256,body,chars) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)');
+  const idx = db.prepare('INSERT INTO search(rowid,title,body) VALUES(?,?,?)');
+  const head = 'قرار محكمة النقض رقم 145 الصادر بتاريخ 6 أبريل 2021 في الملف الشرعي رقم 2019/2/2/691\n' + 'تعليل مفصل للقرار '.repeat(40);
+  const decree = 'مرسوم بإحداث كلية الآداب بفاس\nمرسوم رقم 2.74.343 بإحداث كلية الآداب بفاس\n' + 'نص المرسوم '.repeat(60);
+  const rows = [
+    ['jc:1', 'مبدأ الأول في قرار 145', 'juriscassation', '2021/145', '2019/2/2/691', head],
+    ['jc:2', 'مبدأ الثاني في قرار 144', 'juriscassation', '2021/144', '2018/2/2/1047', head],
+    ['national:1', 'مرسوم بإحداث كلية الآداب بفاس', 'national', '', '', decree],
+    ['national:2', 'مرسوم بإحداث كلية الطب بالرباط', 'national', '', '', decree],
+  ];
+  rows.forEach(([id, title, type, dec, cs, text], i) => {
+    put.run(id, title, title, type, 'محكمة النقض', '', 'x', '', 'extracted_text', 'x', '[]', '', dec, cs, String(i < 2 ? 'a' : 'b').repeat(64), brotliCompressSync(Buffer.from(text)), text.length);
+    idx.run(100 + i, title, text);
+  });
+  db.close();
+  const out = execFileSync(process.execPath, ['--no-warnings', tool, file], { encoding: 'utf8' });
+  assert.match(out, /"wrongTextWithdrawn":2/);
+  const after = new DatabaseSync(file, { readOnly: true });
+  const chars = id => after.prepare('SELECT chars FROM documents WHERE id=?').get(id).chars;
+  assert.ok(chars('jc:1') > 500 && chars('jc:2') < 200, 'صاحب القرار 145 يحتفظ بالنص');
+  assert.ok(chars('national:1') > 500 && chars('national:2') < 200, 'مرسوم الآداب يحتفظ بنصه');
+  assert.equal(after.prepare("SELECT owner FROM curation_text_withdrawn WHERE id='jc:2'").get().owner, 'jc:1');
+  after.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
