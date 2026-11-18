@@ -5,7 +5,7 @@ import { createHash, createSign, generateKeyPairSync } from 'node:crypto';
 export const ROOT_ID = 'root_test_folder';
 const SERVICE_TOKEN = 'fake-token', USER_TOKEN = 'fake-user-token', REFRESH_TOKEN = 'fake-refresh-token', KID = 'fake-key-1';
 const b64 = value => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
-export async function startFakeDrive({ sections = ['الأبحاث و الدراسات'], serviceQuota = false, userCanWrite = true } = {}) {
+export async function startFakeDrive({ sections = ['الأبحاث و الدراسات', 'الاجتهادات القضائية'], serviceQuota = false, userCanWrite = true } = {}) {
   const files = new Map(), sessions = new Map(), codes = new Map(), writeTokens = [], revoked = new Set(), tokenCalls = []; let seq = 0, fail = null;
   const state = { serviceQuota, userCanWrite, serviceCanWrite: true, expireUserTokenOnce: false, callbackBase: '', authorizeError: '', account: {}, authorizeRequests: [] };
   const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
