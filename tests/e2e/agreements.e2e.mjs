@@ -43,7 +43,7 @@ for (const [label, viewport, mobile] of [['desktop', { width: 1280, height: 900 
   check(`${label}: المجموعة الإقليمية تحوي النصين السابقين فقط`, (await regionalSection.locator('.agreement-search-card').count()) === 2 && JSON.stringify((await regionalSection.locator('.agreement-search-card h3').allTextContents()).map(t => t.trim())) === JSON.stringify([REGIONAL_TITLE, BANK_TITLE]));
   const internationalTopic = page.locator('[data-agreement-topic-card="اتفاقيات دولية"]'); await internationalTopic.click();
   const international = page.locator('[data-agreement-topic="اتفاقيات دولية"]');
-  check(`${label}: الاتفاقيات الدولية تجمع النص المتاح والأصل غير المفهرس`, (await international.locator('.agreement-search-card').count()) === 2);
+  check(`${label}: الاتفاقيات الدولية تجمع النص المتاح والأصل غير المفهرس`, (await international.locator('.agreement-search-card').count()) === 2, 'العدد=' + (await international.locator('.agreement-search-card').count()) + ' | ' + (await international.locator('.agreement-search-card').allInnerTexts()).map(t => t.replace(/\s+/g, ' ').slice(0, 90)).join(' || '));
   const internationalCard = international.locator('.agreement-search-card', { hasText: 'النقل البحري للبضائع' });
   check(`${label}: اتفاقية هامبورغ مرتبطة بنص القراءة المضمن`, (await internationalCard.locator('button.result-open[data-open="agreement-4608"]').count()) === 1 && /النص متاح للاطلاع/.test(await internationalCard.locator('.status-badge').textContent()));
   const unindexedCard = international.locator('.agreement-search-card').filter({ hasNot: page.locator('button.result-open') });

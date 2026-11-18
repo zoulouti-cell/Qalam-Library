@@ -25,6 +25,9 @@ before(async () => {
   if (skip) return;
   drive = await startFakeDrive({ sections: ['الأبحاث و الدراسات', 'الاجتهادات القضائية'] });
   server = await bootServer({ env: { NODE_ENV: 'test', QALAM_TEST_GOOGLE_ORIGIN: drive.origin, GOOGLE_SERVICE_ACCOUNT_JSON: drive.serviceAccountJson, DRIVE_ROOT_FOLDER_ID: ROOT_ID } });
+  /* المكتبة لا تنشئ المجلدات تلقائيًا: القسم والمجلد الفرعي معدّان سلفًا في Drive */
+  const section = [...drive.files.values()].find(f => f.name === 'الاجتهادات القضائية');
+  drive.files.set('sub_seed_2026', { id: 'sub_seed_2026', name: 'إضافات 2026', mimeType: 'application/vnd.google-apps.folder', parents: [section.id] });
   await server.seedUser(USER); await server.seedUser(OTHER);
 });
 after(async () => { if (server) await server.stop(); if (drive) await drive.stop(); });
