@@ -88,6 +88,12 @@ export function mayAutoPublish(record = {}) {
     (record.kind !== 'legislation' || ['published', 'effective'].includes(record.currentStage));
 }
 
+/* هل يصلح السجل للنشر التلقائي لو رُفع عنه التحفظ؟ (القوانين المغربية ومشاريعها وقرارات النقض المغربية والرقمنة القضائية لا تُنشر إلا باعتماد المدير). */
+export const canAutoPublishAfterRelease = (record = {}) => mayAutoPublish({ ...record, state: 'ready', readyForAutomaticPublication: true });
+
+/* موعد النشر التلقائي بعد رفع التحفظ: 24 ساعة لما يجوز نشره تلقائياً، وإلا null فيبقى بانتظار اعتماد المدير. */
+export const scheduleAfterRelease = (record = {}, now = new Date()) => canAutoPublishAfterRelease(record) ? new Date(now.getTime() + PUBLICATION_DELAY_MS) : null;
+
 /* النص التشريعي لا يُعتمد للنشر قبل استيفاء مراحله: النشر في الجريدة الرسمية أو النفاذ. */
 export function lawStagesComplete(record = {}) {
   return !['legislation', 'bill'].includes(record.kind) || ['published', 'effective'].includes(record.currentStage);

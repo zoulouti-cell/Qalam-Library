@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,isTickerItem } from '../src/legal-monitoring.mjs';
+import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,isTickerItem,canAutoPublishAfterRelease,scheduleAfterRelease } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -107,4 +107,16 @@ test('شريط الأخبار: مشاريع القوانين والرقمنة ا
   assert.equal(isTickerItem({ kind: 'case_law' }), false);
   assert.deepEqual(tickerItems([mk('a', 'bill'), mk('b', 'case_law'), mk('c', 'justice_digital'), mk('d', 'bill', { state: 'held' }), mk('e', 'bill', { source: { url: 'javascript:alert(1)' } }), mk('f', 'bill', { publishedAt: '2026-10-01T00:00:00Z' })], now).map(x => x.id).sort(), ['a', 'c']);
   assert.deepEqual(recentUpdates([mk('a', 'bill'), mk('b', 'case_law')], now).map(x => x.id), ['b']);
+});
+
+test('release from hold schedules 24h auto-publication only for records that may auto-publish',()=>{
+  const now=new Date('2026-11-18T22:00:00Z'),src={url:'https://example.gov/x',label:'مصدر',official:true,verified:true};
+  const frCase={country:'fr',kind:'case_law',court:'Cour de cassation',source:src};
+  assert.equal(scheduleAfterRelease(frCase,now).getTime(),now.getTime()+PUBLICATION_DELAY_MS);
+  assert.equal(canAutoPublishAfterRelease(frCase),true);
+  assert.equal(scheduleAfterRelease({country:'ma',kind:'legislation',currentStage:'published',source:src},now),null);
+  assert.equal(scheduleAfterRelease({country:'ma',kind:'bill',source:src},now),null);
+  assert.equal(scheduleAfterRelease({country:'ma',kind:'case_law',court:'محكمة النقض',source:src},now),null);
+  assert.equal(scheduleAfterRelease({country:'fr',kind:'legislation',currentStage:'project',source:src},now),null);
+  assert.ok(scheduleAfterRelease({country:'fr',kind:'legislation',currentStage:'published',source:src},now));
 });
