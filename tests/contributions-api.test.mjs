@@ -23,8 +23,11 @@ const additionBody = (fileIds, extra = {}) => ({ kind: 'jurisprudence', title: '
 
 before(async () => {
   if (skip) return;
-  drive = await startFakeDrive();
+  drive = await startFakeDrive({ sections: ['الأبحاث و الدراسات', 'الاجتهادات القضائية'] });
   server = await bootServer({ env: { NODE_ENV: 'test', QALAM_TEST_GOOGLE_ORIGIN: drive.origin, GOOGLE_SERVICE_ACCOUNT_JSON: drive.serviceAccountJson, DRIVE_ROOT_FOLDER_ID: ROOT_ID } });
+  /* المكتبة لا تنشئ المجلدات تلقائيًا: القسم والمجلد الفرعي معدّان سلفًا في Drive */
+  const section = [...drive.files.values()].find(f => f.name === 'الاجتهادات القضائية');
+  drive.files.set('sub_seed_2026', { id: 'sub_seed_2026', name: 'إضافات 2026', mimeType: 'application/vnd.google-apps.folder', parents: [section.id] });
   await server.seedUser(USER); await server.seedUser(OTHER);
 });
 after(async () => { if (server) await server.stop(); if (drive) await drive.stop(); });
@@ -93,9 +96,9 @@ test('المسار الكامل: إضافة بأصلها ← مسودة ← نش
   assert.equal(pub.status, 200, JSON.stringify(pub.body)); assert.equal(pub.body.originals.moved, 1, JSON.stringify(pub.body)); assert.equal(pub.body.originals.failed, 0);
   assert.match(pub.body.originals.folder, /الاجتهادات القضائية \/ إضافات 2026/);
 
-  // Drive: قسم «الاجتهادات القضائية» لم يكن قائمًا فأُنشئ، ثم مجلد فرعي بعنوان جديد، ثم الملف نفسه
+  // Drive: قسم «الاجتهادات القضائية» مُعدّ سلفًا في Drive (المكتبة لا تنشئ الأقسام تلقائيًا)، ثم مجلد فرعي بعنوان جديد، ثم الملف نفسه
   const section = [...drive.files.values()].find(f => f.name === 'الاجتهادات القضائية' && f.parents?.includes(ROOT_ID));
-  assert.ok(section, 'أُنشئ القسم المخصص');
+  assert.ok(section, 'استُعمل القسم المعدّ سلفًا');
   const sub = drive.childrenOf(section.id).find(f => f.name === 'إضافات 2026'); assert.ok(sub);
   const stored = drive.childrenOf(sub.id); assert.equal(stored.length, 1);
   assert.equal(stored[0].name, 'قرار محكمة النقض رقم 25 (2021-03-04).pdf'); assert.deepEqual(stored[0].data, PDF); assert.match(stored[0].description, /المصدر/);

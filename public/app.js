@@ -289,7 +289,7 @@
   function agreementKind(file){if(file.agreementKind==='ثنائية'||file.agreementKind==='متعددة')return file.agreementKind;const path=normalize(file.path||'');if(path.includes('متعددة'))return 'متعددة';if(path.includes('ثنائية'))return 'ثنائية';const country=normalize(file.country||'');return country&&/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country)?'متعددة':'ثنائية';}
   function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];if(file.country&&!/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(normalize(file.country)))return file.country;const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id)+'/view',officialUrl:file.officialUrl||''},true);}
-  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'النص متاح للاطلاع')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div>'+heading+'<p class="result-snippet">'+esc(agreementTopicLabel(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation))+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
+  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل في Drive · النص غير مستخرج')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span></div>'+heading+'<p class="result-snippet">'+esc(agreementTopicLabel(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation))+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p><div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country='',topic=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;state.agreementTopic=group==='متعددة'?topic:'';
@@ -953,6 +953,8 @@
       if (button.dataset.category !== undefined) {
         const fromBrowse = !!button.closest('#browseContent'), group = state.browseGroup, selectedCategory = state.categories.find(c => c.name === button.dataset.category);
         state.page = 1; state.topic = ''; state.category = button.dataset.category;
+        /* اختيار قسم من القائمة يخرج من تبويب الاتفاقيات؛ وإلا بقيت بطاقات الاتفاقيات تُعرض تحت عنوان القسم الجديد */
+        if (state.scope === 'agreements') { state.scope = 'all'; state.scopeTouched = false; }
         if (selectedCategory?.group === 'materials') {
           state.topic = button.dataset.category; if (!state.scopeTouched) state.scope = 'all'; if (state.scope !== 'all') state.category = '';
         }
@@ -1087,6 +1089,30 @@
       const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(box, anchor);
     } catch {}
   }
+  /* شريط الأخبار: مشاريع القوانين والمقترحات وأخبار المجالس والبرلمان؛ النقر يفتح الرابط الرسمي في نافذة جديدة. يُغلق وتبقى مادته أسبوعين على الأكثر. */
+  async function showNewsTicker() {
+    try {
+      const data = await api('/api/legal-monitor/ticker');
+      const dismissed = new Set(prefs.tickerDismissed || []);
+      const fresh = (data.items || []).filter(u => !dismissed.has(u.id) && /^https?:\/\//i.test(u.url));
+      const old = $('newsTicker'); if (old) old.remove();
+      if (!fresh.length) return;
+      const bar = document.createElement('section'); bar.id = 'newsTicker'; bar.className = 'news-ticker'; bar.setAttribute('aria-label', 'شريط الأخبار القانونية');
+      const label = document.createElement('strong'); label.textContent = 'أخبار';
+      const track = document.createElement('div'); track.className = 'news-ticker-track';
+      const lane = document.createElement('div'); lane.className = 'news-ticker-lane'; lane.style.animationDuration = Math.max(25, fresh.length * 9) + 's';
+      for (const u of fresh) {
+        const a = document.createElement('a'); a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = u.title + ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب');
+        lane.append(a);
+      }
+      track.append(lane);
+      const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
+      close.addEventListener('click', () => { prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
+      bar.append(label, track, close);
+      const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(bar, anchor);
+    } catch {}
+  }
   /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
   async function showEffectiveAlerts() {
     try {
@@ -1107,7 +1133,7 @@
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
-    wireEvents(); showEffectiveAlerts(); showRecentUpdates(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
+    wireEvents(); showEffectiveAlerts(); showNewsTicker(); showRecentUpdates(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
     window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });

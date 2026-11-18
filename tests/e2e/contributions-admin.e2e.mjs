@@ -56,7 +56,7 @@ async function adminFlow(label, viewport, mobile) {
   await page.goto(server.base + '/admin'); await page.waitForSelector('.admin-tabs');
   if (!mobile) await page.waitForFunction(() => !document.getElementById('contribBadge').hidden);
   const tabs = await page.locator('.admin-tabs button').allInnerTexts();
-  check(`${label}: الفرع «إضافات وملاحظات المستخدمين» هو الثالث`, /إضافات وملاحظات المستخدمين/.test(tabs[2] || '') && (await page.locator('.admin-tabs .tab-n').allInnerTexts()).join() === '1,2,3,4,5,6,7', tabs.join(' | '));
+  check(`${label}: الفرع «إضافات وملاحظات المستخدمين» هو الثالث`, /إضافات وملاحظات المستخدمين/.test(tabs[2] || '') && (await page.locator('.admin-tabs .tab-n').allInnerTexts()).join() === '1,2,3,4,5,6,7,8', tabs.join(' | '));
   const badge = (await page.locator('#contribBadge').innerText()).trim();
   if (!mobile) check(`${label}: وسم العدد يبيّن ما ينتظر الدرس`, badge === '5', badge);
   await page.click('[data-panel="contribPanel"]'); await page.waitForSelector('.cr-row');

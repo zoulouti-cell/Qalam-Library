@@ -26,7 +26,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
+import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -197,7 +197,7 @@ if(adminStore){try{library.setManagedContent(await adminStore.content.find({stat
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
 /* نطاق المراقبة: الرفوف الفرنسية، «الأبحاث والدراسات» وما تحته، «إضافات النقض». ما سواها (الاتفاقيات والقوانين والاجتهادات الأساسية) خارج المراقبة فلا يُحتسب تغييره. */
 const MONITOR_SCOPE_VERSION=2;
-const MONITORED_FOLDERS=[...FRENCH_SHELVES.map(name=>({id:DRIVE_SHELVES[name],path:name})),{id:'10-Bp3BUlI7OodtfMjlMynB9BY7349CvE',path:'الأبحاث والدراسات'},{id:'19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE',path:'الاجتهادات القضائية / إضافات النقض'}];
+const MONITORED_FOLDERS=[...FRENCH_SHELVES.map(name=>({id:DRIVE_SHELVES[name],path:name})),{id:'10-Bp3BUlI7OodtfMjlMynB9BY7349CvE',path:'الأبحاث والدراسات'},{id:'19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE',path:'الاجتهادات القضائية / إضافات النقض'},{id:DRIVE_SHELVES['القضاء الدستوري'],path:'المادة الدستورية / قرارات المحكمة الدستورية'}];
 let driveScanPromise=null;
 async function runDriveMetadataScan(actor='system'){
   if(!adminStore)throw new Error('قاعدة إدارة المكتبة غير متاحة؛ تعذر حفظ نتيجة الفحص.');
@@ -251,6 +251,12 @@ async function runLegalReports(){
 const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
 /* نشر المستجدات بعد مهلة الاعتراض (24 ساعة) ما لم يُتحفَّظ عليها؛ ونشر فوري أو حذف بقرار المدير. */
 async function publishLegalItem(item,actor){
+  if(isTickerItem(item)){
+    /* مشاريع القوانين والمقترحات وأخبار المجالس تظهر في شريط الأخبار فقط، دون بطاقة في المكتبة. */
+    await adminStore.legalMonitorItems.updateOne({_id:item.id},{$set:{state:'published',publishedAt:new Date(),autoPublishAt:null},$push:{history:{state:'published',at:new Date(),reason:actor==='scheduler'?'auto_after_24h':'manager_publish'}}});
+    await recordAudit(adminStore,actor,'legal_monitor_item_published',item.id,{title:item.title,category:'شريط الأخبار'});
+    return '';
+  }
   const record=publicationRecord(item);
   await adminStore.content.updateOne({documentId:record.documentId},{$set:record},{upsert:true});
   await adminStore.legalMonitorItems.updateOne({_id:item.id},{$set:{state:'published',publishedAt:new Date(),autoPublishAt:null,documentId:record.documentId},$push:{history:{state:'published',at:new Date(),reason:actor==='scheduler'?'auto_after_24h':'manager_publish'}}});
@@ -1015,6 +1021,11 @@ const server=http.createServer(async(req,res)=>{
       if(!adminStore)return send(req,res,200,{updates:[]});
       const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-7*86400000)}}).sort({publishedAt:-1}).limit(30).toArray();
       return send(req,res,200,{updates:recentUpdates(rows.map(r=>({...r,id:r._id})))});
+    }
+    if(p==='/api/legal-monitor/ticker'&&req.method==='GET'){
+      if(!adminStore)return send(req,res,200,{items:[]});
+      const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({publishedAt:-1}).limit(60).toArray();
+      return send(req,res,200,{items:tickerItems(rows.map(r=>({...r,id:r._id})))});
     }
     if(p==='/api/legal-monitor/alerts'&&req.method==='GET'){
       if(!adminStore)return send(req,res,200,{alerts:[]});
