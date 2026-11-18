@@ -15,7 +15,7 @@ test('creates stable identifiers for duplicate official observations',()=>{
   const a=makeObservation(base).record,b=makeObservation(base).record;
   assert.equal(a.id,b.id);
   assert.equal(a.state,'ready');
-  assert.equal(mayAutoPublish(a),true);
+  assert.equal(mayAutoPublish(a),false,'لا نشر تلقائي: الاعتماد يدوي');
 });
 
 test('holds Moroccan Court of Cassation decisions for the director',()=>{
@@ -36,7 +36,7 @@ test('legal text updates wait 24 hours before automatic publication; reservation
   assert.equal(lawStagesComplete({kind:'case_law'}),true);
   assert.equal(publicationCategory({country:'ma',kind:'case_law',court:'محكمة النقض'}),'إضافات النقض');
   assert.equal(publicationCategory({country:'ma',kind:'legislation',publishCategory:'قانون الأسرة'}),'قانون الأسرة');
-  assert.equal(law.autoPublishAt.getTime()-law.receivedAt.getTime(),PUBLICATION_DELAY_MS);
+  assert.equal(law.autoPublishAt,null);
   assert.equal(reserved.state,'held');
   assert.equal(reserved.autoPublishAt,null);
   assert.equal(mayAutoPublish(reserved),false);
