@@ -11,12 +11,12 @@ test('«المادة الدستورية» تسبق القوانين الوطني
   assert.equal(list[2].group, 'materials');
 });
 
-test('التصنيف المؤسسي ينقل القرارات الدستورية والمجالس والهيئات والإضراب دون حذف النص', () => {
+test('التصنيف المؤسسي يضع كل مؤسسة عامة باسمها ويستبعد الهيئات المهنية', () => {
   assert.equal(catalogCategory({ type: 'judicial', category: 'محكمة النقض', title: 'قرار المحكمة الدستورية' }), 'القضاء الدستوري');
   assert.equal(catalogCategory({ type: 'national', category: 'المادة الدستورية', title: 'قانون ممارسة الحق في الإضراب' }), 'مادة الحقوق والحريات');
-  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون يتعلق بمجلس المنافسة' }), 'المجالس');
-  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون بإحداث وكالة وطنية' }), 'الهيئات والوكالات');
-  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'نظام هيئة مهنية' }), 'الهيئات والوكالات');
+  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون يتعلق بمجلس المنافسة' }), 'مجلس المنافسة');
+  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون بإحداث الوكالة الوطنية للمياه والغابات' }), 'الوكالة الوطنية للمياه والغابات');
+  assert.equal(catalogCategory({ type: 'national', category: 'مادة المهن', title: 'نظام هيئة مهنية' }), 'مادة المهن');
 });
 
 test('«نصوص عامة» تُضاف فارغة في آخر القوانين الوطنية قبل السلطات', () => {

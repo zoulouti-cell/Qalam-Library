@@ -229,7 +229,8 @@
       if (c.group && c.group !== group) { group = c.group; tier = ''; heading += '<h3 class="category-group">' + esc(c.groupLabel) + '</h3>'; }
       if (c.tier && c.tier !== tier) { tier = c.tier; heading += '<h4 class="category-tier">' + esc(c.tier) + '</h4>'; }
       const count = state.scope === 'legislation' ? c.legislationCount : state.scope === 'jurisprudence' ? c.jurisprudenceCount : state.scope === 'studies' ? c.studiesCount : c.count;
-      rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '" data-category="' + esc(c.name) + '" title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
+      const action=c.driveFolderId?' data-drive-folder="'+esc(c.driveFolderId)+'" data-drive-name="'+esc(c.name)+'"':' data-category="'+esc(c.name)+'"';
+      rows.push(heading + '<button class="category-button' + (state.category === c.name ? ' selected' : '') + '"'+action+' title="' + esc(c.name) + '" aria-pressed="' + (state.category === c.name) + '"><span>' + esc(c.name) + '</span><b>' + fmt(count || 0) + '</b></button>');
       if (!needle && c.group === 'judicial' && categories[index + 1]?.group !== 'judicial') {
         if (state.canAdmin) rows.push('<button type="button" class="category-button" data-drive-folder="19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE" data-drive-name="إضافات النقض"><span>إضافات النقض</span></button>');
       }
@@ -243,11 +244,6 @@
         /* لا نكرر فئة إقليمية قديمة كعنوان ثالث؛ فرعا الاتفاقيات هما الثنائية ومتعددة الأطراف. */
       }
     });
-    if (!needle) {
-      rows.push('<h3 class="category-group">القانون والقضاء الفرنسيين</h3>');
-      for (const [label,id] of [['محكمة النقض الفرنسية','1X4WYURKX3EjQW5_1HQaTXHu9dpX8A_9t'],['المجلس الدستوري الفرنسي','1k2SiJ0PQ4Z1PNgiNxky_dLPw8XHHihPx'],['مجلس الدولة الفرنسي','1sHZgg4yt6vhZyGxMi5z6XIqy6qlYq14X']]) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
-      for (const [label,id] of [['دراسات','1Z_7bTdHSLS5Eoe1ZTA6Di-fHAym7Pz5o'],['مستجدات','1uC93axFQpHQbPfloOZiU0-tZqRnU87rw']]) rows.push('<button type="button" class="category-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(label) + '"><span>' + esc(label) + '</span></button>');
-    }
     $('categoryList').innerHTML = rows.length ? rows.join('') : '<div class="sidebar-loading">لا مجال مطابق.</div>';
   }
   function renderBrowseGroup(group) {    state.browseGroup = state.browseGroup === group ? '' : group;
@@ -256,19 +252,17 @@
     if (!state.browseGroup) { pane.innerHTML = ''; $('browseGroups').hidden = false; return; }
     $('browseGroups').hidden = true;
     if (state.browseGroup === 'agreements') { browseAgreements(); return; }
-    const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','org'],studies:['studies']};
+    const groups = {materials:['materials'],judicial:['judicial'],institutions:['authorities','councils','agencies','org'],french:['french'],studies:['studies']};
     const rows = state.categories.filter(c => !/(?:اتفاقيات|معاهدات)/u.test(normalize(c.name.trim())) && groups[state.browseGroup].includes(c.group));
-    // Drive-only French court folders must remain discoverable even without SQLite records.
-    // Do not expose Moroccan Cassation's pending-review folder through this public navigation.
     const frenchCourts = [];
     const driveRootRows = ({
       materials: [['المواد القانونية — أصول Drive','1YcLFtdRsfdbRmuhPDpLq8ywYbBi1I572']],
-      studies: [['مستجدات','1H4i3dCvIlhie4cieZ20jnAuw1AEgvsn0']],
+      studies: [],
       institutions: []
     })[state.browseGroup] || [];
     if(state.browseGroup === 'judicial' && state.canAdmin) frenchCourts.push(['إضافات النقض','19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE']);
     const driveCourtRows = [...driveRootRows,...frenchCourts].map(([name,id]) => '<button type="button" class="browse-leaf-button" data-drive-folder="' + esc(id) + '" data-drive-name="' + esc(name) + '">' + esc(name) + '<span>أصول Drive ←</span></button>').join('');
-    pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => '<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
+    pane.innerHTML = '<button type="button" class="browse-back" data-browse-back>← الأقسام</button>' + (rows.length ? rows.map(c => c.driveFolderId?'<button type="button" class="browse-leaf-button" data-drive-folder="'+esc(c.driveFolderId)+'" data-drive-name="'+esc(c.name)+'">'+esc(c.name)+'<span>أصول Drive ←</span></button>':'<button type="button" class="browse-leaf-button" data-category="' + esc(c.name) + '">' + esc(c.name) + '<span>' + fmt(c.count) + ' ←</span></button>').join('') : (driveCourtRows ? '' : '<p class="sidebar-loading">لا تتوفر عناصر مفهرسة في هذا القسم.</p>')) + driveCourtRows;
   }
   async function browseAgreements(agreementBranch = '') {
     const pane=$('browseContent');
@@ -945,7 +939,7 @@
       if (!button || button.disabled) return;
       if (button.dataset.driveOpen) { if(button.dataset.driveName){openMatchedDrive(button.dataset.driveOpen,button.dataset.driveSource,button.dataset.driveMode||'preview',button.dataset.driveName,button.dataset.drivePath||'');}else findDriveSource(button.dataset.driveOpen); return; }
       if (button.dataset.driveSearch) { findDriveSource(button.dataset.driveSearch); return; }
-      if (button.dataset.driveFolder) { browseDriveFolder(button.dataset.driveFolder,button.dataset.driveName); return; }
+      if (button.dataset.driveFolder) { $('browsePanel').hidden=false; $('browseToggle').setAttribute('aria-expanded','true'); $('browseGroups').hidden=true; $('browseContent').hidden=false; browseDriveFolder(button.dataset.driveFolder,button.dataset.driveName,true); return; }
       if (button.dataset.agreementSidebar) { const branch=button.dataset.agreementSidebar; state.agreementBranch=branch; state.agreementCountry=''; state.agreementSection=button.dataset.agreementSection||''; state.scope='agreements';state.scopeTouched=true;document.querySelectorAll('[data-scope]').forEach(b=>{const active=b.dataset.scope==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});state.browseGroup='agreements'; document.querySelectorAll('[data-browse-group]').forEach(b=>{const active=b.dataset.browseGroup==='agreements';b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));}); $('browsePanel').hidden=false; $('browseToggle').setAttribute('aria-expanded','true'); $('browseGroups').hidden=true; $('browseContent').hidden=false; browseAgreements(branch); if (!state.agreementSection) $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'}); return; }
       if (button.dataset.agreementGroup) { state.agreementSection=''; renderAgreementFiles(state.agreementFiles,button.dataset.agreementGroup); return; }
       if (button.dataset.agreementCountry) { renderAgreementFiles(state.agreementFiles,state.agreementBranch,button.dataset.agreementCountry); return; }
