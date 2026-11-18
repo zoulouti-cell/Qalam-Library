@@ -6,7 +6,7 @@ export const bundledLegalMonitoringContent = Object.freeze([
   {
     status: published, documentId: 'monitor-ma-cc-295-26-2026-11-11', country: 'ma',
     title: 'المحكمة الدستورية المغربية: التصريح بشغور مقعد بمجلس النواب',
-    type: 'judicial', kind: 'decision', category: 'المحكمة الدستورية', subcategory: 'القضاء الانتخابي', date: '2026-11-11',
+    type: 'judicial', kind: 'decision', category: 'القضاء الدستوري', subcategory: 'المحكمة الدستورية — القضاء الانتخابي', date: '2026-11-11',
     textKind: 'source_summary', reviewStatus: 'human_verified',
     sourceLabel: 'المحكمة الدستورية المغربية — قرار 295/26',
     sourceUrl: 'https://courconstitutionnelle.ma/Decision?Page=Decision&id=2159',
@@ -34,7 +34,7 @@ export const bundledLegalMonitoringContent = Object.freeze([
     status: published, documentId: 'monitor-fr-cc-2026-1232-qpc-2026-11-13', country: 'fr',
     title: 'المجلس الدستوري الفرنسي: حماية القاصر عند إعادة تكييف الأفعال إلى جناية',
     originalTitle: 'Décision n° 2026-1232 QPC du 13 novembre 2026', sourceLanguage: 'fr', professionalArabicReviewed: true,
-    type: 'judicial', kind: 'decision', category: 'المجلس الدستوري', subcategory: 'القانون والقضاء الفرنسيين', date: '2026-11-13',
+    type: 'judicial', kind: 'decision', category: 'القضاء الدستوري', subcategory: 'المجلس الدستوري الفرنسي — القانون والقضاء الفرنسيين', date: '2026-11-13',
     textKind: 'source_summary', reviewStatus: 'human_verified',
     sourceLabel: 'Légifrance — الأصل بالفرنسية؛ الملخص والتحليل بالعربية القانونية',
     sourceUrl: 'https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000055087972',

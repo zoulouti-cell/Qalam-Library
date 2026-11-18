@@ -384,7 +384,9 @@
     updateFilterState();
     if (state.view !== 'library') { renderLocalView(); return; }
     const controller = new AbortController(); state.searchAbort = controller;
-    const params = new URLSearchParams({ q: $('query').value.trim().slice(0, 300), type: state.type, scope: state.scope, category: state.category, topic: ['jurisprudence','studies'].includes(state.scope) ? state.topic : '', quality: $('qualityFilter').value, from: $('dateFrom').value, to: $('dateTo').value, page: state.page, limit: state.limit });
+    const selectedCategory=state.categories.find(category=>category.name===state.category);
+    const chronological=state.scope==='jurisprudence'||selectedCategory?.group==='judicial'||['مستجدات','القضاء الدستوري'].includes(state.category);
+    const params = new URLSearchParams({ q: $('query').value.trim().slice(0, 300), type: state.type, scope: state.scope, category: state.category, topic: ['jurisprudence','studies'].includes(state.scope) ? state.topic : '', quality: $('qualityFilter').value, from: $('dateFrom').value, to: $('dateTo').value, order: chronological?'recent':'', page: state.page, limit: state.limit });
     $('results').setAttribute('aria-busy', 'true');
     if (!state.results.length || !state.searchTimer) $('results').innerHTML = skeletons();
     $('resultsTitle').textContent = $('query').value.trim() ? 'نتائج البحث' : state.topic || state.category || 'استكشف المكتبة';

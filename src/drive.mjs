@@ -315,12 +315,40 @@ export async function matchDrivePdf(query = '', sourceUrl = '', exactName = '', 
 
 // Keep the agreement catalogue scoped to its Drive subtree. This makes treaty
 // discovery fast and avoids crawling the complete library on each search.
+const AGREEMENTS_FOLDER_ID = '1ow2jcXugNyKSYNjlj-VjWoiPTXf60GPN';
+async function allPdfsBelow(folderId, rootPath = '') {
+  const files = [], queue = [{ id: folderId, depth: 0, path: rootPath }], seen = new Set();
+  async function children(folder) {
+    const found = []; let token = '';
+    do {
+      const query = new URLSearchParams({ q: `'${folder.id}' in parents and trashed = false`, pageSize: '1000', fields: `nextPageToken,files(${fields})`, supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' });
+      if (token) query.set('pageToken', token);
+      const response = await driveFetch(`${GOOGLE_API}/drive/v3/files?${query}`), data = await response.json();
+      found.push(...(data.files || [])); token = data.nextPageToken || '';
+    } while (token);
+    return found;
+  }
+  while (queue.length) {
+    const batch = queue.splice(0, 4).filter(folder => !seen.has(folder.id));
+    if (batch.some(folder => folder.depth > 16)) throw new Error('تجاوز عمق مجلد الاتفاقيات حد السلامة.');
+    batch.forEach(folder => seen.add(folder.id));
+    const pages = await Promise.all(batch.map(async folder => ({ folder, items: await children(folder) })));
+    for (const { folder, items } of pages) for (const item of items) {
+      if (item.mimeType === 'application/pdf') files.push({ id: item.id, name: item.name || '', size: Number(item.size) || 0, md5Checksum: item.md5Checksum || '', modifiedTime: item.modifiedTime || '', path: folder.path || '', webViewLink: item.webViewLink || '', officialUrl: officialSourceFromDescription(item.description) });
+      else if (item.mimeType === 'application/vnd.google-apps.folder') queue.push({ id: item.id, depth: folder.depth + 1, path: [folder.path, item.name || ''].filter(Boolean).join(' / ') });
+    }
+  }
+  return files;
+}
 export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   if (Date.now() - agreementIndexCache.at >= 15 * 60_000) {
     if (!agreementIndexCache.promise) agreementIndexCache.promise = (async () => {
-      // Discover the treaty branch wherever it sits in the user's folder tree;
-      // do not assume that it is a direct child of the Drive root.
-      const libraryFiles = await allLibraryPdfs();
+      // الاتفاقيات لها فرع معلوم؛ لا نمسح الأرشيف كله عند فتح هذا القسم.
+      // يبقى خادم الاختبارات على الشجرة الاصطناعية الكاملة؛ أما الإنتاج فيبدأ
+      // مباشرة من مجلد الاتفاقيات المعلوم، حتى لا تؤخره أرشفة المكتبة كلها.
+      const libraryFiles = (LOCAL_ORIGINALS_ROOT || process.env.NODE_ENV === 'test')
+        ? (await allLibraryPdfs()).filter(file => /(?:اتفاق|معاهد|معاهدات|معاهدة)/u.test(normalizeDriveName(`${file.path} ${file.name}`)))
+        : await allPdfsBelow(AGREEMENTS_FOLDER_ID, 'الاتفاقيات الدولية');
       const marker = value => /(?:اتفاق|معاهد|معاهدات|معاهدة)/u.test(normalizeDriveName(value));
       let files = libraryFiles.filter(file => file.path.split(' / ').some(marker));
       if (!files.length) files = libraryFiles.filter(file => marker(file.name));

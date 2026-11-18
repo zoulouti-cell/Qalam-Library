@@ -1,14 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GENERAL_TEXTS, orderedCategories, withGeneralTexts } from '../src/catalog.mjs';
+import { GENERAL_TEXTS, catalogCategory, orderedCategories, withGeneralTexts } from '../src/catalog.mjs';
 
 const row = (name, count = 1) => ({ name, count, legislationCount: count, jurisprudenceCount: 0, studiesCount: 0 });
 
 test('«المادة الدستورية» تسبق القوانين الوطنية وتضم الدساتير ثم المحكمة الدستورية', () => {
-  const list = orderedCategories([row('المادة المدنية'), row('المحكمة الدستورية'), row('الدساتير')]);
-  assert.deepEqual(list.slice(0, 2).map(item => item.name), ['الدساتير', 'المحكمة الدستورية']);
+  const list = orderedCategories([row('المادة المدنية'), row('القضاء الدستوري'), row('الدساتير')]);
+  assert.deepEqual(list.slice(0, 2).map(item => item.name), ['الدساتير', 'القضاء الدستوري']);
   assert.ok(list.slice(0, 2).every(item => item.group === 'constitutional' && item.groupLabel === 'المادة الدستورية'));
   assert.equal(list[2].group, 'materials');
+});
+
+test('التصنيف المؤسسي ينقل القرارات الدستورية والمجالس والهيئات والإضراب دون حذف النص', () => {
+  assert.equal(catalogCategory({ type: 'judicial', category: 'محكمة النقض', title: 'قرار المحكمة الدستورية' }), 'القضاء الدستوري');
+  assert.equal(catalogCategory({ type: 'national', category: 'المادة الدستورية', title: 'قانون ممارسة الحق في الإضراب' }), 'مادة الحقوق والحريات');
+  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون يتعلق بمجلس المنافسة' }), 'المجالس');
+  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'قانون بإحداث وكالة وطنية' }), 'الهيئات والوكالات');
+  assert.equal(catalogCategory({ type: 'national', category: 'المادة الإدارية', title: 'نظام هيئة مهنية' }), 'الهيئات والوكالات');
 });
 
 test('«نصوص عامة» تُضاف فارغة في آخر القوانين الوطنية قبل السلطات', () => {

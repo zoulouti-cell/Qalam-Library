@@ -1,7 +1,7 @@
 // The original library's navigation and reference priorities, kept separately
 // from full-text relevance. Removing unavailable records never renumbers titles.
 const MAJOR = ['المادة الدستورية','المادة المدنية','المادة الجنائية','المادة التجارية','المادة الاجتماعية','المادة الإدارية','المادة الأسرية','المادة العقارية','المادة المالية','المادة الانتخابية','المادة البيئية'];
-const GROUPS = [['constitutional','المادة الدستورية'],['materials','القوانين الوطنية'],['authorities','السلطات'],['councils','المجالس'],['judicial','الاجتهادات القضائية'],['studies','الدراسات'],['org','التنظيم الهيكلي لوزارة العدل']];
+const GROUPS = [['constitutional','المادة الدستورية'],['materials','القوانين الوطنية'],['authorities','السلطات'],['councils','المجالس'],['agencies','الهيئات والوكالات'],['judicial','الاجتهادات القضائية'],['studies','الدراسات'],['org','التنظيم الهيكلي لوزارة العدل']];
 const REFERENCES = {
   'الدساتير':['دستور المملكة المغربية لسنة 2011','دستور المملكة'],
   'المادة المدنية':['المسطرة المدنية','الالتزامات والعقود','الحقوق العينية','التحفيظ العقاري'],
@@ -13,6 +13,11 @@ const REFERENCES = {
   'المادة الانتخابية':['الانتخابات'], 'مادة النقل':['مدونة السير'],
 };
 export function catalogCategory(row) {
+  const title = String(row.title || ''), category = String(row.category || '');
+  if (/المحكمة الدستورية|المجلس الدستوري/u.test(`${title} ${category}`)) return 'القضاء الدستوري';
+  if (row.type === 'national' && /الإضراب/u.test(title)) return 'مادة الحقوق والحريات';
+  if (row.type === 'national' && /(?:مجلس|المجلس)/u.test(title)) return 'المجالس';
+  if (row.type === 'national' && (/(?:وكالة|هيئة)/u.test(title) || category === 'مادة هيئات الحكامة الجيدة والتقنين')) return 'الهيئات والوكالات';
   if (row.category === 'المادة الدستورية') return 'الدساتير';
   if (row.category === 'اجتهادات قضائية - الخبرة والخبراء') return 'محكمة النقض - الخبرة';
   if (row.id === 'national:5298') return 'المادة البيئية';
@@ -23,7 +28,7 @@ export function catalogCategory(row) {
 const GENERAL = ['دستور المملكة المغربية لسنة 2011','المسطرة المدنية','المسطرة الجنائية','الالتزامات والعقود','مجموعة القانون الجنائي','القانون الجنائي','مدونة التجارة','مدونة الأسرة','مدونة الشغل','التحفيظ العقاري','الحقوق العينية','مدونة السير','تعليل قراراتها الإدارية','تبسيط المساطر والإجراءات الإدارية','ميثاق المرافق العمومية','التدبير المفوض للمرافق العامة','الدستور'];
 function categoryRank(name) {
   if(name==='الدساتير')return -2;
-  if(name==='المحكمة الدستورية')return -1;
+  if(name==='القضاء الدستوري')return -1;
   const i=MAJOR.indexOf(name); if(i>=0)return i;
   // «مستجدات» مجلد قائم داخل «الأبحات و الدراسات» في بنية المكتبة وDrive؛
   // لا يُعامل كقسم قوانين مستقل حتى ولو احتوى موجزات لمشاريع أو نصوص قيد الرصد.
@@ -32,13 +37,14 @@ function categoryRank(name) {
   if(/^مادة|^المادة/.test(name))return 100;
   if(name.startsWith('السلطة'))return 110;
   if(name.includes('محكمة')||name.startsWith('اجتهادات قضائية')||name==='المجلس الأعلى'||name==='قواعد قضائية')return 120;
-  if(name.includes('مجلس'))return 130;
+  if(name==='المجالس'||name.includes('مجلس'))return 130;
+  if(name==='الهيئات والوكالات')return 135;
   if(/دراسات|مجلة|أبحاث|ابحاث|بحوث|نشرة/.test(name))return 140;
   if(name.includes('التنظيم الهيكلي'))return 150;
   return 100;
 }
 function judicialRank(name){return name==='المجلس الأعلى'?0:name==='محكمة النقض'?1:name==='محكمة النقض - الخبرة'?2:name==='قواعد قضائية'?3:name.includes('محكمة الاستئناف')?4:name.includes('المحكمة الإدارية')||name.includes('المحكمة التجارية')?5:name.startsWith('اجتهادات قضائية')?6:7;}
-function groupOf(name){return ({'-2':'constitutional','-1':'constitutional',110:'authorities',120:'judicial',130:'councils',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
+function groupOf(name){return ({'-2':'constitutional','-1':'constitutional',110:'authorities',120:'judicial',130:'councils',135:'agencies',140:'studies',150:'org'})[categoryRank(name)]||'materials';}
 /**
  * «نصوص عامة»: عنوان محجوز في آخر «القوانين الوطنية» (بعد المواد القانونية كلها) يحيل إليه فهرس المكتب في تطبيق قلم.
  * يظهر ولو كان فارغًا، وتُودَع فيه النصوص التي لا تنتمي إلى مادة بعينها (من لوحة الإدارة بوضع الفئة «نصوص عامة»).
