@@ -10,6 +10,7 @@ import { createHash,randomBytes,createHmac,timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { PDFDocument } from 'pdf-lib';
 import { Library } from './src/library.mjs';
+import { DRIVE_SHELVES } from './src/catalog.mjs';
 import { bundledAgreementTexts } from './src/agreement-texts.mjs';
 import { bundledLegalMonitoringContent } from './src/legal-monitoring-content.mjs';
 import { answerQuestion,aiCapability,GROQ_CHAT_MODELS,selectedGroqModel } from './src/assistant.mjs';
@@ -21,13 +22,19 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
-import { libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
+import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { dueReports,renderReport,makeObservation,mergeLegislativeObservation } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
+/* أعداد الأرفف المرتبطة بمجلدات Drive (القسم الفرنسي وغيره): العدّ من Drive لا من القاعدة، ويُجدَّد في الخلفية كل 10 دقائق. */
+const shelfCounts=new Map();let shelfRefreshAt=0,shelfRefreshing=false;
+function refreshShelfCounts(){if(shelfRefreshing||Date.now()-shelfRefreshAt<10*60_000)return;shelfRefreshing=true;shelfRefreshAt=Date.now();
+  (async()=>{for(const [name,id] of Object.entries(DRIVE_SHELVES)){try{const n=await countShelfPdfs(id);if(n!==null)shelfCounts.set(name,n);}catch{}}})().finally(()=>{shelfRefreshing=false;});}
+function withShelfCounts(categories){refreshShelfCounts();return categories.map(c=>DRIVE_SHELVES[c.name]&&shelfCounts.has(c.name)?{...c,count:Math.max(c.count,shelfCounts.get(c.name)),driveCount:shelfCounts.get(c.name)}:c);}
+
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
 const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
 const adminPassword=process.env.LIBRARY_ADMIN_PASSWORD||'';
@@ -958,7 +965,7 @@ const server=http.createServer(async(req,res)=>{
       try{return send(req,res,200,ingestionSnapshot(JSON.parse(fs.readFileSync(progress,'utf8'))));}catch{return send(req,res,200,{running:true,status:'updating'});}
     }
     if(p==='/api/stats')return send(req,res,200,library.stats());
-    if(p==='/api/categories')return send(req,res,200,{categories:library.categories()});
+    if(p==='/api/categories')return send(req,res,200,{categories:withShelfCounts(library.categories())});
     if(p==='/api/search')return send(req,res,200,library.search(Object.fromEntries(url.searchParams)));
     if(p==='/api/suggest')return send(req,res,200,library.suggest(url.searchParams.get('q')));
     if(p==='/api/document'){
@@ -1017,7 +1024,7 @@ const server=http.createServer(async(req,res)=>{
 });
 server.requestTimeout=70000;server.headersTimeout=15000;
 server.on('error',error=>{console.error(error.code==='EADDRINUSE'?'المنفذ مستخدم. أغلق نسخة قلم السابقة أو غيّر PORT.':error.message);process.exit(1);});
-server.listen(PORT,HOST,()=>console.log(`Qalam Smart ${library.meta.version}: http://localhost:${PORT} — ${library.meta.documents} records; PDF-independent; PID ${process.pid}`));
+server.listen(PORT,HOST,()=>{console.log(`Qalam Smart ${library.meta.version}: http://localhost:${PORT} — ${library.meta.documents} records; PDF-independent; PID ${process.pid}`);if(process.env.NODE_ENV!=='test')setTimeout(()=>{warmAgreementIndex();refreshShelfCounts();},3000).unref?.();});
 function stop(){server.close(()=>{library.close();process.exit(0);});setTimeout(()=>process.exit(0),1500).unref();}
 process.on('SIGINT',stop);process.on('SIGTERM',stop);
 

@@ -397,7 +397,7 @@
       const result = await api('/api/search?' + params, { signal: controller.signal });
       if (sequence !== state.searchSequence) return;
       state.results = result.results || []; state.total = result.total || 0; state.page = result.page || state.page;
-      const frenchEmpty=['محكمة النقض الفرنسية','المجلس الدستوري الفرنسي','مجلس الدولة الفرنسي','مستجدات فرنسية'].includes(state.category);
+      const frenchEmpty=['محكمة النقض الفرنسية','المجلس الدستوري الفرنسي','مجلس الدولة الفرنسي','قوانين فرنسية','دراسات فرنسية','مستجدات فرنسية'].includes(state.category);
       $('results').innerHTML = state.results.length ? state.results.map(renderCard).join('') : frenchEmpty ? emptyState('لا توجد بطاقة منشورة في هذا المجلد حالياً', 'المجلد موجود ضمن القانون والقضاء الفرنسيين، لكن لا يُعرض محتوى غير مفهرس أو غير منشور كبطاقة قانونية.', { key: 'clear-filters', label: 'مسح التصفية' }) : emptyState('لم نعثر على نتائج مطابقة', 'جرّب عبارة أقصر أو رقم القانون، أو أزل بعض المرشحات. اختلاف الصياغة وحالة النص قد يؤثران في النتائج.', { key: 'clear-filters', label: 'مسح التصفية' });
       const first = state.total ? (state.page - 1) * state.limit + 1 : 0;
       const last = Math.min(state.page * state.limit, state.total);

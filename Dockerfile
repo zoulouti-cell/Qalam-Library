@@ -12,6 +12,7 @@ RUN git clone https://github.com/zoulouti-cell/Qalam-Library-data.git /tmp/qalam
     && cd /app && npm ci --omit=dev \
     && node tools/apply-judicial-index.mjs data/library.sqlite \
     && node tools/correct-library-texts.mjs data/library.sqlite \
+    && node tools/curate-library.mjs data/library.sqlite \
     && rm -rf /tmp/qalam-library-data
 ENV HOST=0.0.0.0
 EXPOSE 10000
