@@ -257,7 +257,7 @@ export async function openDrivePdf(id) {
 
 export async function openDriveSourceFile(id) {
   const item = await withinLibrary(id);
-  const allowed = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/webp', 'text/plain']);
+  const allowed = new Set(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/webp', 'text/plain', 'text/html', 'text/markdown']);
   if (!allowed.has(item.mimeType)) throw new Error('نوع ملف المصدر غير مدعوم للفتح من المكتبة.');
   if (item.localPath) return { item, response: localResponse(item) };
   const response = await driveFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`);

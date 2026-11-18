@@ -13,6 +13,7 @@ import { Library } from './src/library.mjs';
 import { DRIVE_SHELVES, FRENCH_SHELVES } from './src/catalog.mjs';
 import { bundledAgreementTexts } from './src/agreement-texts.mjs';
 import { bundledLegalMonitoringContent } from './src/legal-monitoring-content.mjs';
+import { bundledFrenchStudies } from './src/french-studies-content.mjs';
 import { answerQuestion,aiCapability,GROQ_CHAT_MODELS,selectedGroqModel } from './src/assistant.mjs';
 import { answerFromWeb } from './src/websearch.mjs';
 import { geminiApiKey,geminiOcrApiKey,geminiOcrModel,geminiOcrEnabled } from './src/gemini.mjs';
@@ -33,7 +34,7 @@ const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'p
 const shelfCounts=new Map();let shelfRefreshAt=0,shelfRefreshing=false;
 function refreshShelfCounts(){if(shelfRefreshing||Date.now()-shelfRefreshAt<10*60_000)return;shelfRefreshing=true;shelfRefreshAt=Date.now();
   (async()=>{for(const [name,id] of Object.entries(DRIVE_SHELVES)){try{const n=await countShelfPdfs(id);if(n!==null)shelfCounts.set(name,n);}catch{}}})().finally(()=>{shelfRefreshing=false;});}
-function withShelfCounts(categories){refreshShelfCounts();return categories.map(c=>DRIVE_SHELVES[c.name]&&shelfCounts.has(c.name)?{...c,count:Math.max(c.count,shelfCounts.get(c.name)),driveCount:shelfCounts.get(c.name)}:c);}
+function withShelfCounts(categories){refreshShelfCounts();return categories.map(c=>DRIVE_SHELVES[c.name]&&shelfCounts.has(c.name)?{...c,count:c.count>0?c.count:shelfCounts.get(c.name),driveCount:shelfCounts.get(c.name)}:c);}
 
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
 const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
@@ -126,7 +127,7 @@ async function extractGeminiPdf(model,apiKey,sourceBytes,prompt){
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
-library.setBundledContent([...bundledAgreementTexts,...bundledLegalMonitoringContent]);
+library.setBundledContent([...bundledAgreementTexts,...bundledLegalMonitoringContent,...bundledFrenchStudies]);
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 /* استعادة كلمة المرور بالبريد؛ تصفير محاولات الدخول الفاشلة بعد نجاحها لأن صاحب الصندوق أثبت ملكيته. */
 const passwordReset=createPasswordReset({store:adminStore,afterReset:(ip,email)=>clearLoginFailures(ip,email)});
@@ -753,7 +754,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/drive/file'&&req.method==='GET'){
       const id=(url.searchParams.get('id')||'').slice(0,200),mode=url.searchParams.get('mode')==='download'?'attachment':'inline';if(!id)return send(req,res,400,{error:'معرف ملف Drive مطلوب.'});
-      try{if(await isPendingCassationDriveItem(id)&&!await adminSessionLive(req))return send(req,res,403,{error:'الوثيقة قيد المراجعة الإدارية.'});const {item,response}=await openDriveSourceFile(id);const safeName=encodeURIComponent(String(item.name||'document').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length');res.writeHead(200,{...headers,'Content-Type':item.mimeType||'application/octet-stream','Content-Disposition':`${mode}; filename="document"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
+      try{if(await isPendingCassationDriveItem(id)&&!await adminSessionLive(req))return send(req,res,403,{error:'الوثيقة قيد المراجعة الإدارية.'});const {item,response}=await openDriveSourceFile(id);const safeName=encodeURIComponent(String(item.name||'document').replace(/[\r\n\0]/g,'_')),length=response.headers.get('content-length'),isHtml=item.mimeType==='text/html',isMd=item.mimeType==='text/markdown';res.writeHead(200,{...headers,...(isHtml?{'Content-Security-Policy':"sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:"}:{}),'Content-Type':isHtml?'text/html; charset=utf-8':isMd?'text/plain; charset=utf-8':(item.mimeType||'application/octet-stream'),'Content-Disposition':`${mode}; filename="document"; filename*=UTF-8''${safeName}`,'Cache-Control':'private, no-store, max-age=0',...(length?{'Content-Length':length}:{}),'X-Content-Type-Options':'nosniff'});await pipeline(Readable.fromWeb(response.body),res);return;}catch(error){if(res.headersSent){res.destroy();return;}return send(req,res,503,{error:error.message||'تعذر فتح ملف Drive.'});}
     }
     if(p==='/api/admin/drive/ocr'&&req.method==='POST'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة؛ لا يمكن حفظ مسودة OCR.'});
