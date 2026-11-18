@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 
 export const REPORTS = Object.freeze({
-  daily: { hour: 7, weekday: null, title: 'التقرير اليومي للمستجدات القانونية والقضائية' },
-  weekly: { hour: 8, weekday: 6, title: 'التقرير الأسبوعي الشامل' },
-  justice: { hour: 8, weekday: 1, title: 'تقرير رقمنة العدالة وتطوير قلم' },
+  monday: { hour: 7, weekday: 1, hours: 72, title: 'تقرير الاثنين: مستجدات المغرب وفرنسا' },
+  wednesday: { hour: 7, weekday: 3, hours: 48, title: 'تقرير الأربعاء: مستجدات المغرب وفرنسا' },
+  saturday: { hour: 8, weekday: 6, hours: 168, title: 'التقرير الأسبوعي الشامل وتحيين المكتبة', publishesLibrary: true },
 });
 export const REPORT_TIME_ZONE = 'Africa/Casablanca';
 /* مهلة الاعتراض: يبقى المستجد «جاهزاً» أربعاً وعشرين ساعة، فإن لم يُتحفَّظ عليه نُشر. */
@@ -155,4 +155,13 @@ export function publicationRecord(item = {}, now = new Date()) {
 /* مستجدات نفذت اليوم أو ينفذ قانونها اليوم: تُعرض تنبيهاً ليوم واحد. */
 export function effectiveToday(items = [], today = '') {
   return (items || []).filter(i => i.state === 'published' && i.effectiveDate === today).map(i => ({ id: i.id, title: i.title, country: i.country, documentId: `monitor-${i.id.slice(0, 20)}`, effectiveDate: i.effectiveDate }));
+}
+
+/* المستجدات المنشورة خلال الأيام الأخيرة (أسبوع على الأكثر) لشريط المستجدات؛ يختفي الشريط إن لم توجد. */
+export function recentUpdates(items = [], now = new Date(), days = 7) {
+  const since = now.getTime() - days * 24 * 60 * 60 * 1000;
+  return (items || [])
+    .filter(i => i.state === 'published' && i.publishedAt && new Date(i.publishedAt).getTime() >= since)
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+    .map(i => ({ id: i.id, title: i.title, country: i.country, kind: i.kind, stage: stageLabel(i.currentStage), eventDate: i.eventDate, publishedAt: i.publishedAt, documentId: `monitor-${String(i.id).slice(0, 20)}` }));
 }

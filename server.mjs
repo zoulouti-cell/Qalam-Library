@@ -26,7 +26,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,publicationRecord,effectiveToday,PUBLICATION_DELAY_MS } from './src/legal-monitoring.mjs';
+import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,publicationRecord,effectiveToday,recentUpdates,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -237,11 +237,12 @@ async function runLegalReports(){
       const reportId=`${slot.type}:${slot.localDate}`;
       try{
         const existing=await adminStore.legalMonitorReports.findOne({_id:reportId},{projection:{_id:1}});if(existing)continue;
-        const from=new Date(now.getTime()-(slot.type==='daily'?24:168)*60*60_000);
+        const from=new Date(now.getTime()-(REPORTS[slot.type]?.hours||168)*60*60_000);
         const observations=await adminStore.legalMonitorItems.find({receivedAt:{$gte:from},'source.official':true,'source.verified':true}).sort({eventDate:-1}).limit(500).toArray();
         const report={_id:reportId,type:slot.type,localDate:slot.localDate,title:renderReport(slot.type,[],{localDate:slot.localDate}).split('\n')[0],text:renderReport(slot.type,observations,{localDate:slot.localDate,generatedAt:now}),observationIds:observations.map(item=>item.id),status:'generated',generatedAt:now,sourceCount:observations.length};
         const result=await adminStore.legalMonitorReports.updateOne({_id:reportId},{$setOnInsert:report},{upsert:true});
         if(result.upsertedCount)await recordAudit(adminStore,'scheduler','legal_report_generated',reportId,{type:slot.type,sourceCount:observations.length});
+        if(REPORTS[slot.type]?.publishesLibrary){const ready=await adminStore.legalMonitorItems.find({state:'ready'}).limit(100).toArray();for(const item of ready){try{if(mayAutoPublish(item))await publishLegalItem({...item,id:item._id},'scheduler');}catch(error){console.error('Saturday legal publication failed:',error?.message||'unknown error');}}}
       }catch(error){console.error('Scheduled legal report failed:',slot.type,error?.message||'unknown error');}
     }
   })().finally(()=>{legalReportRun=null;});
@@ -1008,6 +1009,11 @@ const server=http.createServer(async(req,res)=>{
       try{return send(req,res,200,ingestionSnapshot(JSON.parse(fs.readFileSync(progress,'utf8'))));}catch{return send(req,res,200,{running:true,status:'updating'});}
     }
     if(p==='/api/stats')return send(req,res,200,library.stats());
+    if(p==='/api/legal-monitor/recent'&&req.method==='GET'){
+      if(!adminStore)return send(req,res,200,{updates:[]});
+      const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-7*86400000)}}).sort({publishedAt:-1}).limit(30).toArray();
+      return send(req,res,200,{updates:recentUpdates(rows.map(r=>({...r,id:r._id})))});
+    }
     if(p==='/api/legal-monitor/alerts'&&req.method==='GET'){
       if(!adminStore)return send(req,res,200,{alerts:[]});
       const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Casablanca'}).format(new Date());
