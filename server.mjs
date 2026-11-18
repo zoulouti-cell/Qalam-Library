@@ -323,7 +323,7 @@ const server=http.createServer(async(req,res)=>{
     if(hstsApplies(req))res.setHeader('Strict-Transport-Security',HSTS);
     if(!rate(req,req.method==='POST'))return send(req,res,429,{error:'طلبات كثيرة؛ حاول بعد قليل.'});
     const url=new URL(req.url,'http://localhost:'+PORT),p=url.pathname;
-    if(req.method==='POST'&&!sameOrigin(req))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
+    if(req.method==='POST'&&!sameOrigin(req)&&!collectorRoute(req,p))return send(req,res,403,{error:'هذا الطلب غير مسموح.'});
     if(p.startsWith('/api/')&&!['GET','POST','HEAD'].includes(req.method))return send(req,res,405,{error:'طريقة الطلب غير مدعومة.'});
     if(p==='/api/health')return send(req,res,200,{ok:true});
     /* جلسة صدرت قبل آخر تغيير لكلمة المرور (استعادة) تسقط قبل أي مسار: يُنزع كوكيها من الطلب فتعاملها بقية المسارات كطلب بلا جلسة،
