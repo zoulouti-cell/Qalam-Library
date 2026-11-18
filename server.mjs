@@ -26,7 +26,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { dueReports,renderReport,makeObservation,mergeLegislativeObservation } from './src/legal-monitoring.mjs';
+import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,publicationRecord,effectiveToday,PUBLICATION_DELAY_MS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -248,6 +248,25 @@ async function runLegalReports(){
   return legalReportRun;
 }
 const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
+/* نشر المستجدات بعد مهلة الاعتراض (24 ساعة) ما لم يُتحفَّظ عليها؛ ونشر فوري أو حذف بقرار المدير. */
+async function publishLegalItem(item,actor){
+  const record=publicationRecord(item);
+  await adminStore.content.updateOne({documentId:record.documentId},{$set:record},{upsert:true});
+  await adminStore.legalMonitorItems.updateOne({_id:item.id},{$set:{state:'published',publishedAt:new Date(),autoPublishAt:null,documentId:record.documentId},$push:{history:{state:'published',at:new Date(),reason:actor==='scheduler'?'auto_after_24h':'manager_publish'}}});
+  library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+  await recordAudit(adminStore,actor,'legal_monitor_item_published',item.id,{title:item.title,category:record.category});
+  return record.documentId;
+}
+let legalPublishRun=null;
+function runLegalPublication(){
+  if(!adminStore||legalPublishRun)return legalPublishRun;
+  legalPublishRun=(async()=>{
+    const due=await adminStore.legalMonitorItems.find({state:'ready',autoPublishAt:{$lte:new Date()}}).limit(20).toArray();
+    for(const item of due){try{if(mayAutoPublish(item))await publishLegalItem({...item,id:item._id},'scheduler');}catch(error){console.error('Scheduled legal publication failed:',error?.message||'unknown error');}}
+  })().finally(()=>{legalPublishRun=null;});
+  return legalPublishRun;
+}
+const legalPublishTimer=setInterval(()=>runLegalPublication()?.catch(()=>{}),5*60_000);legalPublishTimer.unref();
 legalReportTimer.unref();
 const headers={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'SAMEORIGIN',
@@ -694,19 +713,39 @@ const server=http.createServer(async(req,res)=>{
       if(req.method==='GET'){
         const state=['held','ready','published'].includes(url.searchParams.get('state'))?url.searchParams.get('state'):'';
         const rows=await adminStore.legalMonitorItems.find(state?{state}:{}).sort({receivedAt:-1}).limit(100).toArray();
-        return send(req,res,200,{items:rows.map(({_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt})=>({id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt}))});
+        return send(req,res,200,{items:rows.map(({_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage})=>({id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage}))});
       }
       let body;try{body=await jsonBody(req,30000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
       const checked=makeObservation(body);if(checked.error)return send(req,res,400,{error:checked.error});
       const item=checked.record;
       try{
         const previous=await adminStore.legalMonitorItems.findOne({_id:item.id});
-        const stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;
+        let stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;if(previous?.holdReason==='تحفظ المدير على النشر.')stored={...stored,state:'held',holdReason:previous.holdReason,autoPublishAt:null,readyForAutomaticPublication:false};
         await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
         if(!previous)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
         else if(item.kind==='bill'||item.kind==='legislation')await recordAudit(adminStore,auditActor(req),'legal_monitor_item_updated',item.id,{country:item.country,stage:stored.currentStage,title:stored.title});
         return send(req,res,previous?200:201,{ok:true,id:item.id,updated:!!previous,state:stored.state,stage:stored.currentStage,holdReason:stored.holdReason});
       }catch(error){return send(req,res,503,{error:'تعذر حفظ سجل الرصد بأمان؛ لم يتم نشر أي محتوى.'});}
+    }
+    if(p==='/api/admin/legal-monitor/items/action'&&req.method==='POST'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
+      let body;try{body=await jsonBody(req,2000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+      const id=String(body.id||'').slice(0,80),action=String(body.action||''),item=id?await adminStore.legalMonitorItems.findOne({_id:id}):null;
+      if(!item)return send(req,res,404,{error:'السجل غير موجود.'});
+      const actor=auditActor(req),now=new Date();
+      try{
+        if(action==='hold'){await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'held',holdReason:'تحفظ المدير على النشر.',autoPublishAt:null},$push:{history:{state:'held',at:now,reason:'manager_reservation'}}});}
+        else if(action==='release'){if(item.state!=='held')return send(req,res,409,{error:'السجل ليس محجوزاً.'});await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'ready',holdReason:'',readyForAutomaticPublication:true,autoPublishAt:new Date(now.getTime()+PUBLICATION_DELAY_MS)},$push:{history:{state:'ready',at:now,reason:'manager_release'}}});}
+        else if(action==='publish'){await publishLegalItem({...item,id},actor);}
+        else if(action==='delete'){
+          const docId=item.documentId||`monitor-${String(id).slice(0,20)}`;
+          await adminStore.content.deleteMany({documentId:docId,origin:'legal-monitor'});
+          await adminStore.legalMonitorItems.deleteOne({_id:id});
+          library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+        }else return send(req,res,400,{error:'إجراء غير معروف.'});
+        await recordAudit(adminStore,actor,'legal_monitor_item_'+action,id,{title:item.title});
+        return send(req,res,200,{ok:true,action});
+      }catch(error){return send(req,res,503,{error:'تعذر تنفيذ الإجراء؛ لم يتغير شيء.'});}
     }
     if(p==='/api/admin/overview'&&req.method==='GET'){
       const stats=library.stats(),statuses=library.db.prepare('SELECT review_status status,count(*) count FROM documents GROUP BY review_status ORDER BY count DESC').all();
@@ -969,6 +1008,12 @@ const server=http.createServer(async(req,res)=>{
       try{return send(req,res,200,ingestionSnapshot(JSON.parse(fs.readFileSync(progress,'utf8'))));}catch{return send(req,res,200,{running:true,status:'updating'});}
     }
     if(p==='/api/stats')return send(req,res,200,library.stats());
+    if(p==='/api/legal-monitor/alerts'&&req.method==='GET'){
+      if(!adminStore)return send(req,res,200,{alerts:[]});
+      const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Casablanca'}).format(new Date());
+      const rows=await adminStore.legalMonitorItems.find({state:'published',effectiveDate:today}).limit(10).toArray();
+      return send(req,res,200,{today,alerts:effectiveToday(rows.map(r=>({...r,id:r._id})),today)});
+    }
     if(p==='/api/categories')return send(req,res,200,{categories:withShelfCounts(library.categories())});
     if(p==='/api/search')return send(req,res,200,library.search(Object.fromEntries(url.searchParams)));
     if(p==='/api/suggest')return send(req,res,200,library.suggest(url.searchParams.get('q')));

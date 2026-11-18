@@ -6,6 +6,8 @@ export const REPORTS = Object.freeze({
   justice: { hour: 8, weekday: 1, title: 'تقرير رقمنة العدالة وتطوير قلم' },
 });
 export const REPORT_TIME_ZONE = 'Africa/Casablanca';
+/* مهلة الاعتراض: يبقى المستجد «جاهزاً» أربعاً وعشرين ساعة، فإن لم يُتحفَّظ عليه نُشر. */
+export const PUBLICATION_DELAY_MS = 24 * 60 * 60 * 1000;
 export const STAGES = Object.freeze(['project', 'study', 'approved', 'issued', 'published', 'effective']);
 export const STATES = Object.freeze(['discovered', 'verifying', 'held', 'ready', 'published']);
 const stageRank = stage => Math.max(0, STAGES.indexOf(stage));
@@ -47,12 +49,13 @@ export function makeObservation(input = {}) {
   const id = createHash('sha256').update(key).digest('hex');
   const restrictedCassation = country === 'ma' && kind === 'case_law' && /محكمة\s+النقض/.test(court);
   const hasReservation = input.legalReservation === true || input.scientificReservation === true || input.technicalReservation === true;
-  const publishableKind = ['research', 'case_law', 'bill'].includes(kind);
+  const publishableKind = ['research', 'case_law', 'bill', 'legislation'].includes(kind);
   const readyForAutomaticPublication = source.verified && input.complete === true && !hasReservation && publishableKind && !restrictedCassation;
   return { record: {
     id, country, kind, title, summary, eventDate, receivedAt, source, reference, court, caseNumber,
     officialNumber: oneLine(input.officialNumber, 150), currentStage: STAGES.includes(input.currentStage) ? input.currentStage : '',
     state: readyForAutomaticPublication ? 'ready' : 'held',
+    effectiveDate: isoDate(input.effectiveDate), autoPublishAt: readyForAutomaticPublication ? new Date(receivedAt.getTime() + PUBLICATION_DELAY_MS) : null,
     holdReason: restrictedCassation ? 'قرار محكمة النقض المغربية يتطلب اعتماد المدير حصراً.' : hasReservation ? 'توجد ملاحظة قانونية أو علمية أو تقنية تستلزم المراجعة.' : !input.complete ? 'بيانات الإضافة أو التحقق غير مكتملة.' : !publishableKind ? 'هذا النوع لا ينشر تلقائياً؛ يلزم اعتماد المدير.' : '',
     readyForAutomaticPublication, original: input.original && typeof input.original === 'object' ? { driveId: oneLine(input.original.driveId, 200), url: sourceUrl(input.original.url), name: oneLine(input.original.name, 300) } : null,
     history: [{ state: readyForAutomaticPublication ? 'ready' : 'held', at: receivedAt, reason: restrictedCassation ? 'manager_approval_required' : hasReservation ? 'reservation' : 'verification_incomplete' }],
@@ -78,7 +81,7 @@ export function mayAutoPublish(record = {}) {
   return record.state === 'ready' && record.readyForAutomaticPublication === true &&
     record.source?.official === true && record.source?.verified === true &&
     !(record.country === 'ma' && record.kind === 'case_law' && /محكمة\s+النقض/.test(record.court || '')) &&
-    record.kind !== 'legislation' && record.kind !== 'justice_digital';
+    record.kind !== 'justice_digital';
 }
 
 function partsAt(date, timeZone = REPORT_TIME_ZONE) {
@@ -109,4 +112,47 @@ export function renderReport(type, records, { localDate, generatedAt = new Date(
   }
   lines.push('هذا التقرير يلخص السجلات الرسمية المتحققة المحفوظة في النظام؛ لا يمثل غياب سجل دليلاً على عدم صدور مستجد.');
   return lines.join('\n');
+}
+
+/* الفئة التي ينشر فيها المستجد بحسب البلد ونوعه والجهة. */
+export function publicationCategory(record = {}) {
+  const court = String(record.court || '');
+  if (record.kind === 'case_law') {
+    if (record.country === 'ma') return /المحكمة\s+الدستورية|المجلس\s+الدستوري/.test(court) ? 'القضاء الدستوري' : 'مستجدات';
+    if (/Conseil\s+constitutionnel|المجلس\s+الدستوري/i.test(court)) return 'المجلس الدستوري الفرنسي';
+    if (/Conseil\s+d.État|مجلس\s+الدولة/i.test(court)) return 'مجلس الدولة الفرنسي';
+    return 'محكمة النقض الفرنسية';
+  }
+  if (record.kind === 'research') return record.country === 'fr' ? 'دراسات فرنسية' : 'مستجدات';
+  return record.country === 'fr' ? 'مستجدات فرنسية' : 'مستجدات';
+}
+
+const STAGE_LABELS = { project: 'مشروع', study: 'قيد الدراسة', approved: 'مصادق عليه', issued: 'صدر الأمر بتنفيذه', published: 'نُشر في الجريدة الرسمية', effective: 'نافذ' };
+export const stageLabel = stage => STAGE_LABELS[stage] || '';
+
+/* سجل المحتوى المنشور الذي تعرضه المكتبة في نافذة الاطلاع. */
+export function publicationRecord(item = {}, now = new Date()) {
+  const stage = stageLabel(item.currentStage);
+  const header = [
+    stage ? `المرحلة: ${stage}.` : '',
+    item.effectiveDate ? `تاريخ النفاذ: ${item.effectiveDate}.` : '',
+    `التاريخ: ${item.eventDate}.`,
+    `المصدر: ${item.source?.label || ''}.`,
+  ].filter(Boolean).join('\n');
+  const original = item.original?.driveId ? [{ id: `${item.id.slice(0, 12)}-original`, name: item.original.name || 'الأصل', ext: /\.(\w{2,4})$/.exec(item.original.name || '')?.[1]?.toLowerCase() || 'pdf', size: 0, driveId: item.original.driveId }] : [];
+  return {
+    documentId: `monitor-${item.id.slice(0, 20)}`, status: 'published', country: item.country,
+    title: item.title, originalTitle: item.originalTitle || '', sourceLanguage: item.country === 'fr' ? 'fr' : 'ar', professionalArabicReviewed: false,
+    type: item.kind === 'case_law' ? 'judicial' : 'national', kind: item.kind === 'case_law' ? 'decision' : item.kind === 'research' ? 'study' : item.kind === 'legislation' ? 'law' : 'other',
+    category: publicationCategory(item), subcategory: stage ? `${stage}` : '', date: item.eventDate,
+    textKind: 'source_summary', reviewStatus: 'needs_review',
+    sourceLabel: item.source?.label || '', sourceUrl: item.source?.url || '',
+    text: `${header}\n\n${item.summary}`, originalFiles: original, origin: 'legal-monitor', monitorItemId: item.id,
+    createdAt: now, updatedAt: now,
+  };
+}
+
+/* مستجدات نفذت اليوم أو ينفذ قانونها اليوم: تُعرض تنبيهاً ليوم واحد. */
+export function effectiveToday(items = [], today = '') {
+  return (items || []).filter(i => i.state === 'published' && i.effectiveDate === today).map(i => ({ id: i.id, title: i.title, country: i.country, documentId: `monitor-${i.id.slice(0, 20)}`, effectiveDate: i.effectiveDate }));
 }

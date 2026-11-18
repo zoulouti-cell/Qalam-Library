@@ -1058,12 +1058,27 @@
     if ('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged', () => { if (prefs.readingEngine === 'browser') populateVoices(); });
     [$('settings'), $('trustDialog')].forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } }));
   }
+  /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
+  async function showEffectiveAlerts() {
+    try {
+      const data = await api('/api/legal-monitor/alerts');
+      const seen = prefs.effectiveAlertSeen || {};
+      const fresh = (data.alerts || []).filter(a => seen[a.id] !== data.today);
+      if (!fresh.length) return;
+      const bar = document.createElement('div'); bar.setAttribute('role', 'status');
+      bar.style.cssText = 'position:sticky;top:0;z-index:50;background:#fff4d6;color:#4a3500;border-bottom:1px solid #e0c37a;padding:.6rem 1rem;display:flex;gap:.8rem;align-items:center;justify-content:space-between;font-weight:600';
+      const text = document.createElement('span'); text.textContent = 'اليوم أول يوم نفاذ: ' + fresh.map(a => a.title).join(' — ');
+      const close = document.createElement('button'); close.type = 'button'; close.textContent = 'إغلاق';
+      close.addEventListener('click', () => { const next = { ...seen }; fresh.forEach(a => { next[a.id] = data.today; }); prefs.effectiveAlertSeen = next; store.set('preferences', prefs); bar.remove(); });
+      bar.append(text, close); document.body.prepend(bar);
+    } catch {}
+  }
   async function initialize() {
     const readingSection = $('voiceAvailability').closest('section');
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
-    wireEvents(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
+    wireEvents(); showEffectiveAlerts(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
     window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });
