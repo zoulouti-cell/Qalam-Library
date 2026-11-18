@@ -295,7 +295,7 @@ function sameOrigin(req){if(!req.headers.origin)return !process.env.NODE_ENV||pr
 function authCookie(req){return Object.fromEntries(String(req.headers.cookie||'').split(';').map(s=>s.trim().split(/=(.*)/s).slice(0,2)).filter(x=>x.length===2))['qalam_session']||'';}
 function sessionInfo(req){if(!sessionSecret)return !process.env.NODE_ENV||process.env.NODE_ENV!=='production'?{role:'admin',account:'env'}:null;const parts=authCookie(req).split('.'),expiry=parts[0],role=parts[1],account=parts.length===4?parts[2]:'legacy',signature=parts.length===4?parts[3]:parts[2],legacy=!['reader','admin'].includes(role);if(parts.length>4||!/^[0-9]{10,}$/.test(expiry||'')||Number(expiry)<Date.now())return null;const payload=legacy?expiry:parts.length===4?expiry+'.'+role+'.'+account:expiry+'.'+role,signed=legacy?role:signature;if(legacy&&!/^[a-f0-9]{64}$/i.test(signed||''))return null;const expected=createHmac('sha256',sessionSecret).update(payload).digest('hex'),a=Buffer.from(signed||''),b=Buffer.from(expected);if(!(a.length===b.length&&timingSafeEqual(a,b)))return null;const info={role:legacy?'reader':role,account:legacy?'legacy':account,issuedAt:Number(expiry)-7*86400000};return info.role==='admin'&&['env','legacy'].includes(info.account)&&!sharedAdminEnabled?null:info;}
 function sessionRole(req){return sessionInfo(req)?.role||null;}
-function auditActor(req){const account=sessionInfo(req)?.account||'admin';if(account==='env'||account==='legacy')return'admin';try{return Buffer.from(account,'base64url').toString('utf8').slice(0,160)||'admin';}catch{return'admin';}}
+function auditActor(req){if(!sessionInfo(req)&&collectorAuthorized(req))return'جامع المستجدات';const account=sessionInfo(req)?.account||'admin';if(account==='env'||account==='legacy')return'admin';try{return Buffer.from(account,'base64url').toString('utf8').slice(0,160)||'admin';}catch{return'admin';}}
 /* الجلسة تحمل الدور سبعة أيام؛ لذا يُطابَق الحساب الفردي بقاعدة البيانات عند كل طلب إداري كي يسري خفض الدور أو إيقاف الحساب فورًا.
    كلمة الإدارة المشتركة (env/legacy) لا حساب لها في القاعدة فتبقى على حالها، وكذلك الحال إن تعذّر الوصول إلى القاعدة. */
 async function adminSessionLive(req){
@@ -307,6 +307,8 @@ async function adminSessionLive(req){
 function validSession(req){return !!sessionInfo(req);}
 /* طلب موثّق بالمفتاح السري المشترك مع منصة قلم (خادم إلى خادم، لا جلسة متصفح). منصة قلم تتحقق هي نفسها
    من أن المستخدم مسجّل لديها قبل أي استدعاء بهذا المفتاح؛ هنا نثبت فقط أن الطلب صادر من تلك المنصة. */
+function collectorAuthorized(req){const secret=process.env.LEGAL_MONITOR_TOKEN||'';if(secret.length<32)return false;const given=Buffer.from(String(req.headers['x-monitor-token']||'')),expected=Buffer.from(secret);return given.length===expected.length&&timingSafeEqual(given,expected);}
+function collectorRoute(req,p){return req.method==='POST'&&p==='/api/admin/legal-monitor/items'&&collectorAuthorized(req);}
 function partnerAuthorized(req){const partnerSecret=process.env.QALAM_PARTNER_SECRET||'';if(!partnerSecret)return false;const given=Buffer.from(String(req.headers['x-qalam-partner-secret']||'')),expected=Buffer.from(partnerSecret);return given.length===expected.length&&timingSafeEqual(given,expected);}
 function issueSession(res,role,account='legacy'){const expiry=String(Date.now()+7*86400000),payload=expiry+'.'+role+'.'+account,signature=createHmac('sha256',sessionSecret).update(payload).digest('hex');res.setHeader('Set-Cookie',`qalam_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`);}
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
@@ -484,7 +486,7 @@ const server=http.createServer(async(req,res)=>{
     const session=sessionInfo(req);if(session&&session.account!=='legacy'&&session.account!=='env'&&adminStore&&!['/api/session','/api/logout','/api/change-password','/change-password','/change-password.html','/change-password.js'].includes(p)){const email=Buffer.from(session.account,'base64url').toString('utf8'),user=sessionUser||await adminStore.users.findOne({email},{projection:{mustChangePassword:1,active:1}});if(!user?.active){res.setHeader('Set-Cookie','qalam_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');return send(req,res,401,{error:'الحساب غير مفعّل.'});}if(user.mustChangePassword){if(req.method==='GET'&&!p.startsWith('/api/')&&String(req.headers.accept||'').includes('text/html')){res.writeHead(302,{Location:'/change-password','Cache-Control':'no-store'});return res.end();}return send(req,res,428,{error:'غيّر كلمة المرور المؤقتة أولاً.'});}}
     const adminPage=p==='/admin'||p==='/admin.html'||p==='/admin.js';
     if(adminPage&&!(await adminSessionLive(req))){res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:'/login?next=admin'});return res.end();}
-    if(p.startsWith('/api/admin/')&&!(await adminSessionLive(req)))return send(req,res,403,{error:'هذه الوظيفة مخصصة لمدير المكتبة.'});
+    if(p.startsWith('/api/admin/')&&!collectorRoute(req,p)&&!(await adminSessionLive(req)))return send(req,res,403,{error:'هذه الوظيفة مخصصة لمدير المكتبة.'});
     if(p.startsWith('/api/admin/')&&!adminStore&&['/api/admin/settings','/api/admin/content','/api/admin/content/save','/api/admin/content/publish','/api/admin/content/delete'].includes(p))return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة حالياً؛ تحقق من اتصال MongoDB.'});
     if(p==='/api/admin/users'&&req.method==='GET'){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
@@ -627,7 +629,7 @@ const server=http.createServer(async(req,res)=>{
       /* استثناء ضيّق: بحث ووثيقة (قراءة فقط) لمنصّة قلم عبر المفتاح السري المشترك، بلا جلسة شخصية —
          منصّة قلم تتحقق هي نفسها من أن المحامي مسجّل ومرتبط بالمكتبة الرقمية قبل أي استدعاء بهذا المفتاح. */
       const partnerReadRoute=req.method==='GET'&&(p==='/api/search'||p==='/api/document');
-      if(!(partnerReadRoute&&partnerAuthorized(req))){
+      if(!(partnerReadRoute&&partnerAuthorized(req))&&!collectorRoute(req,p)){
         if(p.startsWith('/api/'))return send(req,res,401,{error:'سجّل الدخول أولاً.'});
         return send(req,res,200,fs.readFileSync(path.join(PUBLIC,'login.html')),'text/html; charset=utf-8');
       }
