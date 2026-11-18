@@ -357,6 +357,13 @@ async function allPdfsBelow(folderId, rootPath = '') {
   }
   return files;
 }
+/* جرد المجلدات المراقبة فقط (الرفوف الفرنسية، الأبحاث والدراسات، إضافات النقض) بدل الأرشيف كله. */
+export async function scanFolderPdfs(folders) {
+  if (LOCAL_ORIGINALS_ROOT) return [];
+  const seen = new Map();
+  for (const folder of folders) for (const file of await allPdfsBelow(folder.id, folder.path)) if (!seen.has(file.id)) seen.set(file.id, file);
+  return [...seen.values()];
+}
 export async function countShelfPdfs(folderId) {
   if (LOCAL_ORIGINALS_ROOT) return null;
   return (await allPdfsBelow(folderId)).length;
@@ -384,6 +391,8 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
         const agreementKind = /متعددة/u.test(path) || genericCountry ? 'متعددة' : /ثنائية/u.test(path) || title?.country ? 'ثنائية' : '';
         const bundledText = agreementTextFor(id); const bundledSubcategory = bundledText?.subcategory || ''; const agreementSubcategory = bundledText ? (bundledSubcategory && bundledSubcategory !== 'اتفاقيات متعددة الأطراف' ? bundledSubcategory : String(file.path || '').split(' / ').filter(Boolean).at(-1) || '') : ''; return { ...file, ...(title ? { title: title.title, fullTitle: title.fullTitle, treatyId: id, country: title.country } : {}), ...(bundledText ? { textDocumentId: bundledText.documentId, textOrder: bundledText.order || 99, agreementSubcategory } : {}), ...(agreementKind ? { agreementKind } : {}), webViewLink: file.webViewLink || '', officialUrl: file.officialUrl || officialUrl };
       });
+      /* قائمة الاتفاقيات مثبَّتة على ما يعرفه فهرس العناوين (والنصوص المضمّنة): ما يُضاف إلى مجلدها في Drive أو يُغيَّر لا يظهر هنا. */
+      files = files.filter(file => { const id = String(file.name || '').match(/^(\d+)[_-]/)?.[1] || '', timestamp = String(file.name || '').match(/(\d{10,})/)?.[1] || ''; return treatyTitleIndex[id] || treatyTitleByDriveTimestamp[timestamp] || agreementTextFor(id); });
       files.sort((a, b) => a.path.localeCompare(b.path, 'ar') || a.name.localeCompare(b.name, 'ar'));
       agreementIndexCache = { at: Date.now(), promise: null, files };
       try { if (process.env.NODE_ENV !== 'test' && !LOCAL_ORIGINALS_ROOT) fs.writeFileSync(AGREEMENT_CACHE_FILE, JSON.stringify({ at: Date.now(), files })); } catch {}

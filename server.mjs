@@ -10,7 +10,7 @@ import { createHash,randomBytes,createHmac,timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { PDFDocument } from 'pdf-lib';
 import { Library } from './src/library.mjs';
-import { DRIVE_SHELVES } from './src/catalog.mjs';
+import { DRIVE_SHELVES, FRENCH_SHELVES } from './src/catalog.mjs';
 import { bundledAgreementTexts } from './src/agreement-texts.mjs';
 import { bundledLegalMonitoringContent } from './src/legal-monitoring-content.mjs';
 import { answerQuestion,aiCapability,GROQ_CHAT_MODELS,selectedGroqModel } from './src/assistant.mjs';
@@ -22,7 +22,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
-import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
+import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { dueReports,renderReport,makeObservation,mergeLegislativeObservation } from './src/legal-monitoring.mjs';
@@ -194,23 +194,26 @@ async function publishPendingCassationOriginals(doc){
 async function moveContribution(id,status,extra={}){const now=new Date();return adminStore.contributions.findOneAndUpdate({id},{$set:{status,statusChangedAt:now,updatedAt:now,userNotifyPending:true,...extra}},{returnDocument:'after'});}
 if(adminStore){try{library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());}catch{console.error('Library managed-content index unavailable.');}}
 let activeAI=0,activeDriveOcr=false;const analysisJobs=new Map();let secondaryOcrChild=null,ingestionChild=null,ingestionLaunchError='',ocrMetricsCache={at:0,value:null};
+/* نطاق المراقبة: الرفوف الفرنسية، «الأبحاث والدراسات» وما تحته، «إضافات النقض». ما سواها (الاتفاقيات والقوانين والاجتهادات الأساسية) خارج المراقبة فلا يُحتسب تغييره. */
+const MONITOR_SCOPE_VERSION=2;
+const MONITORED_FOLDERS=[...FRENCH_SHELVES.map(name=>({id:DRIVE_SHELVES[name],path:name})),{id:'10-Bp3BUlI7OodtfMjlMynB9BY7349CvE',path:'الأبحاث والدراسات'},{id:'19axGmiNPVmCPqgfPIE9urOvM0HEZPDKE',path:'الاجتهادات القضائية / إضافات النقض'}];
 let driveScanPromise=null;
 async function runDriveMetadataScan(actor='system'){
   if(!adminStore)throw new Error('قاعدة إدارة المكتبة غير متاحة؛ تعذر حفظ نتيجة الفحص.');
   if(driveScanPromise)return driveScanPromise;
   driveScanPromise=(async()=>{
-    const now=new Date(),previousState=await adminStore.driveMonitorState.findOne({_id:'latest'}),baseline=!previousState?.checkedAt;
+    const now=new Date(),previousState=await adminStore.driveMonitorState.findOne({_id:'latest'}),baseline=!previousState?.checkedAt||previousState.scopeVersion!==MONITOR_SCOPE_VERSION;
     await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{status:'running',startedAt:now,error:''}},{upsert:true});
     try{
-      const files=await scanLibraryPdfs();
+      const files=await scanFolderPdfs(MONITORED_FOLDERS);
       // scanLibraryPdfs لا تُعيد إلا جرداً مكتمل التصفح؛ لا ترفض المكتبات الكبيرة بسبب حد اعتباطي.
-      const previous=await adminStore.driveMonitorFiles.find({present:true}).project({_id:1,name:1,folder:1,modifiedTime:1,size:1}).toArray(),old=new Map(previous.map(x=>[x._id,x]));
+      const previous=await adminStore.driveMonitorFiles.find({present:true}).project({_id:1,name:1,folder:1,modifiedTime:1,size:1}).toArray(),old=new Map(baseline?[]:previous.map(x=>[x._id,x]));
       const added=[],changed=[],operations=[];
       for(const f of files){const next={name:String(f.name||'').slice(0,500),folder:String(f.path||'').slice(0,1000),modifiedTime:f.modifiedTime||'',size:Number(f.size)||0,present:true,checkedAt:now};const before=old.get(f.id);if(!before&&!baseline)added.push({name:next.name,folder:next.folder,status:'جديد'});else if(before&&(before.name!==next.name||before.folder!==next.folder||before.modifiedTime!==next.modifiedTime||before.size!==next.size))changed.push({name:next.name,folder:next.folder,status:'معدّل'});old.delete(f.id);operations.push({updateOne:{filter:{_id:f.id},update:{$set:next},upsert:true}});}
       const removed=[...old.values()].map(f=>({name:f.name,folder:f.folder,status:'أزيل من Drive'}));
       for(let i=0;i<operations.length;i+=500)await adminStore.driveMonitorFiles.bulkWrite(operations.slice(i,i+500),{ordered:false});
       await adminStore.driveMonitorFiles.updateMany({present:true,checkedAt:{$ne:now}},{$set:{present:false,removedAt:now}});
-      const completedAt=new Date(),result={status:'complete',available:true,checkedAt:completedAt.toISOString(),files:files.length,added:added.length,changed:changed.length,removed:removed.length,changes:[...added,...changed,...removed].slice(0,300),baseline};
+      const completedAt=new Date(),result={status:'complete',available:true,checkedAt:completedAt.toISOString(),scopeVersion:MONITOR_SCOPE_VERSION,files:files.length,added:added.length,changed:changed.length,removed:removed.length,changes:[...added,...changed,...removed].slice(0,300),baseline};
       await adminStore.driveMonitorState.updateOne({_id:'latest'},{$set:{...result,finishedAt:completedAt,error:''}},{upsert:true});
       await recordAudit(adminStore,actor,'drive_metadata_scan_completed','drive',{files:files.length,added:added.length,changed:changed.length,removed:removed.length});
       return result;
