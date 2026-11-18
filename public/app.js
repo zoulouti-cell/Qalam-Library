@@ -1058,12 +1058,56 @@
     if ('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged', () => { if (prefs.readingEngine === 'browser') populateVoices(); });
     [$('settings'), $('trustDialog')].forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); } }));
   }
+  /* شريط المستجدات: كشريط تتبع القراءة؛ يُطوى أو يُغلق، وتبقى كل مادة فيه أسبوعاً على الأكثر ثم يختفي الشريط إن لم يبق شيء. */
+  async function showRecentUpdates() {
+    try {
+      const data = await api('/api/legal-monitor/recent');
+      const dismissed = new Set(prefs.updatesDismissed || []);
+      const fresh = (data.updates || []).filter(u => !dismissed.has(u.id));
+      const old = $('recentUpdates'); if (old) old.remove();
+      if (!fresh.length) return;
+      const box = document.createElement('section'); box.id = 'recentUpdates'; box.className = 'ingestion-status'; box.setAttribute('aria-label', 'المستجدات القانونية والقضائية');
+      const top = document.createElement('div'); top.className = 'ingestion-top';
+      const title = document.createElement('strong'); title.textContent = 'مستجدات قانونية وقضائية جديدة (' + fmt(fresh.length) + ')';
+      const tools = document.createElement('span');
+      const fold = document.createElement('button'); fold.type = 'button'; fold.className = 'text-button';
+      const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
+      tools.append(fold, document.createTextNode(' '), close); top.append(title, tools);
+      const list = document.createElement('div');
+      for (const u of fresh) {
+        const row = document.createElement('p'); row.style.margin = '6px 0';
+        const link = document.createElement('a'); link.href = '#'; link.textContent = u.title; link.addEventListener('click', e => { e.preventDefault(); openDocument(u.documentId); });
+        const meta = document.createElement('small'); meta.textContent = ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب') + (u.stage ? ' · ' + u.stage : '') + (u.eventDate ? ' · ' + u.eventDate : '');
+        row.append(link, meta); list.append(row);
+      }
+      const setFolded = folded => { list.hidden = folded; fold.textContent = folded ? 'عرض' : 'طي'; prefs.updatesFolded = folded; store.set('preferences', prefs); };
+      fold.addEventListener('click', () => setFolded(!list.hidden));
+      close.addEventListener('click', () => { prefs.updatesDismissed = [...new Set([...(prefs.updatesDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); box.remove(); });
+      box.append(top, list); setFolded(!!prefs.updatesFolded);
+      const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(box, anchor);
+    } catch {}
+  }
+  /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
+  async function showEffectiveAlerts() {
+    try {
+      const data = await api('/api/legal-monitor/alerts');
+      const seen = prefs.effectiveAlertSeen || {};
+      const fresh = (data.alerts || []).filter(a => seen[a.id] !== data.today);
+      if (!fresh.length) return;
+      const bar = document.createElement('div'); bar.setAttribute('role', 'status');
+      bar.style.cssText = 'position:sticky;top:0;z-index:50;background:#fff4d6;color:#4a3500;border-bottom:1px solid #e0c37a;padding:.6rem 1rem;display:flex;gap:.8rem;align-items:center;justify-content:space-between;font-weight:600';
+      const text = document.createElement('span'); text.textContent = 'اليوم أول يوم نفاذ: ' + fresh.map(a => a.title).join(' — ');
+      const close = document.createElement('button'); close.type = 'button'; close.textContent = 'إغلاق';
+      close.addEventListener('click', () => { const next = { ...seen }; fresh.forEach(a => { next[a.id] = data.today; }); prefs.effectiveAlertSeen = next; store.set('preferences', prefs); bar.remove(); });
+      bar.append(text, close); document.body.prepend(bar);
+    } catch {}
+  }
   async function initialize() {
     const readingSection = $('voiceAvailability').closest('section');
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
-    wireEvents(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
+    wireEvents(); showEffectiveAlerts(); showRecentUpdates(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
     window.addEventListener('resize', () => updatePinnedSearch(true), { passive: true });

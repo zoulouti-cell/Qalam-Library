@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dueReports,makeObservation,mayAutoPublish,renderReport,mergeLegislativeObservation } from '../src/legal-monitoring.mjs';
+import { REPORTS,dueReports,makeObservation,mayAutoPublish,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -26,13 +26,34 @@ test('holds Moroccan Court of Cassation decisions for the director',()=>{
   assert.equal(mayAutoPublish(item),false);
 });
 
-test('holds legal text updates and reservations from automatic publication',()=>{
+test('legal text updates wait 24 hours before automatic publication; reservations hold them',()=>{
   const law=makeObservation({...base,kind:'legislation'}).record;
   const reserved=makeObservation({...base,scientificReservation:true}).record;
-  assert.equal(law.state,'held');
-  assert.equal(mayAutoPublish(law),false);
+  assert.equal(law.state,'ready');
+  assert.equal(mayAutoPublish(law),true);
+  assert.equal(law.autoPublishAt.getTime()-law.receivedAt.getTime(),PUBLICATION_DELAY_MS);
   assert.equal(reserved.state,'held');
+  assert.equal(reserved.autoPublishAt,null);
   assert.equal(mayAutoPublish(reserved),false);
+});
+
+test('Constitutional Court decisions and French items are routed to their own headings',()=>{
+  assert.equal(publicationCategory({country:'ma',kind:'case_law',court:'المحكمة الدستورية'}),'القضاء الدستوري');
+  assert.equal(publicationCategory({country:'fr',kind:'case_law',court:'Conseil constitutionnel'}),'المجلس الدستوري الفرنسي');
+  assert.equal(publicationCategory({country:'fr',kind:'case_law',court:'Cour de cassation'}),'محكمة النقض الفرنسية');
+  assert.equal(publicationCategory({country:'fr',kind:'legislation'}),'مستجدات فرنسية');
+  assert.equal(publicationCategory({country:'ma',kind:'research'}),'مستجدات');
+});
+
+test('publication record carries stage, effective date, source and original',()=>{
+  const item=makeObservation({...base,kind:'legislation',currentStage:'published',effectiveDate:'2026-12-01',original:{driveId:'abc',name:'x.pdf'}}).record;
+  const rec=publicationRecord(item);
+  assert.equal(rec.status,'published');
+  assert.match(rec.text,/نُشر في الجريدة الرسمية/);
+  assert.match(rec.text,/تاريخ النفاذ: 2026-12-01/);
+  assert.equal(rec.originalFiles[0].driveId,'abc');
+  assert.equal(effectiveToday([{...item,state:'published'}],'2026-12-01').length,1);
+  assert.equal(effectiveToday([{...item,state:'published'}],'2026-12-02').length,0);
 });
 
 test('the legislative card advances from a bill to publication without duplication',()=>{
@@ -46,18 +67,26 @@ test('the legislative card advances from a bill to publication without duplicati
   assert.equal(mergeLegislativeObservation(merged,project).currentStage,'published');
 });
 
-test('schedules reports at the required Morocco wall-clock times',()=>{
-  assert.deepEqual(dueReports(new Date('2026-11-17T07:00:00Z')).map(x=>x.type),['daily']);
-  assert.deepEqual(dueReports(new Date('2026-11-21T08:00:00Z')).map(x=>x.type),['daily','weekly']);
-  assert.deepEqual(dueReports(new Date('2026-11-23T08:00:00Z')).map(x=>x.type),['daily','justice']);
-  assert.deepEqual(dueReports(new Date('2026-11-17T06:59:00Z')),[]);
-  assert.deepEqual(dueReports(new Date('2026-11-17T07:01:00Z')).map(x=>x.type),['daily']);
+test('schedules reports only for Monday 07:00, Wednesday 07:00 and the Saturday library update',()=>{
+  assert.deepEqual(dueReports(new Date('2026-11-23T07:00:00Z')).map(x=>x.type),['monday']);
+  assert.deepEqual(dueReports(new Date('2026-11-18T07:00:00Z')).map(x=>x.type),['wednesday']);
+  assert.deepEqual(dueReports(new Date('2026-11-21T08:00:00Z')).map(x=>x.type),['saturday']);
+  assert.deepEqual(dueReports(new Date('2026-11-17T09:00:00Z')),[]);
+  assert.deepEqual(dueReports(new Date('2026-11-23T06:59:00Z')),[]);
+  assert.equal(REPORTS.saturday.publishesLibrary,true);
 });
 
 test('report output identifies empty verified-source periods',()=>{
-  const report=renderReport('daily',[],{localDate:'2026-11-17'});
+  const report=renderReport('monday',[],{localDate:'2026-11-17'});
   assert.match(report,/المغرب/);
   assert.match(report,/فرنسا/);
   assert.match(report,/لا توجد مستجدات رسمية متحققة/);
   assert.match(report,/لا يمثل غياب سجل دليلاً/);
+});
+
+test('recent updates keep published items for at most a week',()=>{
+  const now=new Date('2026-11-20T10:00:00Z');
+  const mk=(id,days)=>({id,title:id,country:'fr',kind:'case_law',state:'published',publishedAt:new Date(now.getTime()-days*86400000),eventDate:'2026-11-10'});
+  assert.deepEqual(recentUpdates([mk('a',1),mk('b',8),{...mk('c',1),state:'held'}],now).map(x=>x.id),['a']);
+  assert.deepEqual(recentUpdates([],now),[]);
 });
