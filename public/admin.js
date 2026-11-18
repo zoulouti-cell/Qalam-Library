@@ -39,6 +39,19 @@
           });bar.append(b);
           if(item.state==='ready')act('تحفظ','hold');
         }
+        if(isLaw){
+          const box=document.createElement('div');box.style.cssText='display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.4rem;width:100%';
+          const lab=document.createElement('small');lab.textContent=item.supersedesId?'يعدّل/ينسخ: '+(item.supersedesTitle||item.supersedesId):'يعدّل/ينسخ قانوناً سابقاً؟';
+          const q=document.createElement('input');q.type='search';q.placeholder='ابحث عن القانون القديم في المكتبة';q.maxLength=120;q.style.minWidth='14rem';
+          const pick=document.createElement('select');pick.hidden=true;pick.setAttribute('aria-label','القانون القديم');
+          const find=document.createElement('button');find.type='button';find.textContent='بحث';
+          const save=async(oldId,oldTitle)=>{try{await api('/api/admin/legal-monitor/items/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id,action:'supersedes',oldId,oldTitle})});loadLegalReports();}catch(error){message(error.message);}};
+          find.addEventListener('click',async()=>{const term=q.value.trim();if(!term)return;try{const r=await api('/api/search?'+new URLSearchParams({q:term,limit:10}));pick.innerHTML='<option value="">اختر القانون القديم…</option>';for(const d of (r.results||[])){const o=document.createElement('option');o.value=d.id;o.textContent=String(d.title||d.id).slice(0,110);pick.append(o);}pick.hidden=false;if(!(r.results||[]).length){pick.innerHTML='<option value="">لا نتائج</option>';}}catch(error){message(error.message);}});
+          pick.addEventListener('change',()=>{if(!pick.value)return;if(confirm('بعد نشر هذا النص يُوسم «'+pick.options[pick.selectedIndex].textContent+'» منسوخاً مع رابط للجديد. تأكيد؟'))save(pick.value,pick.options[pick.selectedIndex].textContent);else pick.value='';});
+          box.append(lab,q,find,pick);
+          if(item.supersedesId){const clear=document.createElement('button');clear.type='button';clear.textContent='إلغاء الربط';clear.addEventListener('click',()=>save('',''));box.append(clear);}
+          article.append(box);
+        }
         if(item.state==='held')act(item.autoPublishable===false?'رفع التحفظ (يبقى بانتظار اعتمادك)':'رفع التحفظ ونشره بعد 24 ساعة','release');
         act('حذف','delete','يُحذف هذا المستجد من السجل ومن المكتبة ولن يعيد الجامع استيراده. متابعة؟');
         article.append(when,bar);items.append(article);}
