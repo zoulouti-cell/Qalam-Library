@@ -158,10 +158,12 @@
       ? '<a class="'+cls+'" href="'+esc(downloadUrl)+'" aria-label="تحميل الأصل من Drive" title="تحميل الأصل من Drive">'+icon('download')+'</a>'
       : mapped ? '<a class="'+cls+'" href="'+esc(downloadUrl)+'" aria-label="تحميل الأصل من Drive" title="تحميل الأصل من Drive">'+icon('download')+'</a>' : '';
     const alternateWord = doc?.driveAlternateFileId ? '<a class="'+cls+' source-action-word" href="/api/drive/file?id='+encodeURIComponent(doc.driveAlternateFileId)+'&mode=download" aria-label="تحميل نسخة Word من Drive" title="تحميل نسخة Word: '+esc(doc.driveAlternateFileName||'')+'"><span aria-hidden="true">W</span></a>' : '';
-    const sourceStatus=!uf.length&&!judicialMapped&&!driveId&&!mapped?'<small class="drive-link-status" title="لا يوجد أصل رسمي محفوظ أو رابط مباشر قابل للمعاينة">لا يتوفر النص الأصلي حالياً.</small>':'';
+    const sourceMissing=!uf.length&&!judicialMapped&&!driveId&&!mapped;
+    const sourceLookup=sourceMissing?'<button type="button" class="'+cls+'" data-drive-search="'+esc(doc?.title||'')+'" aria-label="العثور على الأصل في Drive" title="العثور على الأصل في Drive">'+icon('search')+'</button>':'';
+    const sourceStatus=sourceMissing?'<small class="drive-link-status" title="لا يوجد ربط مباشر بعد؛ استعمل زر العدسة للتحقق من الأصل الموجود في Drive.">الأصل غير مربوط بالبطاقة بعد.</small>':'';
     const moreOriginals=uf.slice(1).map((f,i)=>'<a class="'+cls+' source-action-word" href="'+esc(ufUrl(f,'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل '+(i+2)+'" title="الأصل '+(i+2)+': '+esc(f.name||'')+'"><span aria-hidden="true">'+(i+2)+'</span></a>').join('');
     const officialAction=officialUrl?'<a class="'+cls+'" href="'+esc(officialUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="فتح المصدر الرسمي على الإنترنت" title="المصدر الرسمي">'+icon('official')+'</a>':'';
-    return '<span class="source-actions" dir="ltr" aria-label="معاينة الأصل والمصدر الرسمي والتنزيل">'+previewAction+officialAction+alternateWord+moreOriginals+downloadAction+sourceStatus+'</span>';
+    return '<span class="source-actions" dir="ltr" aria-label="معاينة الأصل والمصدر الرسمي والتنزيل">'+previewAction+officialAction+alternateWord+moreOriginals+downloadAction+sourceLookup+sourceStatus+'</span>';
   }
   async function openMatchedDrive(query,source,mode,exactName='',exactPath=''){
     const popup=window.open('about:blank','_blank');if(!popup){toast('اسمح بفتح نافذة المعاينة مرة واحدة لفتح أصل الوثيقة.');return;}popup.opener=null;popup.document.title='جارٍ مطابقة أصل الوثيقة';popup.document.body.innerHTML='<main dir="rtl" style="font:16px Tahoma,sans-serif;padding:32px;color:#244738">جارٍ مطابقة الوثيقة بأصلها في Drive…</main>';

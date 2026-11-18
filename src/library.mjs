@@ -69,6 +69,7 @@ export class Library {
     if(params.category==='الدساتير'){clauses.push("d.category='المادة الدستورية'");}
     else if(params.category==='القضاء الدستوري'){clauses.push("(d.category IN ('المحكمة الدستورية','المجلس الدستوري') OR d.title LIKE '%المحكمة الدستورية%' OR d.title LIKE '%المجلس الدستوري%')");}
     else if(institutionSearchTerms(params.category).length){const terms=institutionSearchTerms(params.category);clauses.push("d.type='national' AND ("+terms.map(()=>"d.title LIKE ?").join(' OR ')+")");values.push(...terms.map(term=>'%'+term+'%'));}
+    else if(params.category==='مادة القطاعات الحكومية والمؤسساتية'){clauses.push("d.category='مادة اختصاصات وتنظيم القطاعات الحكومية والمؤسساتية'");}
     else if(params.category==='مادة الحقوق والحريات'){clauses.push("(d.category=? OR (d.type='national' AND d.title LIKE '%الإضراب%'))");values.push(params.category);}
     else if(params.category==='المادة البيئية'){clauses.push("(d.category=? OR d.title LIKE '%الأجزاء التابعة%الملك العمومي%')");values.push(params.category);}
     else if(params.category==='مادة الفلاحة'){clauses.push("(d.category=? OR (d.category='قوانين وتشريعات وطنية' AND d.title NOT LIKE '%الأجزاء التابعة%'))");values.push(params.category);}

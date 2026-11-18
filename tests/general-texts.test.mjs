@@ -20,6 +20,10 @@ test('التصنيف المؤسسي يضع كل مؤسسة عامة باسمها
   assert.equal(catalogCategory({ type: 'national', category: 'مجلس الوصاية', title: '90.15 — مجلس الوصاية' }), 'مجلس الوصاية');
   assert.equal(catalogCategory({ type: 'national', category: 'مادة حماية حقوق الإنسان والنهوض بها', title: '14.16 — مؤسسة الوسيط' }), 'مؤسسة الوسيط');
   assert.equal(catalogCategory({ type: 'national', category: 'السلطة القضائية', title: '100.13 — المجلس الأعلى للسلطة القضائية' }), 'السلطة القضائية');
+  assert.equal(catalogCategory({ type: 'national', category: 'مادة حماية حقوق الإنسان والنهوض بها', title: '29.24 — إحداث الوكالة الوطنية لحماية الطفولة' }), 'الوكالة الوطنية لحماية الطفولة');
+  assert.equal(catalogCategory({ type: 'national', category: 'مادة مؤسسات النهوض بالتنمية البشرية', title: '78.14 — المجلس الاستشاري للأسرة والطفولة' }), 'المجلس الاستشاري للأسرة والطفولة');
+  assert.equal(catalogCategory({ type: 'national', category: 'مادة هيئات الحكامة الجيدة والتقنين', title: '11.15 — إعادة تنظيم الهيأة العليا للإتصال السمعي البصري' }), 'الهيئة العليا للاتصال السمعي البصري');
+  assert.equal(catalogCategory({ type: 'national', category: 'مادة اختصاصات وتنظيم القطاعات الحكومية والمؤسساتية', title: 'نص تنظيمي' }), 'مادة القطاعات الحكومية والمؤسساتية');
 });
 
 test('الوسيط يتقدم الهيئات والوكالات بحسب الأولوية لا بحسب عدد الوثائق', () => {
