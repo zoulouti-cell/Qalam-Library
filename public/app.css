@@ -128,3 +128,6 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .news-ticker-lane a{display:inline-block;margin-inline-end:42px}
 .news-ticker-close{flex:none;width:28px;height:28px;border:0;border-radius:0;background:transparent;color:#5d6b53;font-size:22px;line-height:1;cursor:pointer;padding:0}
 .news-ticker-close:hover,.news-ticker-close:focus-visible{background:transparent;color:#17382c}
+
+.md-body{line-height:1.95;font-size:15px}.md-body h2,.md-body h3,.md-body h4{margin:14px 0 6px;color:#17382c}.md-body p{margin:6px 0}.md-body ul,.md-body ol{margin:6px 0;padding-inline-start:22px}.md-body blockquote{margin:8px 0;padding:4px 12px;border-inline-start:3px solid #c9b66b;background:#faf6e8}.md-body hr{border:0;border-top:1px solid #e3dccb;margin:12px 0}.md-body code{background:#f1eee3;padding:0 4px;border-radius:4px}
+.md-table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}.md-table th,.md-table td{border:1px solid #e3dccb;padding:5px 8px;text-align:start;vertical-align:top}.md-table th{background:#f4f0e2}
