@@ -1138,9 +1138,10 @@
       const top = document.createElement('div'); top.className = 'ingestion-top';
       const title = document.createElement('strong'); title.textContent = 'مستجدات قانونية وقضائية جديدة (' + fmt(fresh.length) + ')';
       const tools = document.createElement('span');
-      const fold = document.createElement('button'); fold.type = 'button'; fold.className = 'text-button';
-      const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
-      tools.append(fold, document.createTextNode(' '), close); top.append(title, tools);
+      const fold = document.createElement('button'); fold.type = 'button'; fold.className = 'icon-btn';
+      const close = document.createElement('button'); close.type = 'button'; close.className = 'icon-btn'; close.setAttribute('aria-label', 'إغلاق'); close.title = 'إغلاق';
+      close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+      tools.className = 'ingestion-tools'; tools.append(fold, close); top.append(title, tools);
       const list = document.createElement('div');
       for (const u of fresh) {
         const row = document.createElement('p'); row.style.margin = '6px 0';
@@ -1148,7 +1149,7 @@
         const meta = document.createElement('small'); meta.textContent = ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب') + (u.stage ? ' · ' + u.stage : '') + (u.eventDate ? ' · ' + u.eventDate : '');
         row.append(link, meta); list.append(row);
       }
-      const setFolded = folded => { list.hidden = folded; fold.textContent = folded ? 'عرض' : 'طي'; prefs.updatesFolded = folded; store.set('preferences', prefs); };
+      const setFolded = folded => { list.hidden = folded; fold.innerHTML = folded ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>'; fold.setAttribute('aria-label', folded ? 'عرض' : 'طي'); fold.title = folded ? 'عرض' : 'طي'; fold.setAttribute('aria-expanded', String(!folded)); prefs.updatesFolded = folded; store.set('preferences', prefs); };
       fold.addEventListener('click', () => setFolded(!list.hidden));
       close.addEventListener('click', () => { prefs.updatesDismissed = [...new Set([...(prefs.updatesDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); box.remove(); });
       box.append(top, list); setFolded(!!prefs.updatesFolded);
