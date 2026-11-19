@@ -111,3 +111,5 @@ select{min-height:40px;padding:0 12px;border:1px solid #e3dccb;border-radius:11p
 #legalMonitorPanel .monitor-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border:1px solid #cfd8c6;border-radius:9px;background:#fff;color:#17382c;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
 #legalMonitorPanel .monitor-actions button,#legalMonitorPanel .monitor-actions select{min-height:36px;border-radius:9px;font:inherit;font-size:13px}
 #legalMonitorPanel .monitor-card input[type=text],#legalMonitorPanel .monitor-card input[type=search]{min-height:36px;border:1px solid #d9d2bd;border-radius:9px;padding:0 10px;font:inherit;font-size:13px}
+
+.registration-requests{margin:12px 0;padding:12px;border:1px solid #d8c48f;border-radius:12px;background:#fbf5e4}.registration-requests[hidden]{display:none}.registration-requests h3{margin:0 0 8px;font-size:15px;color:#163428}.request-row .user-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}

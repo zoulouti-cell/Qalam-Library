@@ -8,7 +8,11 @@ document.querySelector('#login').addEventListener('submit',async event=>{
   try{
     const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.querySelector('#email').value,password:document.querySelector('#password').value})});
     const result=await response.json();
-    if(!response.ok)throw new Error(result.error||'تعذر تسجيل الدخول.');
+    if(!response.ok){
+      if(result.state==='review'){showPending();message.textContent='';return;}
+      if(result.state==='rejected'){const area=document.querySelector('#registrationArea'),form=document.querySelector('#registerForm');if(area)area.hidden=false;if(form)form.hidden=false;}
+      throw new Error(result.error||'تعذر تسجيل الدخول.');
+    }
     const params=new URLSearchParams(location.search);
     const adminDestination=params.get('next')==='admin';
     if(adminDestination&&result.role!=='admin')throw new Error('هذا الحساب لا يملك صلاحية إدارة المكتبة.');
@@ -33,6 +37,9 @@ if(themeToggle){
   themeToggle.addEventListener('click',()=>setTheme(!document.body.classList.contains('dark')));
 }
 
+function showPending(){document.body.classList.add('pending-mode');document.querySelector('#pendingPanel').hidden=false;}
+document.querySelector('#pendingBack').addEventListener('click',()=>{document.body.classList.remove('pending-mode');document.querySelector('#pendingPanel').hidden=true;document.querySelector('#email').focus();});
+if(new URLSearchParams(location.search).get('pending')==='1'){showPending();try{history.replaceState(null,'',location.pathname);}catch{}}
 fetch('/api/registration').then(r=>r.json()).then(status=>{
   if(status.available)document.querySelector('#registrationArea').hidden=false;
 }).catch(()=>{});
@@ -41,11 +48,11 @@ document.querySelector('#showRegistration').addEventListener('click',()=>{
   if(!form.hidden)document.querySelector('#registerEmail').focus();
 });
 document.querySelector('#registerForm').addEventListener('submit',async event=>{
-  event.preventDefault();const message=document.querySelector('#registerMessage');message.textContent='جارٍ إرسال الدعوة…';
+  event.preventDefault();const message=document.querySelector('#registerMessage');message.textContent='جارٍ إرسال الطلب…';
   try{
-    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.querySelector('#registerEmail').value})});
+    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.querySelector('#registerEmail').value,password:document.querySelector('#registerPassword').value})});
     const result=await response.json();if(!response.ok)throw new Error(result.error||'تعذر طلب الحساب.');
-    message.textContent=result.message||'تحقق من بريدك الإلكتروني لتفعيل الحساب.';
+    message.textContent=result.message||'تحقق من بريدك الإلكتروني لتأكيد التسجيل.';document.querySelector('#registerPassword').value='';
     // رابط مباشر لوثيقة بعينها (?doc=) يُحفظ هنا حتى يعود المستخدم إليها بعد تفعيل حسابه وتسجيل الدخول لاحقاً، ولو في المتصفح نفسه فقط.
     const docId=new URLSearchParams(location.search).get('doc');
     if(docId){try{sessionStorage.setItem('qalam.library.pendingDoc',docId);}catch{}}
