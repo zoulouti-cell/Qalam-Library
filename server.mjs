@@ -34,7 +34,7 @@ const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'p
 const shelfCounts=new Map();let shelfRefreshAt=0,shelfRefreshing=false;
 function refreshShelfCounts(){if(shelfRefreshing||Date.now()-shelfRefreshAt<10*60_000)return;shelfRefreshing=true;shelfRefreshAt=Date.now();
   (async()=>{for(const [name,id] of Object.entries(DRIVE_SHELVES)){try{const n=await countShelfPdfs(id);if(n!==null)shelfCounts.set(name,n);}catch{}}})().finally(()=>{shelfRefreshing=false;});}
-function withShelfCounts(categories){refreshShelfCounts();return categories.map(c=>DRIVE_SHELVES[c.name]&&shelfCounts.has(c.name)?{...c,count:c.count>0?c.count:shelfCounts.get(c.name),driveCount:shelfCounts.get(c.name)}:c);}
+function withShelfCounts(categories){refreshShelfCounts();return categories.map(c=>DRIVE_SHELVES[c.name]&&shelfCounts.has(c.name)?{...c,count:c.count>0?c.count:shelfCounts.get(c.name),driveCount:shelfCounts.get(c.name),driveFolderId:DRIVE_SHELVES[c.name]}:c);}
 
 const PORT=Number(process.env.PORT||4188),HOST=process.env.HOST||'0.0.0.0';
 const accessPassword=process.env.LIBRARY_ACCESS_PASSWORD||'',sessionSecret=process.env.LIBRARY_SESSION_SECRET||'';
