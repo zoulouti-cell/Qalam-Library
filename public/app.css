@@ -119,3 +119,4 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .drive-text-card .drive-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:2px}
 .drive-text-card .drive-actions a,.drive-text-card .drive-actions button,.drive-link-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border-radius:9px;border:1px solid #cfd8c6;background:#fff;color:#17382c;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
 .drive-text-card .drive-actions a[href*="mode=download"]{background:#17382c;color:#f4e3a6;border-color:#17382c}
+.news-ticker-note{position:relative;z-index:5;margin-top:8px!important}

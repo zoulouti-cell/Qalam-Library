@@ -1092,14 +1092,16 @@
     } catch {}
   }
   /* شريط الأخبار: مشاريع القوانين والمقترحات وأخبار المجالس والبرلمان؛ النقر يفتح الرابط الرسمي في نافذة جديدة. يُغلق وتبقى مادته أسبوعين على الأكثر. */
-  async function showNewsTicker() {
+    /* الشريط العلوي ثابت (fixed) ويغطي أول 49px؛ يُدرَج الشريط داخل رأس الهوية تحته مباشرة لا فوقه، وإلا اختفى خلفه. */
+  function placeTicker(el) { const host = document.querySelector('#main .identity-header') || $('main'); host.prepend(el); }
+async function showNewsTicker() {
     try {
       const data = await api('/api/legal-monitor/ticker');
       const dismissed = new Set(prefs.tickerDismissed || []);
       const fresh = (data.items || []).filter(u => (u.pending || !dismissed.has(u.id)) && /^https?:\/\//i.test(u.url));
       const old = $('newsTicker'); if (old) old.remove();
       if (!fresh.length) {
-        if (data.diag) { const note = document.createElement('p'); note.id = 'newsTicker'; note.className = 'news-ticker-note'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;border:1px dashed #cdbf95;border-radius:9px;font-size:12px;color:#6b5a27;background:#fffaf0'; note.textContent = 'شريط الأخبار (يراه المدير وحده الآن): لا توجد عناصر لعرضها — منشور: ' + data.diag.published + '، بانتظار الاعتماد: ' + data.diag.pending + (data.diag.pendingWithoutUrl ? '، بلا رابط رسمي صالح: ' + data.diag.pendingWithoutUrl : '') + '.'; $('main').prepend(note); }
+        if (data.diag) { const note = document.createElement('p'); note.id = 'newsTicker'; note.className = 'news-ticker-note'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;border:1px dashed #cdbf95;border-radius:9px;font-size:12px;color:#6b5a27;background:#fffaf0'; note.textContent = 'شريط الأخبار (يراه المدير وحده الآن): لا توجد عناصر لعرضها — منشور: ' + data.diag.published + '، بانتظار الاعتماد: ' + data.diag.pending + (data.diag.pendingWithoutUrl ? '، بلا رابط رسمي صالح: ' + data.diag.pendingWithoutUrl : '') + '.'; placeTicker(note); }
         return;
       }
       const bar = document.createElement('section'); bar.id = 'newsTicker'; bar.className = 'news-ticker'; bar.setAttribute('aria-label', 'شريط الأخبار القانونية');
@@ -1115,8 +1117,8 @@
       const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
       close.addEventListener('click', () => { prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
       bar.append(label, track, close);
-      bar.style.margin = '0 0 14px'; $('main').prepend(bar); /* أول ما يراه المدير عند الفتح، فوق شريط البحث */
-    } catch (error) { try { const old = $('newsTicker'); if (old) old.remove(); const note = document.createElement('p'); note.id = 'newsTicker'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;font-size:12px;color:#8a2b1f'; note.textContent = 'تعذر تحميل شريط الأخبار: ' + (error?.message || 'خطأ غير معروف'); $('main').prepend(note); } catch {} }
+      bar.style.cssText += ';margin:8px 0 14px;position:relative;z-index:5'; placeTicker(bar); /* أول ما يراه المدير عند الفتح، فوق شريط البحث */
+    } catch (error) { try { const old = $('newsTicker'); if (old) old.remove(); const note = document.createElement('p'); note.id = 'newsTicker'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;font-size:12px;color:#8a2b1f'; note.textContent = 'تعذر تحميل شريط الأخبار: ' + (error?.message || 'خطأ غير معروف'); placeTicker(note); } catch {} }
   }
   /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
   async function showEffectiveAlerts() {
