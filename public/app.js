@@ -1093,7 +1093,7 @@
   }
   /* شريط الأخبار: مشاريع القوانين والمقترحات وأخبار المجالس والبرلمان؛ النقر يفتح الرابط الرسمي في نافذة جديدة. يُغلق وتبقى مادته أسبوعين على الأكثر. */
     /* الشريط العلوي ثابت (fixed) ويغطي أول 49px؛ يُدرَج الشريط داخل رأس الهوية تحته مباشرة لا فوقه، وإلا اختفى خلفه. */
-  function placeTicker(el) { const host = document.querySelector('#main .identity-header') || $('main'); host.prepend(el); }
+  function placeTicker(el) { const anchor = document.querySelector('#main .search-intro'); if (anchor) { anchor.after(el); return; } const host = document.querySelector('#main .identity-header') || $('main'); host.prepend(el); }
 async function showNewsTicker() {
     try {
       const data = await api('/api/legal-monitor/ticker');
@@ -1105,19 +1105,36 @@ async function showNewsTicker() {
         return;
       }
       const bar = document.createElement('section'); bar.id = 'newsTicker'; bar.className = 'news-ticker'; bar.setAttribute('aria-label', 'شريط الأخبار القانونية');
-      const label = document.createElement('strong'); label.textContent = 'أخبار';
       const track = document.createElement('div'); track.className = 'news-ticker-track';
-      const lane = document.createElement('div'); lane.className = 'news-ticker-lane'; lane.style.animationDuration = Math.max(25, fresh.length * 9) + 's';
-      for (const u of fresh) {
-        const a = document.createElement('a'); a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        a.textContent = u.title + ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب') + (u.pending ? ' · بانتظار الاعتماد' : '');
-        lane.append(a);
-      }
+      const lane = document.createElement('div'); lane.className = 'news-ticker-lane';
       track.append(lane);
-      const close = document.createElement('button'); close.type = 'button'; close.className = 'text-button'; close.textContent = 'إغلاق';
-      close.addEventListener('click', () => { prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
-      bar.append(label, track, close);
-      bar.style.cssText += ';margin:8px 0 14px;position:relative;z-index:5'; placeTicker(bar); /* أول ما يراه المدير عند الفتح، فوق شريط البحث */
+      /* تُعرض العربية أولاً وتبدأ من اليسار، ثم الفرنسية وتبدأ من اليمين، وهكذا دواليك بالتناوب. */
+      const isAr = u => /[\u0600-\u06FF]/.test(String(u.title || ''));
+      const runs = [{ ar: true, items: fresh.filter(isAr) }, { ar: false, items: fresh.filter(u => !isAr(u)) }].filter(r => r.items.length);
+      const fill = run => {
+        lane.replaceChildren(); lane.dir = run.ar ? 'rtl' : 'ltr';
+        for (const u of run.items) {
+          const a = document.createElement('a'); a.href = u.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          a.textContent = run.ar ? u.title + ' · ' + (u.country === 'fr' ? 'فرنسا' : 'المغرب') + (u.pending ? ' · بانتظار الاعتماد' : '') : u.title + ' · ' + (u.country === 'fr' ? 'France' : 'Maroc') + (u.pending ? ' · en attente' : '');
+          lane.append(a);
+        }
+      };
+      let runIndex = 0, running = null, stopped = false;
+      const play = () => {
+        if (stopped || !bar.isConnected) return;
+        const run = runs[runIndex % runs.length]; runIndex++; fill(run);
+        const trackWidth = track.clientWidth || 600, laneWidth = lane.scrollWidth || 600;
+        const from = run.ar ? -laneWidth : trackWidth, to = run.ar ? trackWidth : -laneWidth;
+        const duration = Math.max(14000, (trackWidth + laneWidth) * 14);
+        running = lane.animate([{ transform: 'translateX(' + from + 'px)' }, { transform: 'translateX(' + to + 'px)' }], { duration, easing: 'linear', fill: 'forwards' });
+        running.onfinish = play;
+      };
+      if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { fill(runs[0]); track.style.overflowX = 'auto'; lane.style.position = 'static'; }
+      else { track.addEventListener('mouseenter', () => running?.pause()); track.addEventListener('mouseleave', () => running?.play()); track.addEventListener('focusin', () => running?.pause()); track.addEventListener('focusout', () => running?.play()); requestAnimationFrame(play); }
+      const close = document.createElement('button'); close.type = 'button'; close.className = 'news-ticker-close'; close.textContent = '×'; close.setAttribute('aria-label', 'إغلاق الشريط'); close.title = 'إغلاق';
+      close.addEventListener('click', () => { stopped = true; running?.cancel(); prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
+      bar.append(track, close);
+      placeTicker(bar); /* تحت بطاقات «ابدأ التصفح» */
     } catch (error) { try { const old = $('newsTicker'); if (old) old.remove(); const note = document.createElement('p'); note.id = 'newsTicker'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;font-size:12px;color:#8a2b1f'; note.textContent = 'تعذر تحميل شريط الأخبار: ' + (error?.message || 'خطأ غير معروف'); placeTicker(note); } catch {} }
   }
   /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
