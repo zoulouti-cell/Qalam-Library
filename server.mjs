@@ -26,7 +26,7 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,agreementDriveIdFor,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
+import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -1031,12 +1031,13 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/legal-monitor/ticker'&&req.method==='GET'){
       if(!adminStore)return send(req,res,200,{items:[]});
-      const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({publishedAt:-1}).limit(60).toArray();
-      const items=tickerItems(rows.map(r=>({...r,id:r._id})));
+      const windowStart=tickerWindowStart(new Date());
+      const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:windowStart}}).sort({publishedAt:-1}).limit(120).toArray();
+      const items=tickerItems(rows.map(r=>({...r,id:r._id})),new Date(),0,windowStart.getTime());
       /* للمدير وحده: ما رصده الجامع ولم يُعتمد بعد يظهر في الشريط موسوماً «بانتظار الاعتماد» ليراه فوراً. */
       let diag;
       if(await adminSessionLive(req)){
-        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','legislation','justice_digital']},state:{$in:['held','ready']}}).sort({receivedAt:-1}).limit(40).toArray();
+        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','legislation','justice_digital']},state:{$in:['held','ready']},receivedAt:{$gte:windowStart}}).sort({receivedAt:-1}).limit(80).toArray();
         let noUrl=0;
         for(const r of pend){const url=r.source?.url||'';if(/^https?:\/\//i.test(url))items.push({id:String(r._id),title:r.title,country:r.country,kind:r.kind,url,eventDate:r.eventDate,pending:true});else noUrl++;}
         diag={admin:true,published:items.filter(i=>!i.pending).length,pending:items.filter(i=>i.pending).length,pendingWithoutUrl:noUrl};

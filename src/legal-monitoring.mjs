@@ -185,8 +185,15 @@ export function effectiveToday(items = [], today = '') {
    أما القرارات والقوانين والمستجدات فلكلٍّ قسمها بعنوانه، ولا تظهر في الشريط. */
 export const TICKER_KINDS = Object.freeze(['bill', 'justice_digital']);
 export const isTickerItem = item => TICKER_KINDS.includes(item?.kind);
-export function tickerItems(items = [], now = new Date(), days = 14) {
-  const since = now.getTime() - days * 24 * 60 * 60 * 1000;
+/* نافذة الشريط: شهر كامل بالأسابيع (الأسبوع يبدأ السبت يوم الجامع): الأسبوع الحالي وثلاثة أسابيع قبله؛ وعند بدء كل أسبوع جديد يُحذف أقدم أسبوع كاملاً من الشريط (لا من المكتبة) بحسب تاريخ الإضافة. */
+export function tickerWindowStart(now = new Date()) {
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const sinceSaturday = (day.getUTCDay() + 1) % 7;
+  return new Date(day.getTime() - (sinceSaturday + 21) * 24 * 60 * 60 * 1000);
+}
+
+export function tickerItems(items = [], now = new Date(), days = 14, sinceMs = null) {
+  const since = sinceMs ?? now.getTime() - days * 24 * 60 * 60 * 1000;
   return (items || [])
     .filter(i => isTickerItem(i) && i.state === 'published' && i.publishedAt && new Date(i.publishedAt).getTime() >= since && /^https?:\/\//i.test(i.source?.url || ''))
     .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
