@@ -163,3 +163,17 @@ test('one-time move of laws out of updates: Moroccan to general texts, French to
   assert.deepEqual(second,{skipped:true,moved:0,movedMa:0,movedFr:0});
   assert.equal(calls.length,4);
 });
+
+test('النص الكامل المترجم والأصول المتعددة تظهر في السجل المنشور', () => {
+  const checked = makeObservation({
+    country: 'fr', kind: 'case_law', title: 'مبدأ تجريبي للنص الكامل', court: 'Cour de cassation', caseNumber: '25-00.001',
+    summary: 'الجهة والمراجع: محكمة النقض.\nالملخص: ملخص تجريبي طويل بما يكفي لقبول الملاحظة.', fullText: 'نص كامل مترجم للقرار.', eventDate: '2026-11-12',
+    source: { url: 'https://www.courdecassation.fr/decision/x', label: 'Cour de cassation', official: true, verified: true }, complete: true,
+    original: { driveId: 'pdf1', name: 'x.pdf' }, originals: [{ driveId: 'md1', name: 'x.md' }, { driveId: 'html1', name: 'x.html' }],
+  });
+  assert.equal(checked.error, undefined);
+  assert.equal(checked.record.originals.length, 3);
+  const rec = publicationRecord({ ...checked.record, state: 'ready' });
+  assert.match(rec.text, /النص الكامل \(ترجمة مهنية\)\n\nنص كامل مترجم للقرار\./);
+  assert.deepEqual(rec.originalFiles.map(f => f.ext), ['pdf', 'md', 'html']);
+});

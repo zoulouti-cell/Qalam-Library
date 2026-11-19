@@ -46,6 +46,7 @@
   const resetUnconsentedQueryHistory = !Object.hasOwn(storedPreferences, 'searchHistory');
   const prefs = { personalize: false, searchHistory: false, dictationEngine: 'local', readingEngine: 'browser', allowNetworkVoices: false, voice: '', rate: '1', font: 19, spellReferences: false, assistantEngine: 'groq', ...storedPreferences };
   const state = {
+    isAdmin: false,
     view: 'library', type: 'all', scope: 'all', category: 'الدساتير', topic: '', scopeTouched: false, activeQueryId: 'query', page: 1, limit: 20, total: 0, browseGroup: '', agreementBranch: '', agreementCountry: '', agreementTopic: '', agreementSection: '', expandedCard: '', previewCache: new Map(), driveBrowseStack: [], agreementFiles: [], agreementCount: null, agreementBranchCounts: { bilateral: null, multilateral: null },
     canAdmin: false, categories: [], results: [], saved: store.get('saved', {}), notes: store.get('notes', {}), history: store.get('history', []), queries: resetUnconsentedQueryHistory ? [] : store.get('queries', []),
     capabilities: { ai: { available: false }, translation: { available: false }, speech: { piperAvailable: false, sttAvailable: false } },
@@ -138,6 +139,19 @@
   function metadata(doc) {
     return { id: doc.id, title: doc.title, type: doc.type, kind: doc.kind || '', category: doc.category, subcategory: doc.subcategory || '', date: doc.date || '', textKind: doc.textKind, reviewStatus: doc.reviewStatus, issues: doc.issues || [], abrogated: !!doc.abrogated, snippet: doc.snippet || '', lawNumber: doc.lawNumber || '', decisionNumber: doc.decisionNumber || '', caseNumber: doc.caseNumber || '', sourceUrl: doc.sourceUrl || '', officialUrl: doc.officialUrl || '', driveSourceName:doc.driveSourceName||'',driveSourcePath:doc.driveSourcePath||'',driveAlternateFileId:doc.driveAlternateFileId||'',driveAlternateFileName:doc.driveAlternateFileName||'',driveSourceStatus:doc.driveSourceStatus||'',judicialIndex:!!doc.judicialIndex };
   }
+  function adminCardTools(doc) {
+    if (!state.isAdmin || doc?.origin !== 'legal-monitor' || !doc.monitorItemId) return '';
+    const names = (state.categories || []).map(c => c.name).filter(Boolean);
+    const current = doc.category || '';
+    const options = names.map(n => '<option value="' + esc(n) + '"' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button><select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button></div>';
+  }
+  async function adminMonitorAction(id, action, extra = {}) {
+    const response = await fetch('/api/admin/legal-monitor/items/action', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, ...extra }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'تعذر تنفيذ الإجراء.');
+    return data;
+  }
   function originalActions(doc, compact = false) {
     let url = ''; try { const parsed = new URL(doc?.sourceUrl || ''); if (parsed.protocol === 'https:') url = parsed.href; } catch {}
     let previewUrl = url, downloadUrl = '', driveId='';
@@ -149,9 +163,12 @@
     const judicialMapped=doc?.type==='juriscassation'&&/^jc:\d+$/.test(doc?.id||'')&&doc?.judicialIndex===true&&doc?.driveSourceStatus==='verified';
     if(judicialMapped){previewUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=download';}
     else if(mapped){previewUrl='/api/drive/document-source?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document-source?id='+encodeURIComponent(doc.id)+'&mode=download';}
-    const uf = Array.isArray(doc?.originalFiles) ? doc.originalFiles.filter(f => f && f.id) : [];
+    const fmtRank = f => { const e = String(f.ext || '').toLowerCase(); return e === 'pdf' ? 0 : (e === 'md' || e === 'markdown') ? 1 : (e === 'html' || e === 'htm') ? 2 : 3; };
+    const uf = (Array.isArray(doc?.originalFiles) ? doc.originalFiles.filter(f => f && f.id) : []).map((f, i) => [f, i]).sort((a, b) => fmtRank(a[0]) - fmtRank(b[0]) || a[1] - b[1]).map(x => x[0]);
+    const primaryRank = uf.length ? fmtRank(uf[0]) : 0;
+    const formatBadge = uf.length && primaryRank > 0 ? '<span class="source-format-badge" aria-hidden="true">' + (primaryRank === 1 ? 'MD' : primaryRank === 2 ? 'HTML' : esc(String(uf[0].ext || '').toUpperCase())) + '</span>' : '';
     const ufUrl = (f, mode) => f.driveId ? '/api/drive/file?id=' + encodeURIComponent(f.driveId) + '&mode=' + mode : '/api/original?doc=' + encodeURIComponent(doc.id) + '&file=' + encodeURIComponent(f.id) + '&mode=' + mode;
-    const previewAction = uf.length ? '<a class="'+cls+'" href="'+esc(ufUrl(uf[0],'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل المرفق" title="معاينة الأصل المرفق">'+icon('preview')+'</a>' : judicialMapped||driveId
+    const previewAction = uf.length ? '<a class="'+cls+' source-action-formatted" href="'+esc(ufUrl(uf[0],'preview'))+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل المرفق'+(primaryRank===1?' (MD)':primaryRank===2?' (HTML)':'')+'" title="معاينة الأصل المرفق'+(primaryRank===1?' (MD)':primaryRank===2?' (HTML)':'')+'">'+icon('preview')+formatBadge+'</a>' : judicialMapped||driveId
       ? '<a class="'+cls+'" href="'+esc(previewUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل من Drive" title="معاينة الأصل من Drive">'+icon('preview')+'</a>'
       : mapped ? '<a class="'+cls+'" href="'+esc(previewUrl)+'" target="_blank" rel="noopener noreferrer" aria-label="معاينة الأصل من Drive" title="معاينة الأصل من Drive">'+icon('preview')+'</a>' : '';
     const downloadAction = uf.length ? '<a class="'+cls+'" href="'+esc(ufUrl(uf[0],'download'))+'" aria-label="تحميل الأصل المرفق" title="تحميل الأصل المرفق">'+icon('download')+'</a>' : judicialMapped||driveId
@@ -375,7 +392,7 @@
     const preview = state.previewCache.get(doc.id);
     const categoryLabel=[doc.category,doc.subcategory].filter((value,index,array)=>value&&array.indexOf(value)===index).join(' · ')||'غير مصنف';
     const refs=doc.category?.startsWith('محكمة الاستئناف')?[doc.decisionNumber&&('قرار '+doc.decisionNumber),doc.caseNumber&&('ملف '+doc.caseNumber)].filter(Boolean).join(' · '):'';
-    return '<article class="result-card ' + (previewOpen ? 'expanded ' : '') + esc((doc.type || '') + ' kind-' + (doc.kind || '')) + '"><div class="result-card-head"><span class="document-type ' + esc(doc.type) + '">' + esc(instrumentNames[doc.kind] || typeNames[doc.type] || 'وثيقة') + '</span><span class="status-badge ' + esc(isAssistantCompared(doc) ? 'compared' : isOcrDraft(doc) ? 'summary' : kindClasses[kind] || '') + '">' + esc(kindLabel) + '</span><span class="category-tag document-category" title="' + esc(categoryLabel) + '">' + esc(categoryLabel) + '</span>' + (doc.abrogated ? '<span class="status-badge abrogated">منسوخ بحسب البيانات</span>' + (doc.supersededBy ? '<button type="button" class="card-expand" data-open="' + esc(doc.supersededBy) + '" title="' + esc(doc.supersededByTitle || '') + '">يُنظر النص الجديد ←</button>' : '') : '') + '<button class="card-save' + (saved ? ' saved' : '') + '" data-save="' + esc(doc.id) + '" aria-pressed="' + saved + '" aria-label="' + (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') + '" title="' + (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') + '">' + (saved ? '◆' : '◇') + '</button></div><button class="result-open" data-open="' + esc(doc.id) + '" title="' + esc(doc.title || '') + '">' + markText(doc.title || 'وثيقة دون عنوان', $('query').value) + '</button>' + (doc.sourceLanguage === 'fr' && doc.originalTitle && doc.originalTitle !== doc.title ? '<small class="original-title" dir="ltr" style="display:block;text-align:left;opacity:.75">' + esc(doc.originalTitle) + '</small>' : '') + (refs ? '<p class="decision-reference">' + esc(refs) + '</p>' : '') + '<p class="result-snippet">' + markText(doc.snippet || (kind === 'image_only' ? 'بيانات فهرسة فقط؛ لم يُستخرج نص هذه الوثيقة بعد.' : 'افتح الوثيقة لقراءة المحتوى المتاح وحالة مراجعته.'), $('query').value) + '</p><button type="button" class="card-expand" data-expand-doc="' + esc(doc.id) + '" aria-expanded="' + previewOpen + '">' + (previewOpen ? 'إخفاء القراءة' : 'قراءة مقتطف') + ' <span aria-hidden="true">' + (previewOpen ? '⌃' : '⌄') + '</span></button><div class="card-preview" ' + (previewOpen ? '' : 'hidden') + '>' + (preview ? '<p>' + esc(preview.slice(0,2200)) + (preview.length>2200?'…':'') + '</p><button class="secondary-button" data-open="' + esc(doc.id) + '">فتح النص كاملاً</button>' : 'جارٍ تحميل النص…') + '</div>' + note + '<div class="result-card-foot">' + (doc.date ? '<time datetime="' + esc(doc.date) + '">' + esc(formatDate(doc.date)) + '</time>' : '<time>التاريخ غير موثق</time>') + '<span class="read-arrow" aria-hidden="true">←</span></div>' + originalActions(doc, true) + '</article>';
+    return '<article class="result-card ' + (previewOpen ? 'expanded ' : '') + esc((doc.type || '') + ' kind-' + (doc.kind || '')) + '"><div class="result-card-head"><span class="document-type ' + esc(doc.type) + '">' + esc(instrumentNames[doc.kind] || typeNames[doc.type] || 'وثيقة') + '</span><span class="status-badge ' + esc(isAssistantCompared(doc) ? 'compared' : isOcrDraft(doc) ? 'summary' : kindClasses[kind] || '') + '">' + esc(kindLabel) + '</span><span class="category-tag document-category" title="' + esc(categoryLabel) + '">' + esc(categoryLabel) + '</span>' + (doc.abrogated ? '<span class="status-badge abrogated">منسوخ بحسب البيانات</span>' + (doc.supersededBy ? '<button type="button" class="card-expand" data-open="' + esc(doc.supersededBy) + '" title="' + esc(doc.supersededByTitle || '') + '">يُنظر النص الجديد ←</button>' : '') : '') + '<button class="card-save' + (saved ? ' saved' : '') + '" data-save="' + esc(doc.id) + '" aria-pressed="' + saved + '" aria-label="' + (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') + '" title="' + (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') + '">' + (saved ? '◆' : '◇') + '</button></div><button class="result-open" data-open="' + esc(doc.id) + '" title="' + esc(doc.title || '') + '">' + markText(doc.title || 'وثيقة دون عنوان', $('query').value) + '</button>' + (doc.sourceLanguage === 'fr' && doc.originalTitle && doc.originalTitle !== doc.title ? '<small class="original-title" dir="ltr" style="display:block;text-align:left;opacity:.75">' + esc(doc.originalTitle) + '</small>' : '') + (refs ? '<p class="decision-reference">' + esc(refs) + '</p>' : '') + '<p class="result-snippet">' + markText(doc.snippet || (kind === 'image_only' ? 'بيانات فهرسة فقط؛ لم يُستخرج نص هذه الوثيقة بعد.' : 'افتح الوثيقة لقراءة المحتوى المتاح وحالة مراجعته.'), $('query').value) + '</p><button type="button" class="card-expand" data-expand-doc="' + esc(doc.id) + '" aria-expanded="' + previewOpen + '">' + (previewOpen ? 'إخفاء القراءة' : 'قراءة مقتطف') + ' <span aria-hidden="true">' + (previewOpen ? '⌃' : '⌄') + '</span></button><div class="card-preview" ' + (previewOpen ? '' : 'hidden') + '>' + (preview ? '<p>' + esc(preview.slice(0,2200)) + (preview.length>2200?'…':'') + '</p><button class="secondary-button" data-open="' + esc(doc.id) + '">فتح النص كاملاً</button>' : 'جارٍ تحميل النص…') + '</div>' + note + '<div class="result-card-foot">' + (doc.date ? '<time datetime="' + esc(doc.date) + '">' + esc(formatDate(doc.date)) + '</time>' : '<time>التاريخ غير موثق</time>') + '<span class="read-arrow" aria-hidden="true">←</span></div>' + originalActions(doc, true) + adminCardTools(doc) + '</article>';
   }
   function renderPagination() {
     const pages = Math.ceil(state.total / state.limit);
@@ -500,7 +517,7 @@
     }
   }
   async function loadSidebarIdentity() {
-    try { const data = await api('/api/account/profile'); showIdentity(data, { img: 'accountAvatarImg', initial: 'accountAvatarInitial', name: 'accountName', email: 'accountIdentityEmail' }); } catch {}
+    try { const data = await api('/api/account/profile'); showIdentity(data, { img: 'accountAvatarImg', initial: 'accountAvatarInitial', name: 'accountName', email: 'accountIdentityEmail' }); if (data.role === 'admin' && !state.isAdmin) { state.isAdmin = true; if (state.results?.length && $('results').querySelector('.result-card')) $('results').innerHTML = state.results.map(renderCard).join(''); } } catch {}
   }
   async function openAccount() {
     closeSidebar(); $('accountDialog').showModal(); $('accountDialogStatus').textContent='جارٍ تحميل بيانات الحساب…'; $('accountAdminLink').hidden=true; $('accountPasswordPanel').hidden=true;
@@ -970,7 +987,7 @@
     overlay._hideTimer = setTimeout(() => { overlay.hidden = true; }, 420);
   }
   function wireEvents() {
-    document.addEventListener('click', event => {
+    document.addEventListener('click', async event => {
       const button = event.target.closest('button');
       if (!event.target.closest('.search-form,.bottom-search-form')) closeSuggestions();
       if (!button || button.disabled) return;
@@ -1007,6 +1024,19 @@
       if (button.hasAttribute('data-clear-category')) { state.category = ''; state.topic = ''; state.page = 1; renderCategories(); runSearch(); return; }
       if (button.dataset.scope) { state.scope = button.dataset.scope; state.scopeTouched = true; if (state.scope === 'agreements') { state.category = ''; state.topic = ''; } else if (state.topic && state.scope !== 'all') state.category = ''; else if (state.topic && state.scope === 'all') state.category = state.topic; state.page = 1; document.querySelectorAll('[data-scope]').forEach(b => { const active = b === button; b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active)); }); renderCategories(); runSearch(); requestAnimationFrame(()=>$('resultsTitle').scrollIntoView({block:'start',behavior:'smooth'})); return; }
       if (button.dataset.browseGroup) { $('browsePanel').hidden = false; $('browseToggle').setAttribute('aria-expanded','true'); renderBrowseGroup(button.dataset.browseGroup); requestAnimationFrame(() => $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'})); return; }
+      if (button.dataset.adminDelete) {
+        const title = button.dataset.adminTitle || 'هذه البطاقة';
+        if (!window.confirm('حذف «' + title + '» من المكتبة؟ لن يعيد الجامع استيرادها.')) return;
+        button.disabled = true;
+        try { await adminMonitorAction(button.dataset.adminDelete, 'delete'); toast('حُذفت البطاقة.'); runSearch(); } catch (error) { button.disabled = false; toast(error.message); }
+        return;
+      }
+      if (button.dataset.adminMove) {
+        const select = button.parentElement.querySelector('[data-admin-move-select]'), category = select?.value || '';
+        if (!category) return; button.disabled = true;
+        try { await adminMonitorAction(button.dataset.adminMove, 'move', { category }); toast('نُقلت البطاقة إلى «' + category + '».'); runSearch(); } catch (error) { toast(error.message); } finally { button.disabled = false; }
+        return;
+      }
       if (button.dataset.expandDoc) {
         const id = button.dataset.expandDoc;
         if (state.expandedCard === id) { state.expandedCard = ''; $('results').innerHTML = state.results.map(renderCard).join(''); return; }
