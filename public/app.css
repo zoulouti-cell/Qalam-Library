@@ -126,5 +126,5 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .news-ticker-track{position:relative;height:30px;direction:ltr;overflow:hidden}
 .news-ticker-lane{position:absolute;top:0;left:0;display:block!important;padding-inline-start:0!important;animation:none!important;white-space:nowrap;line-height:30px;will-change:transform}
 .news-ticker-lane a{display:inline-block;margin-inline-end:42px}
-.news-ticker-close{flex:none;width:28px;height:28px;border:0;border-radius:50%;background:#eef1e8;color:#3d4d33;font-size:18px;line-height:1;cursor:pointer}
-.news-ticker-close:hover{background:#dfe6d3}
+.news-ticker-close{flex:none;width:28px;height:28px;border:0;border-radius:0;background:transparent;color:#5d6b53;font-size:22px;line-height:1;cursor:pointer;padding:0}
+.news-ticker-close:hover,.news-ticker-close:focus-visible{background:transparent;color:#17382c}
