@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,tickerWindowStart,isTickerItem,canAutoPublishAfterRelease,scheduleAfterRelease,moveMoroccanLawsToGeneralTexts,MOROCCAN_LAWS_MIGRATION_ID } from '../src/legal-monitoring.mjs';
+import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,tickerWindowStart,isTickerItem,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,LAWS_MIGRATION_ID } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -144,18 +144,22 @@ test('Moroccan laws publish to general texts, French laws to French laws; studie
   assert.equal(publicationCategory({country:'fr',kind:'research'}),'دراسات فرنسية');
 });
 
-test('one-time move of Moroccan laws from updates to general texts',async()=>{
+test('one-time move of laws out of updates: Moroccan to general texts, French to French laws',async()=>{
   const calls=[],marks=new Map(),now=new Date('2026-11-19T01:00:00Z');
-  const content={updateMany:async(filter,update)=>{calls.push(['content',filter,update]);return {modifiedCount:3};}};
-  const items={updateMany:async(filter,update)=>{calls.push(['items',filter,update]);return {modifiedCount:2};}};
+  const content={updateMany:async(filter,update)=>{calls.push(['content',filter,update]);return {modifiedCount:filter.country==='fr'?2:3};}};
+  const items={updateMany:async(filter,update)=>{calls.push(['items',filter,update]);return {modifiedCount:1};}};
   const settings={findOne:async q=>marks.get(q._id)||null,insertOne:async d=>{marks.set(d._id,d);}};
-  const first=await moveMoroccanLawsToGeneralTexts({content,items,settings},now);
-  assert.deepEqual(first,{skipped:false,moved:3});
+  const first=await moveLawsToLawSections({content,items,settings},now);
+  assert.deepEqual(first,{skipped:false,moved:5,movedMa:3,movedFr:2});
   assert.deepEqual(calls[0][1],{status:'published',type:'national',kind:'law',category:'مستجدات',country:{$ne:'fr'}});
   assert.equal(calls[0][2].$set.category,'نصوص عامة');
-  assert.equal(calls[1][1].publishCategory,'مستجدات');
-  assert.equal(marks.get(MOROCCAN_LAWS_MIGRATION_ID).moved,3);
-  const second=await moveMoroccanLawsToGeneralTexts({content,items,settings},now);
-  assert.deepEqual(second,{skipped:true,moved:0});
-  assert.equal(calls.length,2);
+  assert.deepEqual(calls[1][1],{status:'published',type:'national',kind:'law',category:'مستجدات فرنسية',country:'fr'});
+  assert.equal(calls[1][2].$set.category,'قوانين فرنسية');
+  assert.equal(calls[2][1].publishCategory,'مستجدات');
+  assert.equal(calls[3][1].publishCategory,'مستجدات فرنسية');
+  assert.equal(calls[3][2].$set.publishCategory,'قوانين فرنسية');
+  assert.equal(marks.get(LAWS_MIGRATION_ID).movedFr,2);
+  const second=await moveLawsToLawSections({content,items,settings},now);
+  assert.deepEqual(second,{skipped:true,moved:0,movedMa:0,movedFr:0});
+  assert.equal(calls.length,4);
 });
