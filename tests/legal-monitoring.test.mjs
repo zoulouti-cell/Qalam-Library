@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,isTickerItem,canAutoPublishAfterRelease,scheduleAfterRelease } from '../src/legal-monitoring.mjs';
+import { REPORTS,dueReports,makeObservation,mayAutoPublish,lawStagesComplete,renderReport,mergeLegislativeObservation,publicationRecord,publicationCategory,effectiveToday,PUBLICATION_DELAY_MS,recentUpdates,tickerItems,tickerWindowStart,isTickerItem,canAutoPublishAfterRelease,scheduleAfterRelease } from '../src/legal-monitoring.mjs';
 
 const official={url:'https://example.gov.ma/law/123',label:'الجريدة الرسمية',official:true,verified:true};
 const base={country:'ma',kind:'case_law',title:'قرار تجريبي صادر عن المحكمة',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:official,court:'محكمة الاستئناف',complete:true};
@@ -128,4 +128,10 @@ test('عنوان فرنسي خام بلا عربية يُحجز ولا يُنش�
   assert.equal(raw.state,'held');assert.match(raw.holdReason,/غير معرَّب/);assert.equal(mayAutoPublish({...raw,state:'ready',readyForAutomaticPublication:true}),false);
   const ar=makeObservation({...fr,title:'قرار الغرفة الجنائية، طعن رقم 25-85.828',originalTitle:'Arrêt n° 25-85.828'}).record;
   assert.equal(ar.state,'ready');assert.equal(ar.originalTitle,'Arrêt n° 25-85.828');assert.equal(publicationRecord(ar).originalTitle,'Arrêt n° 25-85.828');
+});
+
+test('نافذة الشريط: أربعة أسابيع تبدأ بالسبت وتُحذف أقدم أسبوع كاملاً',()=>{
+  const thu=new Date('2026-11-19T10:00:00Z'); // الخميس؛ أسبوعه يبدأ السبت 14 نوفمبر
+  assert.equal(tickerWindowStart(thu).toISOString().slice(0,10),'2026-10-24');
+  assert.equal(tickerWindowStart(new Date('2026-11-21T01:00:00Z')).toISOString().slice(0,10),'2026-10-31'); // السبت الجديد يحذف أسبوع 24–30 أكتوبر
 });
