@@ -31,6 +31,9 @@ export function officialSource(source = {}) {
     source.official === true && !!host && !host.includes('..');
 }
 
+/* العنوان الفرنسي الخام (دون حرف عربي) لا يُنشر تلقائياً: يلزم تعريبه أو تعديله من المدير. */
+export const titleNeedsArabic = (record = {}) => record.country === 'fr' && !!record.title && !/[\u0600-\u06FF]/.test(String(record.title));
+
 export function makeObservation(input = {}) {
   const country = ['ma', 'fr'].includes(input.country) ? input.country : '';
   const kind = ['legislation', 'bill', 'case_law', 'research', 'justice_digital'].includes(input.kind) ? input.kind : '';
@@ -50,13 +53,14 @@ export function makeObservation(input = {}) {
   const restrictedCassation = country === 'ma' && kind === 'case_law' && /محكمة\s+النقض/.test(court);
   const hasReservation = input.legalReservation === true || input.scientificReservation === true || input.technicalReservation === true;
   const publishableKind = ['research', 'case_law', 'bill', 'legislation'].includes(kind);
-  const readyForAutomaticPublication = source.verified && input.complete === true && !hasReservation && publishableKind && !restrictedCassation;
+  const untranslated = titleNeedsArabic({ country, title });
+  const readyForAutomaticPublication = source.verified && input.complete === true && !hasReservation && publishableKind && !restrictedCassation && !untranslated;
   return { record: {
-    id, country, kind, title, summary, eventDate, receivedAt, source, reference, court, caseNumber,
+    id, country, kind, title, originalTitle: oneLine(input.originalTitle, 500), summary, eventDate, receivedAt, source, reference, court, caseNumber,
     officialNumber: oneLine(input.officialNumber, 150), currentStage: STAGES.includes(input.currentStage) ? input.currentStage : '',
     state: readyForAutomaticPublication ? 'ready' : 'held',
     effectiveDate: isoDate(input.effectiveDate), autoPublishAt: readyForAutomaticPublication && !(country === 'ma' && legislative) ? new Date(receivedAt.getTime() + PUBLICATION_DELAY_MS) : null, /* القوانين المغربية ومشاريعها وقرارات النقض المغربية باعتماد المدير يدوياً؛ وما عداها يُنشر تلقائياً بعد 24 ساعة */
-    holdReason: restrictedCassation ? 'قرار محكمة النقض المغربية يتطلب اعتماد المدير حصراً.' : hasReservation ? 'توجد ملاحظة قانونية أو علمية أو تقنية تستلزم المراجعة.' : !input.complete ? 'بيانات الإضافة أو التحقق غير مكتملة.' : !publishableKind ? 'هذا النوع لا ينشر تلقائياً؛ يلزم اعتماد المدير.' : '',
+    holdReason: restrictedCassation ? 'قرار محكمة النقض المغربية يتطلب اعتماد المدير حصراً.' : hasReservation ? 'توجد ملاحظة قانونية أو علمية أو تقنية تستلزم المراجعة.' : untranslated ? 'العنوان غير معرَّب؛ اكتب عنواناً عربياً قبل الاعتماد.' : !input.complete ? 'بيانات الإضافة أو التحقق غير مكتملة.' : !publishableKind ? 'هذا النوع لا ينشر تلقائياً؛ يلزم اعتماد المدير.' : '',
     readyForAutomaticPublication, original: input.original && typeof input.original === 'object' ? { driveId: oneLine(input.original.driveId, 200), url: sourceUrl(input.original.url), name: oneLine(input.original.name, 300) } : null,
     history: [{ state: readyForAutomaticPublication ? 'ready' : 'held', at: receivedAt, reason: restrictedCassation ? 'manager_approval_required' : hasReservation ? 'reservation' : 'verification_incomplete' }],
   } };
@@ -78,6 +82,7 @@ export function mergeLegislativeObservation(existing = null, incoming = {}) {
 }
 
 export function mayAutoPublish(record = {}) {
+  if (titleNeedsArabic(record)) return false;
   /* الاعتماد اليدوي وحده: قرارات محكمة النقض المغربية والقوانين المغربية ومشاريعها والرقمنة القضائية.
      القسم الفرنسي والمحكمة الدستورية وسائر المستجدات تُنشر تلقائياً بعد 24 ساعة (ونص فرنسي تشريعي لا يُنشر قبل استيفاء مراحله). */
   return record.state === 'ready' && record.readyForAutomaticPublication === true &&

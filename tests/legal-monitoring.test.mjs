@@ -120,3 +120,12 @@ test('release from hold schedules 24h auto-publication only for records that may
   assert.equal(scheduleAfterRelease({country:'fr',kind:'legislation',currentStage:'project',source:src},now),null);
   assert.ok(scheduleAfterRelease({country:'fr',kind:'legislation',currentStage:'published',source:src},now));
 });
+
+test('عنوان فرنسي خام بلا عربية يُحجز ولا يُنشر تلقائياً',()=>{
+  const src={url:'https://www.courdecassation.fr/x',label:'Cour de cassation',official:true,verified:true};
+  const fr={country:'fr',kind:'case_law',court:'Cour de cassation',summary:'ملخص موثق يتجاوز أربعين حرفاً مع بيانات القرار الأساسية والقاعدة القضائية.',eventDate:'2026-11-16',source:src,complete:true};
+  const raw=makeObservation({...fr,title:'Arrêt n° 25-85.828'}).record;
+  assert.equal(raw.state,'held');assert.match(raw.holdReason,/غير معرَّب/);assert.equal(mayAutoPublish({...raw,state:'ready',readyForAutomaticPublication:true}),false);
+  const ar=makeObservation({...fr,title:'قرار الغرفة الجنائية، طعن رقم 25-85.828',originalTitle:'Arrêt n° 25-85.828'}).record;
+  assert.equal(ar.state,'ready');assert.equal(ar.originalTitle,'Arrêt n° 25-85.828');assert.equal(publicationRecord(ar).originalTitle,'Arrêt n° 25-85.828');
+});
