@@ -147,7 +147,24 @@ export function publicationCategory(record = {}) {
     return 'محكمة النقض الفرنسية';
   }
   if (record.kind === 'research') return record.country === 'fr' ? 'دراسات فرنسية' : 'مستجدات';
+  /* النصوص التشريعية لا تُخلط بالدراسات: الفرنسية في «قوانين فرنسية»، والمغربية في «نصوص عامة». */
+  if (record.kind === 'legislation') return record.country === 'fr' ? 'قوانين فرنسية' : GENERAL_TEXTS_CATEGORY;
   return record.country === 'fr' ? 'مستجدات فرنسية' : 'مستجدات';
+}
+
+export const GENERAL_TEXTS_CATEGORY = 'نصوص عامة';
+export const MOROCCAN_LAWS_MIGRATION_ID = 'migration:moroccan-laws-to-general-texts';
+
+/* نقل لمرة واحدة: القوانين المغربية المنشورة الآن في «مستجدات» (وكانت تختلط بالدراسات) إلى «نصوص عامة».
+   يُسجَّل علامة الإنجاز في الإعدادات فلا يعيد نقل ما ينشره المدير في «مستجدات» عمداً بعد ذلك. */
+export async function moveMoroccanLawsToGeneralTexts({ content, items, settings }, now = new Date()) {
+  if (await settings.findOne({ _id: MOROCCAN_LAWS_MIGRATION_ID })) return { skipped: true, moved: 0 };
+  const moved = await content.updateMany(
+    { status: 'published', type: 'national', kind: 'law', category: 'مستجدات', country: { $ne: 'fr' } },
+    { $set: { category: GENERAL_TEXTS_CATEGORY, updatedAt: now } });
+  await items.updateMany({ kind: 'legislation', country: { $ne: 'fr' }, publishCategory: 'مستجدات' }, { $set: { publishCategory: GENERAL_TEXTS_CATEGORY } });
+  try { await settings.insertOne({ _id: MOROCCAN_LAWS_MIGRATION_ID, doneAt: now, moved: moved.modifiedCount ?? 0 }); } catch { /* نسخة أخرى سبقت بتسجيل العلامة */ }
+  return { skipped: false, moved: moved.modifiedCount ?? 0 };
 }
 
 const STAGE_LABELS = { project: 'مشروع', study: 'قيد الدراسة', approved: 'مصادق عليه', issued: 'صدر الأمر بتنفيذه', published: 'نُشر في الجريدة الرسمية', effective: 'نافذ' };

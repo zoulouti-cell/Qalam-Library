@@ -28,7 +28,7 @@
         const act=(label,action,confirmText)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',async()=>{if(confirmText&&!confirm(confirmText))return;try{await api('/api/admin/legal-monitor/items/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id,action})});loadLegalReports();}catch(error){message(error.message);}});bar.append(b);};
         const isLaw=['legislation','bill'].includes(item.kind),stageOk=!isLaw||['published','effective'].includes(item.currentStage);
         if(item.state==='ready'||item.state==='held'){
-          const known=['مستجدات','مستجدات فرنسية','إضافات النقض','القضاء الدستوري','محكمة النقض الفرنسية','مجلس الدولة الفرنسي','المجلس الدستوري الفرنسي','دراسات فرنسية','قوانين فرنسية',...[...document.querySelectorAll('#docCategory option')].map(o=>o.value)].filter((v,i,arr)=>v&&arr.indexOf(v)===i);
+          const known=['مستجدات','مستجدات فرنسية','نصوص عامة','إضافات النقض','القضاء الدستوري','محكمة النقض الفرنسية','مجلس الدولة الفرنسي','المجلس الدستوري الفرنسي','دراسات فرنسية','قوانين فرنسية',...[...document.querySelectorAll('#docCategory option')].map(o=>o.value)].filter((v,i,arr)=>v&&arr.indexOf(v)===i);
           const sel=document.createElement('select');sel.setAttribute('aria-label','القسم الذي سيُنشر فيه');sel.title='القسم الذي سيُنشر فيه (يُطبَّق أيضاً عند النشر التلقائي)';
           const auto=document.createElement('option');auto.value='';auto.textContent='القسم: تلقائي بحسب النوع';sel.append(auto);
           for(const n of known){const o=document.createElement('option');o.value=n;o.textContent=n;sel.append(o);}
