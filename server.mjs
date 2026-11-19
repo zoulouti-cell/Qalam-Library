@@ -725,7 +725,7 @@ const server=http.createServer(async(req,res)=>{
         const rows=await adminStore.legalMonitorItems.find(state?{state}:{state:{$ne:'dismissed'}}).sort({receivedAt:-1}).limit(100).toArray();
         return send(req,res,200,{items:rows.map(row=>{const {_id,id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage,publishCategory,supersedesId,supersedesTitle}=row;return {id,country,kind,title,eventDate,state,holdReason,source,sourceCount,readyForAutomaticPublication,original,receivedAt,autoPublishAt,effectiveDate,currentStage,publishCategory,supersedesId,supersedesTitle,originalTitle:row.originalTitle||'',titleNeedsArabic:titleNeedsArabic(row),autoPublishable:canAutoPublishAfterRelease(row)};})});
       }
-      let body;try{body=await jsonBody(req,30000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
+      let body;try{body=await jsonBody(req,500000);}catch(error){return send(req,res,error.status||400,{error:error.message});}
       const checked=makeObservation(body);if(checked.error)return send(req,res,400,{error:checked.error});
       const item=checked.record;
       try{
@@ -751,6 +751,14 @@ const server=http.createServer(async(req,res)=>{
         else if(action==='hold'){await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'held',holdReason:'تحفظ المدير على النشر.',autoPublishAt:null},$push:{history:{state:'held',at:now,reason:'manager_reservation'}}});}
         else if(action==='release'){if(item.state!=='held')return send(req,res,409,{error:'السجل ليس محجوزاً.'});await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'ready',holdReason:'',readyForAutomaticPublication:true,autoPublishAt:scheduleAfterRelease(item,now)},$push:{history:{state:'ready',at:now,reason:'manager_release'}}});}
         else if(action==='publish'||action==='approve'){if(!['ready','held'].includes(item.state))return send(req,res,409,{error:'السجل منشور أصلاً.'});if(!lawStagesComplete(item))return send(req,res,409,{error:'لم يستوفِ النص التشريعي مراحله بعد؛ لا يُعتمد قبل نشره في الجريدة الرسمية أو نفاذه.'});const category=String(body.category||'').trim().slice(0,80);if(category)await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{publishCategory:category}});await publishLegalItem({...item,id,...(category?{publishCategory:category}:{})},actor);}
+        else if(action==='move'){
+          const cat=String(body.category||'').trim().slice(0,80);if(!cat)return send(req,res,400,{error:'اسم القسم مطلوب.'});
+          await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{publishCategory:cat}});
+          const docId=item.documentId||`monitor-${String(id).slice(0,20)}`;
+          await adminStore.content.updateMany({documentId:docId,origin:'legal-monitor'},{$set:{category:cat,updatedAt:now}});
+          library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+          await recordAudit(adminStore,actor,'legal_monitor_item_moved',id,{title:item.title,category:cat});
+        }
         else if(action==='delete'){
           const docId=item.documentId||`monitor-${String(id).slice(0,20)}`;
           await adminStore.content.deleteMany({documentId:docId,origin:'legal-monitor'});

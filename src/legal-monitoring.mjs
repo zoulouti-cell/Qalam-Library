@@ -38,7 +38,7 @@ export function makeObservation(input = {}) {
   const country = ['ma', 'fr'].includes(input.country) ? input.country : '';
   const kind = ['legislation', 'bill', 'case_law', 'research', 'justice_digital'].includes(input.kind) ? input.kind : '';
   const source = { url: sourceUrl(input.source?.url), label: oneLine(input.source?.label, 200), official: input.source?.official === true, verified: input.source?.verified === true };
-  const title = oneLine(input.title, 500), summary = String(input.summary ?? '').trim().slice(0, 20000);
+  const title = oneLine(input.title, 500), summary = String(input.summary ?? '').trim().slice(0, 20000), fullText = String(input.fullText ?? '').trim().slice(0, 150000);
   const eventDate = isoDate(input.eventDate), receivedAt = input.receivedAt ? new Date(input.receivedAt) : new Date();
   if (!country || !kind || title.length < 3 || summary.length < 40 || !eventDate || Number.isNaN(receivedAt.getTime()) || !officialSource(source)) return { error: 'الملاحظة ناقصة أو مصدرها الرسمي غير متحقق منه.' };
   const reference = oneLine(input.reference, 300), court = oneLine(input.court, 200), caseNumber = oneLine(input.caseNumber, 120);
@@ -50,18 +50,20 @@ export function makeObservation(input = {}) {
     ? [country, 'legislation', stableReference.toLocaleLowerCase()].join('|')
     : [country, kind, oneLine(input.officialNumber, 150), eventDate, title.toLocaleLowerCase()].join('|');
   const id = createHash('sha256').update(key).digest('hex');
+  const normOriginal = o => o && typeof o === 'object' ? { driveId: oneLine(o.driveId, 200), url: sourceUrl(o.url), name: oneLine(o.name, 300) } : null;
+  const originals = [input.original, ...(Array.isArray(input.originals) ? input.originals : [])].map(normOriginal).filter(o => o && (o.driveId || o.url)).slice(0, 4);
   const restrictedCassation = country === 'ma' && kind === 'case_law' && /محكمة\s+النقض/.test(court);
   const hasReservation = input.legalReservation === true || input.scientificReservation === true || input.technicalReservation === true;
   const publishableKind = ['research', 'case_law', 'bill', 'legislation'].includes(kind);
   const untranslated = titleNeedsArabic({ country, title });
   const readyForAutomaticPublication = source.verified && input.complete === true && !hasReservation && publishableKind && !restrictedCassation && !untranslated;
   return { record: {
-    id, country, kind, title, originalTitle: oneLine(input.originalTitle, 500), summary, eventDate, receivedAt, source, reference, court, caseNumber,
+    id, country, kind, title, originalTitle: oneLine(input.originalTitle, 500), summary, fullText, eventDate, receivedAt, source, reference, court, caseNumber,
     officialNumber: oneLine(input.officialNumber, 150), currentStage: STAGES.includes(input.currentStage) ? input.currentStage : '',
     state: readyForAutomaticPublication ? 'ready' : 'held',
     effectiveDate: isoDate(input.effectiveDate), autoPublishAt: readyForAutomaticPublication && !(country === 'ma' && legislative) ? new Date(receivedAt.getTime() + PUBLICATION_DELAY_MS) : null, /* القوانين المغربية ومشاريعها وقرارات النقض المغربية باعتماد المدير يدوياً؛ وما عداها يُنشر تلقائياً بعد 24 ساعة */
     holdReason: restrictedCassation ? 'قرار محكمة النقض المغربية يتطلب اعتماد المدير حصراً.' : hasReservation ? 'توجد ملاحظة قانونية أو علمية أو تقنية تستلزم المراجعة.' : untranslated ? 'العنوان غير معرَّب؛ اكتب عنواناً عربياً قبل الاعتماد.' : !input.complete ? 'بيانات الإضافة أو التحقق غير مكتملة.' : !publishableKind ? 'هذا النوع لا ينشر تلقائياً؛ يلزم اعتماد المدير.' : '',
-    readyForAutomaticPublication, original: input.original && typeof input.original === 'object' ? { driveId: oneLine(input.original.driveId, 200), url: sourceUrl(input.original.url), name: oneLine(input.original.name, 300) } : null,
+    readyForAutomaticPublication, original: originals[0] || null, originals,
     history: [{ state: readyForAutomaticPublication ? 'ready' : 'held', at: receivedAt, reason: restrictedCassation ? 'manager_approval_required' : hasReservation ? 'reservation' : 'verification_incomplete' }],
   } };
 }
@@ -183,7 +185,8 @@ export function publicationRecord(item = {}, now = new Date()) {
     `التاريخ: ${item.eventDate}.`,
     `المصدر: ${item.source?.label || ''}.`,
   ].filter(Boolean).join('\n');
-  const original = item.original?.driveId ? [{ id: `${item.id.slice(0, 12)}-original`, name: item.original.name || 'الأصل', ext: /\.(\w{2,4})$/.exec(item.original.name || '')?.[1]?.toLowerCase() || 'pdf', size: 0, driveId: item.original.driveId }] : [];
+  const originalList = (Array.isArray(item.originals) && item.originals.length ? item.originals : [item.original]).filter(o => o?.driveId);
+  const original = originalList.map((o, i) => ({ id: `${item.id.slice(0, 12)}-original${i ? '-' + (i + 1) : ''}`, name: o.name || 'الأصل', ext: /\.(\w{2,4})$/.exec(o.name || '')?.[1]?.toLowerCase() || 'pdf', size: 0, driveId: o.driveId }));
   return {
     documentId: `monitor-${item.id.slice(0, 20)}`, status: 'published', country: item.country,
     title: item.title, originalTitle: item.originalTitle || '', sourceLanguage: item.country === 'fr' ? 'fr' : 'ar', professionalArabicReviewed: false,
@@ -191,7 +194,7 @@ export function publicationRecord(item = {}, now = new Date()) {
     category: publicationCategory(item), subcategory: stage ? `${stage}` : '', date: item.eventDate,
     textKind: 'source_summary', reviewStatus: 'needs_review',
     sourceLabel: item.source?.label || '', sourceUrl: item.source?.url || '',
-    text: `${header}\n\n${item.summary}`, originalFiles: original, origin: 'legal-monitor', monitorItemId: item.id,
+    text: `${header}\n\n${item.summary}${item.fullText ? `\n\nالنص الكامل (ترجمة مهنية)\n\n${item.fullText}` : ''}`, originalFiles: original, origin: 'legal-monitor', monitorItemId: item.id,
     createdAt: now, updatedAt: now,
   };
 }
