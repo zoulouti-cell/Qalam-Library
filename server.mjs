@@ -1034,11 +1034,14 @@ const server=http.createServer(async(req,res)=>{
       const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({publishedAt:-1}).limit(60).toArray();
       const items=tickerItems(rows.map(r=>({...r,id:r._id})));
       /* للمدير وحده: ما رصده الجامع ولم يُعتمد بعد يظهر في الشريط موسوماً «بانتظار الاعتماد» ليراه فوراً. */
+      let diag;
       if(await adminSessionLive(req)){
-        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','legislation','justice_digital']},state:{$in:['held','ready']},receivedAt:{$gte:new Date(Date.now()-14*86400000)}}).sort({receivedAt:-1}).limit(40).toArray();
-        for(const r of pend){const url=r.source?.url||'';if(/^https?:\/\//i.test(url))items.push({id:String(r._id),title:r.title,country:r.country,kind:r.kind,url,eventDate:r.eventDate,pending:true});}
+        const pend=await adminStore.legalMonitorItems.find({kind:{$in:['bill','legislation','justice_digital']},state:{$in:['held','ready']}}).sort({receivedAt:-1}).limit(40).toArray();
+        let noUrl=0;
+        for(const r of pend){const url=r.source?.url||'';if(/^https?:\/\//i.test(url))items.push({id:String(r._id),title:r.title,country:r.country,kind:r.kind,url,eventDate:r.eventDate,pending:true});else noUrl++;}
+        diag={admin:true,published:items.filter(i=>!i.pending).length,pending:items.filter(i=>i.pending).length,pendingWithoutUrl:noUrl};
       }
-      return send(req,res,200,{items});
+      return send(req,res,200,{items,...(diag?{diag}:{})});
     }
     if(p==='/api/legal-monitor/alerts'&&req.method==='GET'){
       if(!adminStore)return send(req,res,200,{alerts:[]});
