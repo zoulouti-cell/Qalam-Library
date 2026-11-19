@@ -17,6 +17,16 @@ function publicBase() {
 export function activationUrl(token) {
   return new URL('/activate?token=' + encodeURIComponent(token), publicBase()).toString();
 }
+/* رابط تأكيد بريد التسجيل: الرمز بعد # فلا يصل إلى سجلات الخادم ولا إلى ترويسة Referer. */
+export function registrationConfirmUrl(token) {
+  return new URL('/confirm-registration', publicBase()).toString() + '#token=' + encodeURIComponent(token);
+}
+export function libraryLoginUrl() {
+  return new URL('/login', publicBase()).toString();
+}
+export function adminRequestsUrl() {
+  return new URL('/admin', publicBase()).toString();
+}
 /* رمز الاستعادة يوضع بعد # لا في الاستعلام: لا يصل إلى سجلات الخادم ولا إلى ترويسة Referer. */
 export function passwordResetUrl(token) {
   return new URL('/reset-password', publicBase()).toString() + '#token=' + encodeURIComponent(token);
@@ -64,6 +74,73 @@ export function activationMessage(url) {
     html,
   };
 }
+export function registrationConfirmMessage(url) {
+  const text = renderEmailText({
+    headingAr: 'تأكيد بريدكم الإلكتروني',
+    bodyLinesAr: ['السلام عليكم،', 'وصلنا طلب تسجيلكم في المكتبة الرقمية. لتأكيد بريدكم الإلكتروني افتحوا الرابط الآتي خلال 24 ساعة:', url, 'بعد التأكيد يُعرض طلبكم على إدارة المنصة، وتُعلمكم بقرارها بالبريد الإلكتروني. وإن لم تطلبوا هذا التسجيل فتجاهلوا الرسالة.'],
+    headingFr: 'Confirmation de votre adresse e-mail',
+    bodyLinesFr: ['Bonjour,', 'Nous avons reçu votre demande d’inscription à la Bibliothèque numérique. Pour confirmer votre adresse e-mail, ouvrez le lien suivant dans les 24 heures :', url, 'Après confirmation, votre demande est soumise à l’administration de la plateforme, qui vous informera de sa décision par e-mail. Si vous n’êtes pas à l’origine de cette inscription, ignorez ce message.'],
+  });
+  const html = renderEmailHtml({
+    tone: 'info',
+    badgeAr: 'تسجيل جديد', badgeFr: 'Nouvelle inscription',
+    headingAr: 'تأكيد بريدكم الإلكتروني', headingFr: 'Confirmation de votre adresse e-mail',
+    preheader: 'أكّدوا بريدكم خلال 24 ساعة',
+    bodyHtmlAr: paragraphs(['السلام عليكم،', 'وصلنا طلب تسجيلكم في المكتبة الرقمية. لتأكيد بريدكم الإلكتروني افتحوا الزر أدناه خلال 24 ساعة.', 'بعد التأكيد يُعرض طلبكم على إدارة المنصة، وتُعلمكم بقرارها بالبريد الإلكتروني.'])
+      + actionButton(url, 'تأكيد البريد الإلكتروني')
+      + `<p style="margin:14px 0 0;font-size:12px;color:#7a5a1e">إن لم تطلبوا هذا التسجيل فتجاهلوا الرسالة.</p>`,
+    bodyHtmlFr: paragraphs(['Bonjour,', 'Nous avons reçu votre demande d’inscription à la Bibliothèque numérique. Pour confirmer votre adresse e-mail, cliquez sur le bouton ci-dessous dans les 24 heures.', 'Après confirmation, votre demande est soumise à l’administration de la plateforme, qui vous informera de sa décision par e-mail.'])
+      + actionButton(url, 'Confirmer l’adresse e-mail')
+      + `<p style="margin:14px 0 0;font-size:12px;color:#7a5a1e">Si vous n’êtes pas à l’origine de cette inscription, ignorez ce message.</p>`,
+  });
+  return { subject: 'تأكيد بريدكم الإلكتروني — المكتبة الرقمية', text, html };
+}
+export function registrationApprovedMessage(role = 'reader') {
+  const url = libraryLoginUrl().replace(/\/login$/, '/');
+  const admin = role === 'admin';
+  const adminAr = admin ? 'وقد مُنحتم صلاحية الإدارة.' : '';
+  const adminFr = admin ? 'Les droits d’administration vous ont été accordés.' : '';
+  const intro = ['السلام عليكم،', 'يسعدنا إخباركم بأنه تمت الموافقة على طلبكم، وأصبح حسابكم في مكتبة قلم الرقمية مفعَّلاً. أهلاً وسهلاً بكم.', adminAr];
+  const introFr = ['Bonjour,', 'Nous avons le plaisir de vous informer que votre demande a été acceptée : votre compte sur la Bibliothèque numérique Qalam est désormais activé. Soyez les bienvenus.', adminFr];
+  const how = 'للدخول، افتحوا الرابط الآتي واستعملوا بريدكم وكلمة المرور التي اخترتموها عند التسجيل:';
+  const howFr = 'Pour vous connecter, ouvrez le lien ci-dessous avec l’adresse e-mail et le mot de passe choisis lors de votre inscription :';
+  const helpAr = 'وإن كان لديكم أي استفسار أو ملاحظة، فيسعدنا تواصلكم مع إدارة المنصة.';
+  const helpFr = 'Pour toute question ou remarque, n’hésitez pas à contacter l’administration de la plateforme.';
+  const wishAr = 'منصة قلم تتمنى لكم جولة مفيدة وممتعة بين رفوفها.';
+  const wishFr = 'La plateforme Qalam vous souhaite une visite utile et agréable entre ses rayons.';
+  const text = renderEmailText({
+    headingAr: 'مرحباً بكم في مكتبة قلم الرقمية',
+    bodyLinesAr: [...intro, how, url, helpAr, wishAr, 'منصة قلم — المكتبة الرقمية'],
+    headingFr: 'Bienvenue à la Bibliothèque numérique Qalam',
+    bodyLinesFr: [...introFr, howFr, url, helpFr, wishFr, 'Plateforme Qalam — Bibliothèque numérique'],
+  });
+  const html = renderEmailHtml({
+    tone: 'success',
+    badgeAr: 'تمت الموافقة', badgeFr: 'Demande acceptée',
+    headingAr: 'مرحباً بكم في مكتبة قلم الرقمية', headingFr: 'Bienvenue à la Bibliothèque numérique Qalam',
+    preheader: 'تمت الموافقة على طلبكم، وحسابكم مفعَّل',
+    bodyHtmlAr: paragraphs([...intro, how]) + actionButton(url, 'الدخول إلى المكتبة') + `<div style="height:12px"></div>` + paragraphs([helpAr, wishAr]) + `<p style="margin:12px 0 0;font-size:13.5px;font-weight:700;color:#163428">منصة قلم<br><span style="font-weight:400">المكتبة الرقمية</span></p>`,
+    bodyHtmlFr: paragraphs([...introFr, howFr]) + actionButton(url, 'Accéder à la bibliothèque') + `<div style="height:12px"></div>` + paragraphs([helpFr, wishFr]) + `<p style="margin:12px 0 0;font-size:13.5px;font-weight:700;color:#163428">Plateforme Qalam<br><span style="font-weight:400">Bibliothèque numérique</span></p>`,
+  });
+  return { subject: 'مرحباً بكم في مكتبة قلم الرقمية — Bienvenue à la Bibliothèque numérique Qalam', text, html };
+}
+export function registrationRejectedMessage() {
+  const ar = ['السلام عليكم،', 'نشكركم على اهتمامكم بمكتبة قلم الرقمية وعلى ثقتكم بها.', 'نأسف لإبلاغكم بأنه تعذّر قبول طلب تسجيلكم في الوقت الحالي. وللاستفسار عن ذلك، نرجو منكم الاتصال بإدارة المنصة.', 'مع خالص التحية والتقدير.'];
+  const fr = ['Bonjour,', 'Nous vous remercions de l’intérêt que vous portez à la Bibliothèque numérique Qalam.', 'Nous regrettons de vous informer que votre demande d’inscription n’a pu être acceptée pour le moment. Pour toute précision, nous vous invitons à contacter l’administration de la plateforme.', 'Cordialement,'];
+  const text = renderEmailText({
+    headingAr: 'بشأن طلب التسجيل', bodyLinesAr: [...ar, 'منصة قلم — المكتبة الرقمية'],
+    headingFr: 'À propos de votre demande d’inscription', bodyLinesFr: [...fr, 'Plateforme Qalam — Bibliothèque numérique'],
+  });
+  const html = renderEmailHtml({
+    tone: 'neutral',
+    badgeAr: 'طلب التسجيل', badgeFr: 'Demande d’inscription',
+    headingAr: 'بشأن طلب التسجيل', headingFr: 'À propos de votre demande d’inscription',
+    preheader: 'بشأن طلب تسجيلكم في مكتبة قلم',
+    bodyHtmlAr: paragraphs(ar) + `<p style="margin:12px 0 0;font-size:13.5px;font-weight:700;color:#163428">منصة قلم<br><span style="font-weight:400">المكتبة الرقمية</span></p>`,
+    bodyHtmlFr: paragraphs(fr) + `<p style="margin:12px 0 0;font-size:13.5px;font-weight:700;color:#163428">Plateforme Qalam<br><span style="font-weight:400">Bibliothèque numérique</span></p>`,
+  });
+  return { subject: 'بشأن طلب التسجيل في مكتبة قلم — Votre demande d’inscription à Qalam', text, html };
+}
 export function passwordResetMessage(url) {
   const text = renderEmailText({
     headingAr: 'استعادة كلمة المرور',
@@ -107,23 +184,24 @@ export function passwordChangedMessage() {
 export async function notifyOwner(event, email, recipient = ownerEmail()) {
   const owner = String(recipient || '').trim().toLowerCase();
   if (!validEmail(owner)) return false;
+  const review = event === 'review';
   const activated = event === 'activated';
-  const labelAr = activated ? 'تفعيل حساب' : 'محاولة تسجيل حساب';
-  const labelFr = activated ? 'Activation d’un compte' : 'Tentative d’inscription';
+  const labelAr = review ? 'طلب تسجيل بانتظار قرارك' : activated ? 'تفعيل حساب' : 'محاولة تسجيل حساب';
+  const labelFr = review ? 'Demande d’inscription en attente de décision' : activated ? 'Activation d’un compte' : 'Tentative d’inscription';
   const when = new Date().toISOString();
   const text = renderEmailText({
     headingAr: `${labelAr} — المكتبة الرقمية`,
-    bodyLinesAr: [`البريد الإلكتروني: ${email}`, `الوقت: ${when}`],
+    bodyLinesAr: [`البريد الإلكتروني: ${email}`, `الوقت: ${when}`, ...(review ? [`للبتّ فيه (قارئ / مدير / رفض): ${adminRequestsUrl()}`] : [])],
     headingFr: `${labelFr} — Bibliothèque numérique`,
-    bodyLinesFr: [`E-mail : ${email}`, `Heure : ${when}`],
+    bodyLinesFr: [`E-mail : ${email}`, `Heure : ${when}`, ...(review ? [`Pour décider (lecteur / administrateur / refus) : ${adminRequestsUrl()}`] : [])],
   });
   const html = renderEmailHtml({
     tone: activated ? 'success' : 'info',
     badgeAr: 'إشعار للإدارة', badgeFr: 'Notification administrative',
     headingAr: labelAr, headingFr: labelFr,
     preheader: email,
-    bodyHtmlAr: paragraphs([`البريد الإلكتروني: ${email}`, `الوقت: ${when}`]),
-    bodyHtmlFr: paragraphs([`E-mail : ${email}`, `Heure : ${when}`]),
+    bodyHtmlAr: paragraphs([`البريد الإلكتروني: ${email}`, `الوقت: ${when}`]) + (review ? actionButton(adminRequestsUrl(), 'فتح لوحة الإدارة') : ''),
+    bodyHtmlFr: paragraphs([`E-mail : ${email}`, `Heure : ${when}`]) + (review ? actionButton(adminRequestsUrl(), 'Ouvrir l’administration') : ''),
   });
   await sendMail(owner, `${labelAr} — المكتبة الرقمية`, text, html);
   return true;
