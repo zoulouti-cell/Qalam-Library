@@ -52,7 +52,6 @@ body.dark .art-panel{background:#04120d}body.dark .art-panel::after{background:l
 
 .pending-panel{margin:6px 0 14px;padding:16px 16px 14px;border:1px solid #d8c48f;border-radius:12px;background:#fbf5e4;color:#3b3220;text-align:center;line-height:1.9}
 .pending-panel[hidden]{display:none}.pending-panel h3{margin:0 0 6px;font-size:18px;color:#163428}.pending-panel p{margin:0 0 8px;font-size:13.5px}
-.pending-panel .pending-fr{font-size:12.5px;color:#5a4d2c;border-top:1px dashed #d8c48f;padding-top:8px}
 .pending-back{border:0;background:none;color:#a87523;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
 body.pending-mode .login-tabs,body.pending-mode #login,body.pending-mode .google-button,body.pending-mode #googleHint,body.pending-mode .separator,body.pending-mode #registrationArea{display:none}
-body.dark .pending-panel{background:#2a2517;border-color:#6b5a2c;color:#eadfc0}body.dark .pending-panel h3{color:#f4e3b4}body.dark .pending-panel .pending-fr{color:#cdbf94;border-color:#6b5a2c}body.dark .pending-back{color:#e0be70}
+body.dark .pending-panel{background:#2a2517;border-color:#6b5a2c;color:#eadfc0}body.dark .pending-panel h3{color:#f4e3b4}body.dark body.dark .pending-back{color:#e0be70}
