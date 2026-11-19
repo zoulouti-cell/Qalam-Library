@@ -97,3 +97,13 @@ select{min-height:40px;padding:0 12px;border:1px solid #e3dccb;border-radius:11p
 .shared-admin-notice{margin:10px 0;padding:11px 13px;border:1px solid #e0c36a;border-radius:11px;background:#fff8e1;color:#5b4508;font-size:13px;line-height:1.85}.shared-admin-notice[hidden]{display:none}
 /* بطاقات الرصد القانوني: سطرا المصدر وموعد النشر كانا يشغلان الخانة نفسها (.result small) فيتراكبان؛ تُرتَّب عناصر البطاقة الآن في أسطر متتالية. */
 #legalMonitorPanel .result>*{grid-column:1/-1;grid-row:auto}
+
+/* بطاقات التحيين: ترتيب عمودي واضح دون تداخل */
+#legalMonitorPanel .monitor-card{display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid #e3dccb;border-radius:14px;background:#fff;margin-bottom:12px}
+#legalMonitorPanel .monitor-card>strong{font-size:15px;line-height:1.7}
+#legalMonitorPanel .monitor-card>span{font-size:12px;color:#5d6b63}
+#legalMonitorPanel .monitor-card small{display:block;line-height:1.8;color:#5d6b63}
+#legalMonitorPanel .monitor-links,#legalMonitorPanel .monitor-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#legalMonitorPanel .monitor-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border:1px solid #cfd8c6;border-radius:9px;background:#fff;color:#17382c;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
+#legalMonitorPanel .monitor-actions button,#legalMonitorPanel .monitor-actions select{min-height:36px;border-radius:9px;font:inherit;font-size:13px}
+#legalMonitorPanel .monitor-card input[type=text],#legalMonitorPanel .monitor-card input[type=search]{min-height:36px;border:1px solid #d9d2bd;border-radius:9px;padding:0 10px;font:inherit;font-size:13px}

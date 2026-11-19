@@ -110,3 +110,12 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 
 /* شريط الأخبار: عناوين متحركة؛ تتوقف عند المرور أو التركيز ولا تتحرك لمن يفضّل تقليل الحركة */
 .news-ticker{display:flex;align-items:center;gap:12px;border:1px solid #d9e2ce;border-radius:10px;background:#fff;padding:8px 14px;margin:-10px 0 14px;overflow:hidden}.news-ticker>strong{flex:none;color:#537343;font-size:14px}.news-ticker-track{flex:1;overflow:hidden;white-space:nowrap}.news-ticker-lane{display:inline-block;padding-inline-start:100%;animation:news-ticker-scroll 40s linear infinite}.news-ticker-lane:hover,.news-ticker-lane:focus-within{animation-play-state:paused}.news-ticker-lane a{margin-inline-end:42px;color:inherit;font-size:14px;text-decoration:none}.news-ticker-lane a:hover,.news-ticker-lane a:focus{text-decoration:underline}@keyframes news-ticker-scroll{to{transform:translateX(100%)}}@media(prefers-reduced-motion:reduce){.news-ticker-track{overflow-x:auto}.news-ticker-lane{animation:none;padding-inline-start:0}}
+
+/* بطاقات ملفات Drive النصية (نصوص التحيين): أسطر مرتبة دون تداخل وأزرار واضحة */
+.drive-text-card{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.drive-text-card>strong{display:block;line-height:1.7}
+.drive-text-card .drive-excerpt{margin:0;line-height:1.85;color:#3b4a42}
+.drive-text-card .drive-full{background:#faf8f1;border:1px solid #e6dfcc;border-radius:10px;padding:10px 12px;line-height:1.9}
+.drive-text-card .drive-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:2px}
+.drive-text-card .drive-actions a,.drive-text-card .drive-actions button,.drive-link-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border-radius:9px;border:1px solid #cfd8c6;background:#fff;color:#17382c;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
+.drive-text-card .drive-actions a[href*="mode=download"]{background:#17382c;color:#f4e3a6;border-color:#17382c}
