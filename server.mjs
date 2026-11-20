@@ -787,6 +787,17 @@ const server=http.createServer(async(req,res)=>{
         const previous=await adminStore.legalMonitorItems.findOne({_id:item.id});
         if(previous?.state==='dismissed')return send(req,res,200,{ok:true,id:item.id,dismissed:true,skipped:true,note:'حذفه المدير؛ لا تعد استيراده ولا تُنشئ له ملفاً في Drive.'});
         let stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;if(previous?.holdReason==='تحفظ المدير على النشر.')stored={...stored,state:'held',holdReason:previous.holdReason,autoPublishAt:null,readyForAutomaticPublication:false};
+        /* تصحيح قرار قضائي: إن وصل قرار بالمصدر والمحكمة والتاريخ نفسها ومعرّف مختلف (رقم أو عنوان مصحَّح) فالبطاقة القديمة هي الخاطئة، فتُسحب تلقائياً ويبقى لها شاهد حذف. */
+        if(item.kind==='case_law'&&item.source?.url&&item.court){
+          const stale=await adminStore.legalMonitorItems.find({_id:{$ne:item.id},kind:'case_law',country:item.country,court:item.court,eventDate:item.eventDate,'source.url':item.source.url,state:{$ne:'dismissed'}}).toArray();
+          for(const old of stale){
+            const docId=old.documentId||`monitor-${String(old._id).slice(0,20)}`;
+            await adminStore.content.deleteMany({documentId:docId,origin:'legal-monitor'});
+            await adminStore.legalMonitorItems.replaceOne({_id:old._id},{_id:old._id,id:old._id,state:'dismissed',kind:old.kind,country:old.country,title:old.title,dismissedAt:new Date(),dismissedBy:'collector-correction'});
+            await recordAudit(adminStore,auditActor(req),'legal_monitor_item_superseded_by_correction',old._id,{title:old.title,replacedBy:item.id,caseNumber:item.caseNumber});
+          }
+          if(stale.length)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+        }
         await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,...(previous?.publishCategory?{publishCategory:previous.publishCategory}:{}),...(previous?.titleEdited?{title:previous.title,titleEdited:true}:{}),...(previous?.supersedesId?{supersedesId:previous.supersedesId,supersedesTitle:previous.supersedesTitle||''}:{}),_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
         if(!previous)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
         else if(item.kind==='bill'||item.kind==='legislation')await recordAudit(adminStore,auditActor(req),'legal_monitor_item_updated',item.id,{country:item.country,stage:stored.currentStage,title:stored.title});
