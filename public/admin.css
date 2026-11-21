@@ -113,3 +113,11 @@ select{min-height:40px;padding:0 12px;border:1px solid #e3dccb;border-radius:11p
 #legalMonitorPanel .monitor-card input[type=text],#legalMonitorPanel .monitor-card input[type=search]{min-height:36px;border:1px solid #d9d2bd;border-radius:9px;padding:0 10px;font:inherit;font-size:13px}
 
 .registration-requests{margin:12px 0;padding:12px;border:1px solid #d8c48f;border-radius:12px;background:#fbf5e4}.registration-requests[hidden]{display:none}.registration-requests h3{margin:0 0 8px;font-size:15px;color:#163428}.request-row .user-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+
+.readiness-row{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin:.45rem 0;width:100%}
+.readiness-chip{font-size:12px;padding:2px 9px;border-radius:999px;border:1px solid #d6dccb;background:#f7f8f1;color:#36513b}
+.readiness-chip.ok{border-color:#a9c9a0;background:#eef6ea;color:#2f5a2b}
+.readiness-chip.warn{border-color:#e0c37a;background:#fff4d6;color:#6b5000}
+.readiness-chip.miss{border-color:#e1b7ad;background:#fbeeea;color:#8a2b1f}
+.readiness-accept{font-size:12px;padding:2px 9px;border:1px solid #bd9c51;border-radius:8px;background:#fffaf0;cursor:pointer}
+.readiness-done{color:#2f5a2b;font-size:12.5px}
