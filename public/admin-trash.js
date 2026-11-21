@@ -2,9 +2,8 @@
 /* سلة المحذوفات: بطاقات المستجدات المحذوفة تبقى 30 يوماً وتُستعاد بزر واحد، أو تُحذف نهائياً بأمر المدير. */
 (()=>{
   const tabs=document.querySelector('.admin-tabs');if(!tabs||document.getElementById('trashPanel'))return;
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const {esc,api}=window.Qalam;
   const day=d=>{try{return new Intl.DateTimeFormat('ar-MA',{dateStyle:'medium',timeStyle:'short'}).format(new Date(d));}catch{return '';}};
-  async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',...options});let j={};try{j=await r.json();}catch{}if(!r.ok)throw new Error(j.error||'تعذر إتمام الطلب.');return j;}
   const tab=document.createElement('button');tab.type='button';tab.dataset.panel='trashPanel';tab.innerHTML='<span class="tab-n">9</span>سلة المحذوفات';tabs.append(tab);
   const panel=document.createElement('div');panel.id='trashPanel';panel.className='tab-panel';panel.hidden=true;
   panel.innerHTML='<header class="topic-head"><div><h2>سلة المحذوفات</h2><p>بطاقات المستجدات المحذوفة من المكتبة. تُستعاد كما كانت (البطاقة ومادتها المنشورة)، وتُمحى نهائياً تلقائياً بعد 30 يوماً من حذفها.</p></div></header><section class="panel"><div id="trashList"><p class="muted">جارٍ التحميل…</p></div><p id="trashMessage" class="muted" role="status"></p></section>';

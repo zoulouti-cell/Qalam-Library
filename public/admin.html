@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2f24"><title>إدارة المكتبة القانونية</title><link rel="stylesheet" href="/admin.css"><link rel="stylesheet" href="/admin-contrib.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2f24"><title>إدارة المكتبة القانونية</title><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/admin.css"><link rel="stylesheet" href="/admin-contrib.css"></head>
 <body>
   <header class="top"><a href="/" class="brand"><img class="brand-seal" src="/assets/qalam-qaf-seal.png" alt="شعار قلم"><span class="brand-text"><b>قلم</b><small>إدارة المكتبة</small></span></a><div class="who" id="adminWho" hidden><span class="who-avatar" aria-hidden="true"><img id="adminWhoImg" alt="" referrerpolicy="no-referrer" hidden><span id="adminWhoInitial">ق</span></span><span class="who-text"><b id="adminWhoName"></b><span id="adminWhoEmail" dir="ltr"></span></span></div><nav><a href="/"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path></svg>المكتبة</a><button id="logout" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path></svg>تسجيل الخروج</button></nav></header>
   <main class="wrap">
@@ -56,7 +56,8 @@
     <p class="footnote">النصوص المنشورة من هذه اللوحة تُحفظ في MongoDB الخاصة بالمكتبة. سجل المصدر والمراجعة يُحفظ مع كل اعتماد.</p>
   </main>
   <aside id="originalDock" class="original-dock" hidden aria-label="مقابلة الأصل"><header><strong id="dockTitle">الأصل</strong><span id="dockTabs" class="dock-tabs"></span><a id="dockOpen" class="secondary" target="_blank" rel="noopener">فتح في تبويب</a><button id="dockClose" class="close" type="button" aria-label="إغلاق">×</button></header><iframe id="dockFrame" title="الأصل المرفق"></iframe></aside>
-  <script src="/admin.js" defer></script><script src="/admin-contrib.js" defer></script><script src="/admin-ocr.js" defer></script><script src="/admin-scanner.js" defer></script>
+  <script src="/common.js" defer></script>
+<script src="/admin.js" defer></script><script src="/admin-contrib.js" defer></script><script src="/admin-ocr.js" defer></script><script src="/admin-scanner.js" defer></script>
 <script src="/admin-trash.js" defer></script>
 <script src="/admin-audit.js" defer></script><script src="/archive.js" defer></script><script src="/presence.js" defer></script>
 </body></html>

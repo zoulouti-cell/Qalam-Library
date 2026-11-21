@@ -356,7 +356,62 @@
     state.agreementFiles = data.files || []; state.agreementCount = Number(data.total) || 0; state.agreementBranchCounts = data.branches || state.agreementBranchCounts;
     renderCategories(); if ($('agreementBrowseList')) renderAgreementFiles(state.agreementFiles, state.agreementBranch || 'ثنائية', state.agreementCountry, state.agreementTopic);
   }
-  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل في Drive · النص غير مستخرج')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span>'+(hasText?'<button class="card-save'+(state.saved[file.textDocumentId]?' saved':'')+'" data-save="'+esc(file.textDocumentId)+'" aria-pressed="'+(!!state.saved[file.textDocumentId])+'" aria-label="حفظ الوثيقة" title="حفظ الوثيقة">'+(state.saved[file.textDocumentId]?'◆':'◇')+'</button>':'')+'</div>'+heading+'<p class="result-snippet">'+esc(agreementTopicLabel(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation))+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p>'+(hasText?'<button type="button" class="card-expand" data-agr-expand="'+esc(file.textDocumentId)+'" aria-expanded="false">قراءة مقتطف <span aria-hidden="true">⌄</span></button><div class="card-preview" hidden></div>':'')+'<div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+agreementAdminTools(file)+'</article>';}
+  function agreementDocumentCard(file, relation = 'اتفاقية أو معاهدة') {
+    const rawTitle = file.title || file.name.replace(/\.pdf$/i, ''),
+      title =
+        rawTitle.length < 28 && file.country && !normalize(rawTitle).includes(normalize(file.country))
+          ? rawTitle + ' — ' + file.country
+          : rawTitle,
+      hasText = !!file.textDocumentId,
+      hint = esc(file.fullTitle || rawTitle),
+      shown = markText(title, $('query').value),
+      heading = hasText
+        ? '<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="' +
+          esc(file.textDocumentId) +
+          '" title="' +
+          hint +
+          '">' +
+          shown +
+          '</button></h3>'
+        : '<h3 class="result-open" title="' + hint + '">' + shown + '</h3>';
+    return (
+      '<article class="result-card agreement-search-card' +
+      (hasText ? ' has-text' : '') +
+      '"><div class="result-card-head"><span class="document-type national">' +
+      esc(relation) +
+      '</span><span class="status-badge text">' +
+      (hasText ? 'النص متاح للاطلاع' : 'الأصل في Drive · النص غير مستخرج') +
+      '</span><span class="category-tag document-category">الاتفاقيات الدولية</span>' +
+      (hasText
+        ? '<button class="card-save' +
+          (state.saved[file.textDocumentId] ? ' saved' : '') +
+          '" data-save="' +
+          esc(file.textDocumentId) +
+          '" aria-pressed="' +
+          !!state.saved[file.textDocumentId] +
+          '" aria-label="حفظ الوثيقة" title="حفظ الوثيقة">' +
+          (state.saved[file.textDocumentId] ? '◆' : '◇') +
+          '</button>'
+        : '') +
+      '</div>' +
+      heading +
+      '<p class="result-snippet">' +
+      esc(agreementTopicLabel(file.agreementSubcategory || file.country || file.path.split(' / ').at(-1) || relation)) +
+      (file.modifiedTime ? ' · آخر تحديث ' + esc(formatDate(file.modifiedTime.slice(0, 10))) : '') +
+      '</p>' +
+      (hasText
+        ? '<button type="button" class="card-expand" data-agr-expand="' +
+          esc(file.textDocumentId) +
+          '" aria-expanded="false">قراءة مقتطف <span aria-hidden="true">⌄</span></button><div class="card-preview" hidden></div>'
+        : '') +
+      '<div class="result-card-foot"><time>' +
+      esc(file.modifiedTime ? formatDate(file.modifiedTime.slice(0, 10)) : 'التاريخ غير موثق') +
+      '</time></div>' +
+      agreementIcons(file) +
+      agreementAdminTools(file) +
+      '</article>'
+    );
+  }
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country='',topic=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;state.agreementTopic=group==='متعددة'?topic:'';
@@ -435,7 +490,131 @@
   }
   async function browseDriveFolder(id,name,reset=false,targetId=''){
     const pane=$(targetId||'browseContent');if(reset)state.driveBrowseStack=[];state.driveBrowseStack.push({id,name});pane.innerHTML='<p class="sidebar-loading">جارٍ جلب محتوى Drive…</p>';
-    try{const data=await api('/api/drive/files?folderId='+encodeURIComponent(id)),items=dedupeDriveTexts(data.files||[]).sort((a,b)=>Number(b.mimeType==='application/vnd.google-apps.folder')-Number(a.mimeType==='application/vnd.google-apps.folder')||String(a.name||'').localeCompare(String(b.name||''),'ar')),rows=items.map(file=>{if(file.mimeType==='application/vnd.google-apps.folder')return '<button type="button" class="drive-browse-item" data-drive-folder="'+esc(file.id)+'" data-drive-name="'+esc(file.name)+'"><strong>📁 '+esc(file.name)+'</strong><span>فتح المجلد ←</span></button>';const base='/api/drive/file?id='+encodeURIComponent(file.id);const isMd=/\.md$/i.test(file.name||'')||file.mimeType==='text/markdown';const title=String(file.name||'').replace(/\.(md|pdf)$/i,'').replace(/[_]+/g,' ');return '<article class="drive-browse-item drive-text-card" data-file-id="'+esc(file.id)+'"><strong>📄 '+esc(title)+'</strong>'+(isMd?'<p class="result-snippet drive-excerpt" data-drive-excerpt="'+esc(file.id)+'">جارٍ تحميل المقتطف…</p><div class="drive-full" hidden></div><div class="drive-actions"><button type="button" class="card-expand" data-drive-read="'+esc(file.id)+'">قراءة النص كاملاً ⌄</button><a href="'+base+'&mode=download">تحميل الأصل</a>'+(file.pdfId?'<a href="/api/drive/file?id='+encodeURIComponent(file.pdfId)+'&mode=preview" target="_blank" rel="noopener noreferrer">الأصل PDF</a>':'')+'</div>':'<div><a href="'+base+'&mode=preview" target="_blank" rel="noopener noreferrer">معاينة الأصل</a><a href="'+base+'&mode=download">تحميل الأصل</a></div>')+'</article>';}).join('');pane.innerHTML='<div class="drive-browse-head">'+(targetId?'':'<button type="button" class="browse-back" data-drive-up>← رجوع</button>')+'<strong>'+esc(name)+' · '+fmt(items.length)+' عنصر</strong></div>'+(rows||'<p class="sidebar-loading">هذا المجلد فارغ.</p>');if(id===UPDATES_FOLDER_ID&&state.canAdmin)attachUpdatesAdmin(pane);pane.querySelectorAll('[data-drive-excerpt]').forEach(async el=>{try{const r=await fetch('/api/drive/file?id='+encodeURIComponent(el.dataset.driveExcerpt)+'&mode=preview',{credentials:'same-origin'});const raw=(await r.text()).replace(/^---[\s\S]*?---\s*/,''),urls=raw.match(/https?:\/\/[^\s)>\]"'،]+/g)||[],link=(urls.find(u=>/(chambredesrepresentants|sgg\.gov|cassation|legifrance|conseil|assemblee|senat|justice|cour|adala|boe|bulletin)/i.test(u))||urls[0]||'').replace(/[.,;:]+$/,'');const t=raw.replace(/https?:\/\/\S+/g,' ').replace(/[#>*_`|-]+/g,' ').replace(/الرابط الرسمي\s*[:：]?/g,' ').replace(/\s+/g,' ').trim();el.dataset.md=raw;el.dataset.full=t;el.textContent=t.slice(0,320)+(t.length>320?'…':'');if(link){const row=el.closest('.drive-text-card').querySelector('.drive-actions');if(row){const open=document.createElement('a');open.href=link;open.target='_blank';open.rel='noopener noreferrer';open.className='drive-link-btn';open.textContent='فتح الرابط الرسمي';const copy=document.createElement('button');copy.type='button';copy.className='drive-link-btn';copy.textContent='نسخ الرابط';copy.addEventListener('click',async ev=>{ev.stopPropagation();try{await navigator.clipboard.writeText(link);copy.textContent='تم النسخ ✓';}catch{window.prompt('انسخ الرابط:',link);}setTimeout(()=>{copy.textContent='نسخ الرابط';},1800);});row.append(open,copy);}}}catch{el.textContent='تعذر تحميل المقتطف.';}});}catch(error){state.driveBrowseStack.pop();pane.innerHTML='<div class="drive-browse-head"><button type="button" class="browse-back" data-drive-up>← رجوع</button></div><p class="sidebar-loading">'+esc(error.message||'تعذر جلب محتوى المجلد.')+'</p>';}
+    try {
+      const data = await api('/api/drive/files?folderId=' + encodeURIComponent(id)),
+        items = dedupeDriveTexts(data.files || []).sort(
+          (a, b) =>
+            Number(b.mimeType === 'application/vnd.google-apps.folder') - Number(a.mimeType === 'application/vnd.google-apps.folder') ||
+            String(a.name || '').localeCompare(String(b.name || ''), 'ar')
+        ),
+        rows = items
+          .map(file => {
+            if (file.mimeType === 'application/vnd.google-apps.folder')
+              return (
+                '<button type="button" class="drive-browse-item" data-drive-folder="' +
+                esc(file.id) +
+                '" data-drive-name="' +
+                esc(file.name) +
+                '"><strong>📁 ' +
+                esc(file.name) +
+                '</strong><span>فتح المجلد ←</span></button>'
+              );
+            const base = '/api/drive/file?id=' + encodeURIComponent(file.id);
+            const isMd = /\.md$/i.test(file.name || '') || file.mimeType === 'text/markdown';
+            const title = String(file.name || '')
+              .replace(/\.(md|pdf)$/i, '')
+              .replace(/[_]+/g, ' ');
+            return (
+              '<article class="drive-browse-item drive-text-card" data-file-id="' +
+              esc(file.id) +
+              '"><strong>📄 ' +
+              esc(title) +
+              '</strong>' +
+              (isMd
+                ? '<p class="result-snippet drive-excerpt" data-drive-excerpt="' +
+                  esc(file.id) +
+                  '">جارٍ تحميل المقتطف…</p><div class="drive-full" hidden></div><div class="drive-actions"><button type="button" class="card-expand" data-drive-read="' +
+                  esc(file.id) +
+                  '">قراءة النص كاملاً ⌄</button><a href="' +
+                  base +
+                  '&mode=download">تحميل الأصل</a>' +
+                  (file.pdfId
+                    ? '<a href="/api/drive/file?id=' +
+                      encodeURIComponent(file.pdfId) +
+                      '&mode=preview" target="_blank" rel="noopener noreferrer">الأصل PDF</a>'
+                    : '') +
+                  '</div>'
+                : '<div><a href="' +
+                  base +
+                  '&mode=preview" target="_blank" rel="noopener noreferrer">معاينة الأصل</a><a href="' +
+                  base +
+                  '&mode=download">تحميل الأصل</a></div>') +
+              '</article>'
+            );
+          })
+          .join('');
+      pane.innerHTML =
+        '<div class="drive-browse-head">' +
+        (targetId ? '' : '<button type="button" class="browse-back" data-drive-up>← رجوع</button>') +
+        '<strong>' +
+        esc(name) +
+        ' · ' +
+        fmt(items.length) +
+        ' عنصر</strong></div>' +
+        (rows || '<p class="sidebar-loading">هذا المجلد فارغ.</p>');
+      if (id === UPDATES_FOLDER_ID && state.canAdmin) attachUpdatesAdmin(pane);
+      pane.querySelectorAll('[data-drive-excerpt]').forEach(async el => {
+        try {
+          const r = await fetch('/api/drive/file?id=' + encodeURIComponent(el.dataset.driveExcerpt) + '&mode=preview', {
+            credentials: 'same-origin'
+          });
+          const raw = (await r.text()).replace(/^---[\s\S]*?---\s*/, ''),
+            urls = raw.match(/https?:\/\/[^\s)>\]"'،]+/g) || [],
+            link = (
+              urls.find(u =>
+                /(chambredesrepresentants|sgg\.gov|cassation|legifrance|conseil|assemblee|senat|justice|cour|adala|boe|bulletin)/i.test(u)
+              ) ||
+              urls[0] ||
+              ''
+            ).replace(/[.,;:]+$/, '');
+          const t = raw
+            .replace(/https?:\/\/\S+/g, ' ')
+            .replace(/[#>*_`|-]+/g, ' ')
+            .replace(/الرابط الرسمي\s*[:：]?/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          el.dataset.md = raw;
+          el.dataset.full = t;
+          el.textContent = t.slice(0, 320) + (t.length > 320 ? '…' : '');
+          if (link) {
+            const row = el.closest('.drive-text-card').querySelector('.drive-actions');
+            if (row) {
+              const open = document.createElement('a');
+              open.href = link;
+              open.target = '_blank';
+              open.rel = 'noopener noreferrer';
+              open.className = 'drive-link-btn';
+              open.textContent = 'فتح الرابط الرسمي';
+              const copy = document.createElement('button');
+              copy.type = 'button';
+              copy.className = 'drive-link-btn';
+              copy.textContent = 'نسخ الرابط';
+              copy.addEventListener('click', async ev => {
+                ev.stopPropagation();
+                try {
+                  await navigator.clipboard.writeText(link);
+                  copy.textContent = 'تم النسخ ✓';
+                } catch {
+                  window.prompt('انسخ الرابط:', link);
+                }
+                setTimeout(() => {
+                  copy.textContent = 'نسخ الرابط';
+                }, 1800);
+              });
+              row.append(open, copy);
+            }
+          }
+        } catch {
+          el.textContent = 'تعذر تحميل المقتطف.';
+        }
+      });
+    } catch (error) {
+      state.driveBrowseStack.pop();
+      pane.innerHTML =
+        '<div class="drive-browse-head"><button type="button" class="browse-back" data-drive-up>← رجوع</button></div><p class="sidebar-loading">' +
+        esc(error.message || 'تعذر جلب محتوى المجلد.') +
+        '</p>';
+    }
   }
   function updateSavedCount() { $('savedCount').textContent = fmt(Object.keys(state.saved).length); }
   /* بطاقات الاتفاقيات تُبنى من ملفات Drive لا من نتائج البحث؛ ما له نص منشور يُحفظ ويُقرأ كسائر الوثائق. */
@@ -462,7 +641,93 @@
     const preview = state.previewCache.get(doc.id);
     const categoryLabel=[doc.category,doc.subcategory].filter((value,index,array)=>value&&array.indexOf(value)===index).join(' · ')||'غير مصنف';
     const refs=doc.category?.startsWith('محكمة الاستئناف')?[doc.decisionNumber&&('قرار '+doc.decisionNumber),doc.caseNumber&&('ملف '+doc.caseNumber)].filter(Boolean).join(' · '):'';
-    return '<article class="result-card ' + (previewOpen ? 'expanded ' : '') + esc((doc.type || '') + ' kind-' + (doc.kind || '')) + '"><div class="result-card-head"><span class="document-type ' + esc(doc.type) + '">' + esc(instrumentNames[doc.kind] || typeNames[doc.type] || 'وثيقة') + '</span><span class="status-badge ' + esc(isAssistantCompared(doc) ? 'compared' : isOcrDraft(doc) ? 'summary' : kindClasses[kind] || '') + '">' + esc(kindLabel) + '</span><span class="category-tag document-category" title="' + esc(categoryLabel) + '">' + esc(categoryLabel) + '</span>' + (doc.abrogated ? '<span class="status-badge abrogated">منسوخ بحسب البيانات</span>' + (doc.supersededBy ? '<button type="button" class="card-expand" data-open="' + esc(doc.supersededBy) + '" title="' + esc(doc.supersededByTitle || '') + '">يُنظر النص الجديد ←</button>' : '') : '') + '<button class="card-save' + (saved ? ' saved' : '') + '" data-save="' + esc(doc.id) + '" aria-pressed="' + saved + '" aria-label="' + (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') + '" title="' + (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') + '">' + (saved ? '◆' : '◇') + '</button></div><button class="result-open" data-open="' + esc(doc.id) + '" title="' + esc(doc.title || '') + '">' + markText(doc.title || 'وثيقة دون عنوان', $('query').value) + '</button>' + (doc.sourceLanguage === 'fr' && doc.originalTitle && doc.originalTitle !== doc.title ? '<small class="original-title" dir="ltr" style="display:block;text-align:left;opacity:.75">' + esc(doc.originalTitle) + '</small>' : '') + (refs ? '<p class="decision-reference">' + esc(refs) + '</p>' : '') + '<p class="result-snippet">' + markText(doc.snippet || (kind === 'image_only' ? 'بيانات فهرسة فقط؛ لم يُستخرج نص هذه الوثيقة بعد.' : 'افتح الوثيقة لقراءة المحتوى المتاح وحالة مراجعته.'), $('query').value) + '</p><button type="button" class="card-expand" data-expand-doc="' + esc(doc.id) + '" aria-expanded="' + previewOpen + '">' + (previewOpen ? 'إخفاء القراءة' : 'قراءة مقتطف') + ' <span aria-hidden="true">' + (previewOpen ? '⌃' : '⌄') + '</span></button><div class="card-preview" ' + (previewOpen ? '' : 'hidden') + '>' + (preview ? '<p>' + esc(preview.slice(0,2200)) + (preview.length>2200?'…':'') + '</p><button class="secondary-button" data-open="' + esc(doc.id) + '">فتح النص كاملاً</button>' : 'جارٍ تحميل النص…') + '</div>' + note + '<div class="result-card-foot">' + (doc.effectiveDate && doc.category === 'نصوص عامة' ? '<span class="effective-date" title="تاريخ النفاذ">النفاذ: ' + esc(formatDate(doc.effectiveDate)) + '</span>' : '') + (doc.date ? '<time datetime="' + esc(doc.date) + '">' + esc(formatDate(doc.date)) + '</time>' : '<time>التاريخ غير موثق</time>') + '<span class="read-arrow" aria-hidden="true">←</span></div>' + originalActions(doc, true) + adminCardTools(doc) + '</article>';
+    return (
+      '<article class="result-card ' +
+      (previewOpen ? 'expanded ' : '') +
+      esc((doc.type || '') + ' kind-' + (doc.kind || '')) +
+      '"><div class="result-card-head"><span class="document-type ' +
+      esc(doc.type) +
+      '">' +
+      esc(instrumentNames[doc.kind] || typeNames[doc.type] || 'وثيقة') +
+      '</span><span class="status-badge ' +
+      esc(isAssistantCompared(doc) ? 'compared' : isOcrDraft(doc) ? 'summary' : kindClasses[kind] || '') +
+      '">' +
+      esc(kindLabel) +
+      '</span><span class="category-tag document-category" title="' +
+      esc(categoryLabel) +
+      '">' +
+      esc(categoryLabel) +
+      '</span>' +
+      (doc.abrogated
+        ? '<span class="status-badge abrogated">منسوخ بحسب البيانات</span>' +
+          (doc.supersededBy
+            ? '<button type="button" class="card-expand" data-open="' +
+              esc(doc.supersededBy) +
+              '" title="' +
+              esc(doc.supersededByTitle || '') +
+              '">يُنظر النص الجديد ←</button>'
+            : '')
+        : '') +
+      '<button class="card-save' +
+      (saved ? ' saved' : '') +
+      '" data-save="' +
+      esc(doc.id) +
+      '" aria-pressed="' +
+      saved +
+      '" aria-label="' +
+      (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') +
+      '" title="' +
+      (saved ? 'إزالة من المحفوظات' : 'حفظ الوثيقة') +
+      '">' +
+      (saved ? '◆' : '◇') +
+      '</button></div><button class="result-open" data-open="' +
+      esc(doc.id) +
+      '" title="' +
+      esc(doc.title || '') +
+      '">' +
+      markText(doc.title || 'وثيقة دون عنوان', $('query').value) +
+      '</button>' +
+      (doc.sourceLanguage === 'fr' && doc.originalTitle && doc.originalTitle !== doc.title
+        ? '<small class="original-title" dir="ltr" style="display:block;text-align:left;opacity:.75">' + esc(doc.originalTitle) + '</small>'
+        : '') +
+      (refs ? '<p class="decision-reference">' + esc(refs) + '</p>' : '') +
+      '<p class="result-snippet">' +
+      markText(
+        doc.snippet ||
+          (kind === 'image_only' ? 'بيانات فهرسة فقط؛ لم يُستخرج نص هذه الوثيقة بعد.' : 'افتح الوثيقة لقراءة المحتوى المتاح وحالة مراجعته.'),
+        $('query').value
+      ) +
+      '</p><button type="button" class="card-expand" data-expand-doc="' +
+      esc(doc.id) +
+      '" aria-expanded="' +
+      previewOpen +
+      '">' +
+      (previewOpen ? 'إخفاء القراءة' : 'قراءة مقتطف') +
+      ' <span aria-hidden="true">' +
+      (previewOpen ? '⌃' : '⌄') +
+      '</span></button><div class="card-preview" ' +
+      (previewOpen ? '' : 'hidden') +
+      '>' +
+      (preview
+        ? '<p>' +
+          esc(preview.slice(0, 2200)) +
+          (preview.length > 2200 ? '…' : '') +
+          '</p><button class="secondary-button" data-open="' +
+          esc(doc.id) +
+          '">فتح النص كاملاً</button>'
+        : 'جارٍ تحميل النص…') +
+      '</div>' +
+      note +
+      '<div class="result-card-foot">' +
+      (doc.effectiveDate && doc.category === 'نصوص عامة'
+        ? '<span class="effective-date" title="تاريخ النفاذ">النفاذ: ' + esc(formatDate(doc.effectiveDate)) + '</span>'
+        : '') +
+      (doc.date ? '<time datetime="' + esc(doc.date) + '">' + esc(formatDate(doc.date)) + '</time>' : '<time>التاريخ غير موثق</time>') +
+      '<span class="read-arrow" aria-hidden="true">←</span></div>' +
+      originalActions(doc, true) +
+      adminCardTools(doc) +
+      '</article>'
+    );
   }
   function renderPagination() {
     const pages = Math.ceil(state.total / state.limit);

@@ -1,0 +1,26 @@
+/* الهوية البصرية الموحّدة لمكتبة قلم: ألوان وخطوط مشتركة تُحمَّل أولاً في كل الصفحات، وتستعملها بقية ملفات الأنماط بالمتغيرات. */
+:root{
+  --q-surface:#fffefa;
+  --q-ink-strong:#0b2f24;
+  --q-muted:#58665e;
+  --q-line:#e3dccb;
+  --q-gold:#c39a44;
+  --q-line-soft:#e8e3d5;
+  --q-brand:#174734;
+  --q-ink:#17241e;
+  --q-bg-soft:#fbfaf6;
+  --q-brand-deep:#143e34;
+  --q-bg:#f7f5ef;
+  --q-brand-dark:#17382c;
+  --q-ink-2:#1d2a24;
+  --q-danger:#912018;
+  --q-success:#085d3a;
+  --q-danger-bg:#fef3f2;
+  --q-gold-soft:#eedcae;
+  --q-gold-deep:#8a6a2d;
+  --q-green-soft:#edf0e8;
+  --q-success-bg:#ecfdf3;
+  --q-font-ui:CalibriLocal,Calibri,"IBM Plex Sans Arabic",Almarai,Tahoma,Arial,sans-serif;
+  --q-font-display:Cairo,CalibriLocal,Calibri,"IBM Plex Sans Arabic",Almarai,Tahoma,sans-serif;
+  --q-font-mono:ui-monospace,Consolas,monospace;
+}

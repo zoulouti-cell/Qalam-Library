@@ -5,7 +5,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const fmt = n => new Intl.NumberFormat('ar-MA').format(Number(n) || 0);
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const { esc } = window.Qalam;
   /* إضافة فُصل بريد صاحبها بعد حذف حسابه: يُعرض «حساب محذوف» بدل بريد فارغ. */
   const sender = x => x.userDeleted ? '<em class="muted">حساب محذوف</em>' : `<bdi dir="ltr">${esc(x.userEmail)}</bdi>`;
   const when = v => v ? new Date(v).toLocaleString('ar-MA', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
@@ -18,13 +18,7 @@
   };
   const S = { type: '', status: '', q: '', page: 1, pages: 1, items: [], counts: { additions: {}, notes: {} }, statuses: {}, current: null, loaded: false, drive: null, driveAt: 0, editor: null, plan: null };
 
-  async function api(url, options = {}) {
-    const response = await fetch(url, { credentials: 'same-origin', ...options });
-    let json = {}; try { json = await response.json(); } catch { /* غير JSON */ }
-    if (!response.ok) throw new Error(json.error || 'تعذر إتمام الطلب.');
-    return json;
-  }
-  const post = (url, body) => api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const { api, post } = window.Qalam;
   function message(text, ok = false) {
     const error = $('error'), notice = $('notice'); if (!error || !notice) return;
     error.hidden = ok || !text; notice.hidden = !ok || !text;
