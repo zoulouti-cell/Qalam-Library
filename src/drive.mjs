@@ -187,6 +187,19 @@ function rememberAgreementDriveIds(files) {
   for (const file of files || []) { const id = String(file.name || '').match(/^(\d+)[_-]/)?.[1]; if (id && file.id) agreementDriveIds.set(id, file.id); }
 }
 rememberAgreementDriveIds(agreementIndexCache.files);
+/* تعديلات المدير على الاتفاقيات (نقل بين الفروع أو إخفاء): تُطبَّق على الفهرس فور تحميلها من القاعدة، ولا تمس ملفات Drive. */
+let agreementOverrides = new Map();
+export function setAgreementOverrides(rows) { agreementOverrides = new Map((rows || []).filter(r => r?.treatyId).map(r => [String(r.treatyId), r])); }
+export function agreementOverrideFor(treatyId) { return agreementOverrides.get(String(treatyId || '')) || null; }
+function applyAgreementOverrides(files) {
+  if (!agreementOverrides.size) return files;
+  return files.filter(file => !agreementOverrides.get(String(file.treatyId || ''))?.hidden).map(file => {
+    const o = agreementOverrides.get(String(file.treatyId || ''));
+    if (!o || !o.group || !['ثنائية', 'متعددة'].includes(o.kind)) return file;
+    const root = o.kind === 'ثنائية' ? 'ثنائية الاطراف' : 'متعددة الأطراف';
+    return { ...file, agreementKind: o.kind, agreementSubcategory: o.group, country: o.kind === 'ثنائية' ? o.group : file.country, path: ['الاتفاقيات الدولية', root, o.group].join(' / ') };
+  });
+}
 function bundledAgreementFiles() {
   return bundledAgreementTexts.filter(d => d.category === 'اتفاقيات ومعاهدات').map(d => {
     const treatyId = String(d.treatyId), entry = treatyTitleIndex[treatyId] || {}, officialUrl = entry.sourceUrl ? String(entry.sourceUrl).replace(/^http:\/\//i, 'https://') : '';
@@ -422,7 +435,7 @@ export async function listAgreementPdfs(query = '', page = 1, limit = 20) {
   const background = !LOCAL_ORIGINALS_ROOT && process.env.NODE_ENV !== 'test';
   if (background && agreementIndexCache.promise) agreementIndexCache.promise.catch(() => {});
   /* الإنتاج: القائمة مضمّنة وفورية دائمًا (لا انتظار لمسح Drive)؛ الاختبار والتشغيل المحلي يبقيان على المسح. */
-  const files = background ? bundledAgreementFiles() : agreementIndexCache.at ? agreementIndexCache.files : await agreementIndexCache.promise;
+  const files = applyAgreementOverrides(background ? bundledAgreementFiles() : agreementIndexCache.at ? agreementIndexCache.files : await agreementIndexCache.promise);
   const indexing = false;
   const needle = normalizeDriveName(query), tokens = needle.split(/\s+/).filter(Boolean);
   const matched = tokens.length ? files.filter(file => tokens.every(token => normalizeDriveName(`${file.name} ${file.path} ${file.title || ''} ${file.fullTitle || ''} ${file.country || ''}`).includes(token))) : files;

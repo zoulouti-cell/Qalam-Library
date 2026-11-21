@@ -317,7 +317,27 @@
   function agreementKind(file){if(file.agreementKind==='ثنائية'||file.agreementKind==='متعددة')return file.agreementKind;const path=normalize(file.path||'');if(path.includes('متعددة'))return 'متعددة';if(path.includes('ثنائية'))return 'ثنائية';const country=normalize(file.country||'');return country&&/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(country)?'متعددة':'ثنائية';}
   function bilateralCountry(file){const parts=String(file.path||'').split(' / ').filter(Boolean),index=parts.findIndex(part=>normalize(part).includes('ثنائي'));if(index>=0&&parts[index+1])return parts[index+1];if(file.country&&!/(اتفاقيات|دولية|اقليمية|جنيف|لاهاي|منظمة العمل)/u.test(normalize(file.country)))return file.country;const known=parts.find(part=>Object.hasOwn(countryCodes,normalize(part)));return known||'دولة غير محددة';}
   function agreementIcons(file){return originalActions({title:file.title||file.name.replace(/\.pdf$/i,''),sourceUrl:'https://drive.google.com/file/d/'+encodeURIComponent(file.id||('agr-'+file.treatyId))+'/view',officialUrl:file.officialUrl||''},true);}
-  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل في Drive · النص غير مستخرج')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span>'+(hasText?'<button class="card-save'+(state.saved[file.textDocumentId]?' saved':'')+'" data-save="'+esc(file.textDocumentId)+'" aria-pressed="'+(!!state.saved[file.textDocumentId])+'" aria-label="حفظ الوثيقة" title="حفظ الوثيقة">'+(state.saved[file.textDocumentId]?'◆':'◇')+'</button>':'')+'</div>'+heading+'<p class="result-snippet">'+esc(agreementTopicLabel(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation))+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p>'+(hasText?'<button type="button" class="card-expand" data-agr-expand="'+esc(file.textDocumentId)+'" aria-expanded="false">قراءة مقتطف <span aria-hidden="true">⌄</span></button><div class="card-preview" hidden></div>':'')+'<div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+'</article>';}
+  /* أدوات المدير على بطاقة الاتفاقية: حذف (إخفاء من المكتبة، يُستردّ) ونقل بين الفروع والمجلدات؛ لا تمس ملفات Drive. */
+  function agreementAdminTools(file) {
+    if (!state.isAdmin || !file.treatyId) return '';
+    const grp = f => String(f.agreementSubcategory || '').trim() || String(f.path || '').split(' / ').filter(Boolean).at(-1) || '';
+    const seen = new Map(); for (const f of state.agreementFiles || []) { const kind = agreementKind(f), name = kind === 'ثنائية' ? bilateralCountry(f) : grp(f); if (kind && name) seen.set(kind + '|' + name, [kind, name]); }
+    const currentKind = agreementKind(file), currentGroup = currentKind === 'ثنائية' ? bilateralCountry(file) : grp(file), currentKey = currentKind + '|' + currentGroup;
+    const opts = [...seen.values()].sort((a, b) => a[0].localeCompare(b[0], 'ar') || a[1].localeCompare(b[1], 'ar')).map(([kind, name]) => '<option value="' + esc(kind + '|' + name) + '"' + (kind + '|' + name === currentKey ? ' selected' : '') + '>' + esc((kind === 'ثنائية' ? 'ثنائية — ' : 'متعددة — ') + agreementTopicLabel(name)) + '</option>').join('');
+    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-agr-hide="' + esc(file.treatyId) + '" data-admin-title="' + esc(file.title || file.name || '') + '">حذف</button><select data-agr-select aria-label="الفرع والمجلد">' + opts + '</select><button type="button" class="admin-tool-btn" data-agr-move="' + esc(file.treatyId) + '">نقل</button></div>';
+  }
+  async function agreementAdminAction(body) {
+    const response = await fetch('/api/admin/agreements/item', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'تعذر تنفيذ الإجراء.');
+    return data;
+  }
+  async function reloadAgreements() {
+    const data = await api('/api/drive/agreements?limit=2000');
+    state.agreementFiles = data.files || []; state.agreementCount = Number(data.total) || 0; state.agreementBranchCounts = data.branches || state.agreementBranchCounts;
+    renderCategories(); if ($('agreementBrowseList')) renderAgreementFiles(state.agreementFiles, state.agreementBranch || 'ثنائية', state.agreementCountry, state.agreementTopic);
+  }
+  function agreementDocumentCard(file,relation='اتفاقية أو معاهدة') {const rawTitle=file.title||file.name.replace(/\.pdf$/i,''),title=rawTitle.length<28&&file.country&&!normalize(rawTitle).includes(normalize(file.country))?rawTitle+' — '+file.country:rawTitle,hasText=!!file.textDocumentId,hint=esc(file.fullTitle||rawTitle),shown=markText(title,$('query').value),heading=hasText?'<h3 class="agreement-card-title"><button type="button" class="result-open" data-open="'+esc(file.textDocumentId)+'" title="'+hint+'">'+shown+'</button></h3>':'<h3 class="result-open" title="'+hint+'">'+shown+'</h3>';return '<article class="result-card agreement-search-card'+(hasText?' has-text':'')+'"><div class="result-card-head"><span class="document-type national">'+esc(relation)+'</span><span class="status-badge text">'+(hasText?'النص متاح للاطلاع':'الأصل في Drive · النص غير مستخرج')+'</span><span class="category-tag document-category">الاتفاقيات الدولية</span>'+(hasText?'<button class="card-save'+(state.saved[file.textDocumentId]?' saved':'')+'" data-save="'+esc(file.textDocumentId)+'" aria-pressed="'+(!!state.saved[file.textDocumentId])+'" aria-label="حفظ الوثيقة" title="حفظ الوثيقة">'+(state.saved[file.textDocumentId]?'◆':'◇')+'</button>':'')+'</div>'+heading+'<p class="result-snippet">'+esc(agreementTopicLabel(file.agreementSubcategory||file.country||file.path.split(' / ').at(-1)||relation))+(file.modifiedTime?' · آخر تحديث '+esc(formatDate(file.modifiedTime.slice(0,10))):'')+'</p>'+(hasText?'<button type="button" class="card-expand" data-agr-expand="'+esc(file.textDocumentId)+'" aria-expanded="false">قراءة مقتطف <span aria-hidden="true">⌄</span></button><div class="card-preview" hidden></div>':'')+'<div class="result-card-foot"><time>'+esc(file.modifiedTime?formatDate(file.modifiedTime.slice(0,10)):'التاريخ غير موثق')+'</time></div>'+agreementIcons(file)+agreementAdminTools(file)+'</article>';}
   function agreementSectionHeading(title,count){return '<div class="agreement-section-heading"><h3>'+esc(title)+'</h3><span>'+fmt(count)+' وثيقة</span></div>';}
   function renderAgreementFiles(files,group,country='',topic=''){
     const host=$('agreementBrowseList');if(!host)return;state.agreementBranch=group;state.agreementCountry=country;state.agreementTopic=group==='متعددة'?topic:'';
@@ -1051,6 +1071,16 @@
         const select = button.parentElement.querySelector('[data-admin-move-select]'), category = select?.value || '';
         if (!category) { toast('اختر القسم أولاً.'); return; } button.disabled = true;
         try { await adminMonitorAction(button.dataset.adminMove, 'move', { category }); toast('نُقلت البطاقة إلى «' + category + '».'); runSearch(); } catch (error) { toast(error.message); } finally { button.disabled = false; }
+        return;
+      }
+      if (button.dataset.agrHide) {
+        if (!confirm('حذف «' + (button.dataset.adminTitle || 'هذه الاتفاقية') + '» من المكتبة؟ يُستردّ من لوحة الإدارة، ولا يُمس ملف Drive.')) return;
+        button.disabled = true; agreementAdminAction({ treatyId: button.dataset.agrHide, action: 'hide' }).then(() => { toast('حُذفت الاتفاقية من المكتبة.'); return reloadAgreements(); }).catch(error => { button.disabled = false; toast(error.message); });
+        return;
+      }
+      if (button.dataset.agrMove) {
+        const value = button.parentElement.querySelector('[data-agr-select]')?.value || '', [kind, group] = value.split('|'); if (!kind || !group) return;
+        button.disabled = true; agreementAdminAction({ treatyId: button.dataset.agrMove, action: 'move', kind, group }).then(() => { toast('نُقلت الاتفاقية.'); return reloadAgreements(); }).catch(error => { button.disabled = false; toast(error.message); });
         return;
       }
       if (button.dataset.agrExpand) {
