@@ -231,3 +231,30 @@ export function recentUpdates(items = [], now = new Date(), days = 7) {
     .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
     .map(i => ({ id: i.id, title: i.title, country: i.country, kind: i.kind, stage: stageLabel(i.currentStage), eventDate: i.eventDate, publishedAt: i.publishedAt, documentId: `monitor-${String(i.id).slice(0, 20)}` }));
 }
+
+/* رقم النص من عنوانه (12.34 أو 1.59.413 أو 2024-123): أساس البحث عن القانون القديم الذي يعدّله النص. */
+export function lawNumberOf(title = '') {
+  const m = String(title).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).match(/\d{1,4}[.\-]\d{1,4}(?:[.\-]\d{1,4})?/);
+  return m ? m[0] : '';
+}
+
+/* تقرير الجاهزية: ما اكتمل في بطاقة تنتظر الاعتماد وما ينقص، ليتدخل المدير في الناقص وحده.
+   الاقتراحات استشارية: لا شيء يُنشر ولا يُنسخ إلا باعتماد المدير. */
+export function readinessOf(item = {}, oldLawCandidate = null) {
+  const originals = [...(Array.isArray(item.originals) ? item.originals : []), item.original].filter(o => o && (o.driveId || o.url));
+  const sourceUrl = String(item.source?.url || '');
+  const original = originals.some(o => o.driveId) ? { state: 'ok', label: 'الأصل مرفق' }
+    : /\.pdf(\?|$)/i.test(sourceUrl) ? { state: 'fetchable', label: 'الأصل قابل للجلب من المصدر' }
+    : { state: 'missing', label: 'الأصل غير مرفق' };
+  const textLength = String(item.fullText || '').trim().length;
+  const text = textLength >= 400 ? { state: 'ok', label: 'النص مستخرج' } : { state: 'missing', label: 'النص الكامل غير مستخرج (ملخص فقط)' };
+  const category = item.publishCategory || publicationCategory(item);
+  const place = { state: item.publishCategory ? 'ok' : 'suggested', label: item.publishCategory ? 'القسم محدد' : 'القسم المقترح', category };
+  const isLaw = ['legislation', 'bill'].includes(item.kind);
+  const oldLaw = !isLaw ? { state: 'na', label: 'لا ينطبق' }
+    : item.supersedesId ? { state: 'ok', label: 'القانون القديم محدد', id: item.supersedesId, title: item.supersedesTitle || '' }
+    : oldLawCandidate ? { state: 'suggested', label: 'قانون قديم مقترح', id: oldLawCandidate.id, title: oldLawCandidate.title }
+    : { state: 'missing', label: 'لم يُعثر على قانون قديم مطابق' };
+  const complete = [original, text, place, oldLaw].every(x => ['ok', 'na', 'suggested'].includes(x.state)) && original.state === 'ok' && text.state === 'ok';
+  return { original, text, place, oldLaw, complete };
+}
