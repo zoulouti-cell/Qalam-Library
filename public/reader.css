@@ -57,5 +57,13 @@
 :root[data-theme="dark"] .reader-body .fn-note{color:#aeb8ab;border-inline-start-color:rgba(211,184,114,.35)}
 @media print{.reader-body .fn-note{color:#333}}
 
-/* شارة صيغة الأصل (MD/HTML) كانت تُقصّ بسبب overflow-x:auto في .source-actions */
-.source-actions:has(.source-format-badge){padding:8px 7px 0}
+
+/* صيغة الأصل داخل إطار زر الاطلاع نفسه (يمين العين)، ودرج جانبي عند تعدد الصيغ */
+.source-action-formatted{gap:6px}
+.source-format-label{font:700 11px/1 system-ui,sans-serif;letter-spacing:.3px;color:#0b2f24;background:#e4ebd8;border-radius:5px;padding:3px 5px}
+:root[data-theme="dark"] .source-format-label{color:#ecebc9;background:#4a5233}
+.source-preview-group{display:inline-flex;align-items:center;gap:7px}
+.source-preview-drawer{display:inline-flex;align-items:center;gap:7px;animation:previewDrawerIn .18s ease-out}
+.source-preview-drawer[hidden]{display:none}
+@keyframes previewDrawerIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.source-preview-drawer{animation:none}}

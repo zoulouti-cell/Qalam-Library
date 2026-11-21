@@ -396,7 +396,9 @@ body,.identity-header{background-color:var(--paper);background-image:url("data:i
 @media(max-width:720px){.identity-header .overview{transform:translateY(-2mm)}}
 @media(max-width:720px){.identity-showcase{height:auto}}
 @media(prefers-reduced-motion:reduce){.identity-header .search-panel{transition:none}}
-:root .agreement-sidebar-link,:root .agreement-sidebar-link span,:root .agreement-sidebar-link b{color:#fff!important}
+:root .agreement-sidebar-link,:root .agreement-sidebar-link span{color:#e4ecdf!important}
+:root .agreement-sidebar-link:hover,:root .agreement-sidebar-link:hover span,:root .agreement-sidebar-link.selected,:root .agreement-sidebar-link.selected span{color:#fff9e9!important}
+:root .agreement-sidebar-link b{color:#b5cbb2!important}
 
 /* The browse launch card passes in front of the pinned search while the latter fades away. */
 .identity-header .overview{z-index:45}
