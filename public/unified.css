@@ -179,3 +179,7 @@
 .updates-admin{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.6rem;padding-top:.5rem;border-top:1px dashed #d7bd7c}
 .updates-admin label{display:flex;gap:.35rem;align-items:center;font-size:.85rem}
 .updates-admin input{min-width:10rem;padding:2px 6px;border:1px solid #c9b98f;border-radius:6px;font:inherit}
+.admin-audit-badge.audit-ok{color:#2f6b45;border-color:#9cc7a9}
+.admin-audit-badge.audit-bad{color:#8a2b1f;border-color:#d9a79f;background:#fff4f1}
+.admin-audit-detail{flex-basis:100%;font-size:.85rem;padding:.4rem .6rem;border:1px dashed #d9a79f;border-radius:8px;background:#fffaf8}
+.admin-audit-detail ul{margin:.2rem 1rem .4rem;padding:0}
