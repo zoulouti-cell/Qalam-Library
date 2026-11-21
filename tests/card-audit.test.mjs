@@ -35,7 +35,7 @@ import { readFileSync } from 'node:fs';
 test('التدقيق ظاهر في بطاقات الواجهة للمدير وحده بجانب أدوات النقل', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const tools = app.slice(app.indexOf('function adminCardTools(doc)'), app.indexOf('async function adminMonitorAction'));
-  assert.ok(tools.includes("if (!state.isAdmin || doc?.origin !== 'legal-monitor'"));
+  assert.ok(tools.includes("if (!state.isAdmin || !doc?.id) return '';") && tools.includes('return adminDocTools(doc);'));
   assert.ok(tools.includes('data-admin-audit=') && tools.includes('if (!state.isAdmin) return; clearTimeout(auditTimer);'));
   const server = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
   assert.ok(server.includes("p==='/api/admin/card-audit/items'") && server.includes("p==='/api/admin/card-audit/fix'"));
