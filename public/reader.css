@@ -56,3 +56,6 @@
 :root[data-theme="dark"] .reader-body .fn-ref{color:#d3b872}
 :root[data-theme="dark"] .reader-body .fn-note{color:#aeb8ab;border-inline-start-color:rgba(211,184,114,.35)}
 @media print{.reader-body .fn-note{color:#333}}
+
+/* شارة صيغة الأصل (MD/HTML) كانت تُقصّ بسبب overflow-x:auto في .source-actions */
+.source-actions:has(.source-format-badge){padding:8px 7px 0}
