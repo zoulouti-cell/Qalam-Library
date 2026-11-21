@@ -27,7 +27,7 @@ import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoo
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
-import { auditReport,auditCard,fixCard } from './src/card-audit.mjs';
+import { auditReport,auditCard,fixCard,decisionKey,isCardKind } from './src/card-audit.mjs';
 import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
@@ -259,6 +259,29 @@ async function runLegalReports(){
 const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
 /* نشر المستجدات بعد مهلة الاعتراض (24 ساعة) ما لم يُتحفَّظ عليها؛ ونشر فوري أو حذف بقرار المدير. */
 async function refreshSupersessions(){try{const rows=await adminStore.legalMonitorItems.find({state:'published',supersedesId:{$type:'string',$ne:''}}).project({supersedesId:1,documentId:1,title:1}).limit(500).toArray();library.setSupersessions(rows.map(r=>({oldId:r.supersedesId,newId:r.documentId||'',newTitle:r.title||''})));}catch{console.error('Supersession refresh failed.');}}
+/* مزامنة نص المواد المنشورة مع بطاقاتها (العنوان والمصدر والملخص) بعد أي تعديل مباشر على البطاقات. */
+async function syncPublishedTexts(now=new Date()){
+  let changed=0;const rows=await adminStore.legalMonitorItems.find({state:'published',documentId:{$exists:true}}).toArray();
+  for(const full of rows.filter(isCardKind)){const rec=publicationRecord({...full,id:String(full._id)});const r=await adminStore.content.updateOne({documentId:full.documentId,origin:'legal-monitor',status:'published',$or:[{text:{$ne:rec.text}},{title:{$ne:rec.title}},{sourceLabel:{$ne:rec.sourceLabel}}]},{$set:{text:rec.text,title:rec.title,sourceLabel:rec.sourceLabel,updatedAt:now}});changed+=r.modifiedCount||0;}
+  return changed;
+}
+/* الفحص الدوري: تدقيق أسبوعي لبطاقات المستجدات (كل اثنين بعد السابعة بتوقيت المغرب) يُحفظ تقريراً ويُرسل إلى بريد المدير. */
+async function runWeeklyCardAudit(now=new Date()){
+  if(!adminStore)return;
+  const local=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Casablanca',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',hourCycle:'h23'}).formatToParts(now).reduce((o,p)=>(o[p.type]=p.value,o),{});
+  if(local.weekday!=='Mon'||Number(local.hour)<7)return;
+  const localDate=`${local.year}-${local.month}-${local.day}`,reportId=`card_audit:${localDate}`;
+  if(await adminStore.legalMonitorReports.findOne({_id:reportId},{projection:{_id:1}}))return;
+  const synced=await syncPublishedTexts(now);if(synced)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+  const r=auditReport(await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({fullText:0,history:0}).toArray());
+  const lines=[`تدقيق بطاقات المستجدات — ${localDate}`,'',`مفحوصة: ${r.checked} · مخالفة: ${r.faulty} · قابلة للإصلاح التلقائي: ${r.fixable} · مجموعات مكررة: ${r.duplicates.length}`,'',...Object.entries(r.byCategory).map(([c,v])=>`- ${c}: ${v.total} بطاقة، ${v.faulty} مخالفة`),'',...r.cards.slice(0,40).map(c=>`• ${c.title} — ${c.issues.map(i=>i.label).join('؛ ')}`),'','التفاصيل والإصلاح: لوحة الإدارة ← تدقيق البطاقات، أو الشارة على كل بطاقة في الواجهة.'];
+  const text=lines.join('\n');
+  const ins=await adminStore.legalMonitorReports.updateOne({_id:reportId},{$setOnInsert:{_id:reportId,type:'card_audit',localDate,title:lines[0],text,status:'generated',generatedAt:now,sourceCount:r.checked}},{upsert:true});
+  if(!ins.upsertedCount)return;
+  await recordAudit(adminStore,'scheduler','card_audit_weekly',reportId,{checked:r.checked,faulty:r.faulty,duplicates:r.duplicates.length});
+  try{const owner=await configuredOwnerEmail();if(emailReady()&&validEmail(owner))await sendMail(owner,lines[0],text,'<div dir="rtl" style="font-family:Tahoma,sans-serif;white-space:pre-wrap">'+text.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</div>');}catch(error){console.error('Weekly card audit mail failed:',error?.message||'delivery_error');}
+}
+
 /* إصلاح آمن لبطاقة واحدة (ترتيب الأقسام، حذف الملاحظات التقنية، تصحيح سطر «الأصل»)، مع تحديث نص مادتها المنشورة. */
 async function applyCardFix(item,now=new Date()){
   const summary=fixCard(item);if(!summary)return {fixed:false,republished:0};
@@ -291,6 +314,8 @@ function runLegalPublication(){
   })().finally(()=>{legalPublishRun=null;});
   return legalPublishRun;
 }
+const cardAuditTimer=setInterval(()=>runWeeklyCardAudit().catch(error=>console.error('Weekly card audit failed:',error?.message||'unknown error')),60*60_000);cardAuditTimer.unref();
+if(adminStore)setTimeout(()=>syncPublishedTexts().then(n=>{if(n){console.log('Published texts synced:',n);return adminStore.content.find({status:'published'}).toArray().then(rows=>library.setManagedContent(rows));}}).catch(()=>{}),15_000).unref?.();
 const legalPublishTimer=setInterval(()=>runLegalPublication()?.catch(()=>{}),5*60_000);legalPublishTimer.unref();
 legalReportTimer.unref();
 const headers={
@@ -811,6 +836,15 @@ const server=http.createServer(async(req,res)=>{
       const checked=makeObservation(body);if(checked.error)return send(req,res,400,{error:checked.error});
       const item=checked.record;
       try{
+        /* منع التكرار عند الاستقبال: القرار أو النص نفسه (البلد والنوع والرقم) يحدّث بطاقته القائمة ولا يُنشئ بطاقة ثانية؛
+           وما حذفه المدير برقمه لا يُستورد ثانية ولو تغيّر معرّفه. */
+        const key=decisionKey(item);
+        if(key.length>=3&&item.kind==='case_law'){
+          const kin=(await adminStore.legalMonitorItems.find({_id:{$ne:item.id},country:item.country,kind:item.kind,$or:[{caseNumber:{$exists:true}},{officialNumber:{$exists:true}}]}).project({_id:1,state:1,caseNumber:1,officialNumber:1,dismissedBy:1}).toArray()).filter(r=>decisionKey(r)===key);
+          const live=kin.find(r=>r.state!=='dismissed');
+          if(live)item.id=live._id;
+          else if(kin.some(r=>r.state==='dismissed'&&!/^review-dedupe|collector-correction$/.test(String(r.dismissedBy||''))))return send(req,res,200,{ok:true,id:item.id,dismissed:true,skipped:true,note:'حذف المدير هذا القرار برقمه؛ لا تعد استيراده.'});
+        }
         const previous=await adminStore.legalMonitorItems.findOne({_id:item.id});
         if(previous?.state==='dismissed')return send(req,res,200,{ok:true,id:item.id,dismissed:true,skipped:true,note:'حذفه المدير؛ لا تعد استيراده ولا تُنشئ له ملفاً في Drive.'});
         let stored=(item.kind==='bill'||item.kind==='legislation')?mergeLegislativeObservation(previous,item):item;if(previous?.holdReason==='تحفظ المدير على النشر.')stored={...stored,state:'held',holdReason:previous.holdReason,autoPublishAt:null,readyForAutomaticPublication:false};
@@ -1058,7 +1092,8 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/admin/card-audit'&&req.method==='POST'){
       const items=await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({fullText:0}).toArray(),now=new Date();let fixed=0,republished=0;
       for(const item of items){const r=await applyCardFix(item,now);if(r.fixed){fixed++;republished+=r.republished;}}
-      if(republished)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+      republished+=await syncPublishedTexts(now);
+      library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
       await recordAudit(adminStore,'admin','card_audit_autofix','legalMonitorItems',{fixed,republished});
       return send(req,res,200,{ok:true,fixed,republished});
     }

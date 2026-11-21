@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # فحص دوري أسبوعي للاختبارات وسيناريوهات المتصفح على main (الاثنين 05:23 UTC)؛ لا بناء ولا نشر في هذا التشغيل.
+  schedule:
+    - cron: '23 5 * * 1'
 
 permissions:
   contents: write
@@ -15,6 +18,7 @@ jobs:
   docker-build:
     # لا يُبنى ولا يُنشر على Render إلا بعد نجاح الاختبارات وسيناريوهات المتصفح.
     needs: [library-tests, library-e2e]
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -124,7 +128,7 @@ jobs:
           echo "Passed $(grep -c '^PASS' e2e.log) browser checks."
 
   offline-windows-package:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.event_name != 'schedule'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
