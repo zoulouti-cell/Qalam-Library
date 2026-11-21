@@ -175,3 +175,6 @@
 .account-viewas.active{background:#ffffff1f;color:#ffe2a0}
 #readerViewBar{position:sticky;top:0;z-index:60;display:flex;gap:.8rem;align-items:center;justify-content:space-between;padding:.5rem 1rem;background:#2f4a3a;color:#fff9e9;font:600 13px/1.6 Tahoma,sans-serif;border-bottom:2px solid #d7bd7c}
 #readerViewBar button{flex:none;border:1px solid #d7bd7c;border-radius:8px;background:transparent;color:#ffe2a0;padding:3px 10px;font:inherit;cursor:pointer}
+
+.effective-date{color:#b3261e;font-weight:700;margin-inline-end:10px}
+.news-ticker a.ticker-effective{color:#b3261e;font-weight:700}
