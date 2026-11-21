@@ -40,3 +40,28 @@ test('التدقيق ظاهر في بطاقات الواجهة للمدير وح
   const server = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
   assert.ok(server.includes("p==='/api/admin/card-audit/items'") && server.includes("p==='/api/admin/card-audit/fix'"));
 });
+
+import { decisionKey, isCardKind } from '../src/card-audit.mjs';
+test('القالب الموحّد يقبل «الكلمات المفتاحية» في الآخر ويحفظها عند الإصلاح', () => {
+  const withKw = { ...good, summary: good.summary + '\n\nالكلمات المفتاحية:\nتنافي، شغور' };
+  assert.deepEqual(auditCard(withKw), []);
+  const misplaced = { ...good, summary: 'الكلمات المفتاحية:\nتنافي\n\n' + good.summary };
+  assert.ok(auditCard(misplaced).some(i => i.code === 'order'));
+  const fixed = fixCard(misplaced); assert.ok(fixed.trim().endsWith('الكلمات المفتاحية:\nتنافي'));
+});
+test('مسار الشريط (مشاريع القوانين والرقمنة) خارج تدقيق البطاقة', () => {
+  assert.equal(isCardKind({ kind: 'bill' }), false); assert.equal(isCardKind({ kind: 'case_law' }), true);
+  assert.deepEqual(auditCard({ kind: 'bill', title: 'Projet', summary: '' }), []);
+  assert.equal(auditReport([{ _id: 'b', kind: 'bill', state: 'ready', title: 'x' }]).checked, 0);
+});
+test('مفتاح القرار يوحّد صيغ الرقم', () => {
+  assert.equal(decisionKey({ caseNumber: '2026-1232 QPC' }), decisionKey({ officialNumber: '2026-1232QPC' }));
+  assert.equal(decisionKey({ caseNumber: ' 25-17.586' }), '25-17.586');
+});
+test('الاستقبال يحدّث بطاقة القرار القائمة بدل إنشاء ثانية، والفحص الأسبوعي مجدول', () => {
+  const server = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
+  assert.ok(server.includes('if(live)item.id=live._id;'));
+  assert.ok(server.includes('async function runWeeklyCardAudit') && server.includes('setInterval(()=>runWeeklyCardAudit()'));
+  const wf = readFileSync(new URL('../.github/workflows/library-build.yml', import.meta.url), 'utf8');
+  assert.ok(/schedule:\s*\n\s*- cron:/.test(wf) && wf.includes("if: github.event_name != 'schedule'"));
+});
