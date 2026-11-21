@@ -141,9 +141,10 @@
   }
   function adminCardTools(doc) {
     if (!state.isAdmin || doc?.origin !== 'legal-monitor' || !doc.monitorItemId) return '';
-    /* أداة النقل تظهر على بطاقات «إضافات النقض» و«نصوص عامة» (وفيه نصوص التحيين) فقط؛ وزر «حذف» يبقى على كل بطاقات الراصد. */
+    /* الأقسام الفرنسية: الراصد يضع كل مادة في قسمها تلقائياً، فلا أداة نقل عليها؛ وزر «حذف» يبقى. */
     const current = doc.category || '';
-    const canMove = ['إضافات النقض', 'نصوص عامة'].includes(current);
+    const frenchSections = ['محكمة النقض الفرنسية', 'مجلس الدولة الفرنسي', 'المجلس الدستوري الفرنسي', 'قوانين فرنسية', 'دراسات فرنسية', 'مستجدات فرنسية'];
+    const canMove = doc.country !== 'fr' && !frenchSections.includes(current);
     const names = (state.categories || []).map(c => c.name).filter(Boolean);
     const options = names.map(n => '<option value="' + esc(n) + '"' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
     const moveTools = canMove ? '<select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button>' : '';
