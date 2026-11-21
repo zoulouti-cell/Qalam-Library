@@ -176,3 +176,6 @@
 
 .effective-date{color:#b3261e;font-weight:700;margin-inline-end:10px}
 .news-ticker a.ticker-effective{color:#b3261e;font-weight:700}
+.updates-admin{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.6rem;padding-top:.5rem;border-top:1px dashed #d7bd7c}
+.updates-admin label{display:flex;gap:.35rem;align-items:center;font-size:.85rem}
+.updates-admin input{min-width:10rem;padding:2px 6px;border:1px solid #c9b98f;border-radius:6px;font:inherit}

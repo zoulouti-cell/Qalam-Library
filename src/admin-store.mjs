@@ -50,6 +50,9 @@ export async function connectAdminStore(uri) {
       db.collection('contributionFiles').createIndex({ contributionId: 1 }),
       db.collection('contributionFiles').createIndex({ ownerEmail: 1, createdAt: -1 }),
       db.collection('contributionFiles').createIndex({ orphanAt: 1 }, { expireAfterSeconds: 0 }),
+      /* سلة المحذوفات: تُحذف نهائياً تلقائياً عند purgeAt (30 يوماً بعد الحذف). */
+      db.collection('libraryTrash').createIndex({ purgeAt: 1 }, { expireAfterSeconds: 0 }),
+      db.collection('libraryTrash').createIndex({ deletedAt: -1 }),
     ]);
     return {
       client, db,
@@ -64,6 +67,7 @@ export async function connectAdminStore(uri) {
       users: db.collection('libraryUsers'),
       contributions: db.collection('userContributions'),
       contributionFiles: db.collection('contributionFiles'),
+      trash: db.collection('libraryTrash'),
     };
   } catch (error) {
     await client.close().catch(() => {});
