@@ -27,7 +27,7 @@ import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoo
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
-import { auditReport,fixCard } from './src/card-audit.mjs';
+import { auditReport,auditCard,fixCard } from './src/card-audit.mjs';
 import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
@@ -259,6 +259,14 @@ async function runLegalReports(){
 const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
 /* نشر المستجدات بعد مهلة الاعتراض (24 ساعة) ما لم يُتحفَّظ عليها؛ ونشر فوري أو حذف بقرار المدير. */
 async function refreshSupersessions(){try{const rows=await adminStore.legalMonitorItems.find({state:'published',supersedesId:{$type:'string',$ne:''}}).project({supersedesId:1,documentId:1,title:1}).limit(500).toArray();library.setSupersessions(rows.map(r=>({oldId:r.supersedesId,newId:r.documentId||'',newTitle:r.title||''})));}catch{console.error('Supersession refresh failed.');}}
+/* إصلاح آمن لبطاقة واحدة (ترتيب الأقسام، حذف الملاحظات التقنية، تصحيح سطر «الأصل»)، مع تحديث نص مادتها المنشورة. */
+async function applyCardFix(item,now=new Date()){
+  const summary=fixCard(item);if(!summary)return {fixed:false,republished:0};
+  await adminStore.legalMonitorItems.updateOne({_id:item._id},{$set:{summary},$push:{history:{state:item.state,at:now,reason:'card_audit_autofix'}}});
+  let republished=0;
+  if(item.state==='published'&&item.documentId){const full=await adminStore.legalMonitorItems.findOne({_id:item._id});const record=publicationRecord({...full,id:String(full._id)});const r=await adminStore.content.updateOne({documentId:item.documentId,origin:'legal-monitor',status:'published'},{$set:{text:record.text,updatedAt:now}});republished=r.modifiedCount||0;}
+  return {fixed:true,republished};
+}
 async function publishLegalItem(item,actor){
   if(isTickerItem(item)){
     /* مشاريع القوانين والمقترحات وأخبار المجالس تظهر في شريط الأخبار فقط، دون بطاقة في المكتبة. */
@@ -1026,17 +1034,30 @@ const server=http.createServer(async(req,res)=>{
       if(action==='purge'){await adminStore.trash.deleteOne({_id:id});await recordAudit(adminStore,'admin','trash_purged',id,{label:entry.label,kind:entry.kind});return send(req,res,200,{ok:true});}
       return send(req,res,400,{error:'إجراء غير معروف.'});
     }
+    /* التدقيق في الواجهة نفسها (للمدير وحده): حالة كل بطاقة معروضة دفعة واحدة، وإصلاح آمن لبطاقة واحدة. */
+    if(p==='/api/admin/card-audit/items'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req,20000);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const ids=(Array.isArray(body.ids)?body.ids:[]).map(x=>String(x).slice(0,80)).filter(Boolean).slice(0,200);
+      const rows=ids.length?await adminStore.legalMonitorItems.find({_id:{$in:ids}}).project({fullText:0,history:0}).toArray():[];
+      const all=rows.length?await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({country:1,kind:1,caseNumber:1,officialNumber:1,state:1,title:1}).toArray():[];
+      const dupOf=new Map();for(const g of auditReport(all).duplicates)for(const x of g)dupOf.set(String(x.id),g.filter(y=>String(y.id)!==String(x.id)).map(y=>y.title));
+      const result={};for(const r of rows){const issues=auditCard(r);const d=dupOf.get(String(r._id));if(d?.length)issues.push({code:'duplicate',label:'مكررة مع: '+d.join(' / '),fixable:false});result[r._id]={issues,fixable:!!fixCard(r)};}
+      return send(req,res,200,{items:result});
+    }
+    if(p==='/api/admin/card-audit/fix'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req,4000);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const item=await adminStore.legalMonitorItems.findOne({_id:String(body.id||'').slice(0,80)});if(!item)return send(req,res,404,{error:'البطاقة غير موجودة.'});
+      const r=await applyCardFix(item,new Date());if(r.republished)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+      if(r.fixed)await recordAudit(adminStore,'admin','card_audit_fix_one',String(item._id),{title:item.title});
+      return send(req,res,200,{ok:true,...r,issues:auditCard(await adminStore.legalMonitorItems.findOne({_id:item._id}))});
+    }
     /* تدقيق البطاقة الموحّدة لكل بطاقات المستجدات: تقرير، وإصلاح آمن لا يكتب محتوى (ترتيب الأقسام، حذف الملاحظات التقنية، تصحيح سطر «الأصل»). */
     if(p==='/api/admin/card-audit'&&req.method==='GET'){
       const items=await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({fullText:0,history:0}).toArray();return send(req,res,200,auditReport(items));
     }
     if(p==='/api/admin/card-audit'&&req.method==='POST'){
       const items=await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({fullText:0}).toArray(),now=new Date();let fixed=0,republished=0;
-      for(const item of items){
-        const summary=fixCard(item);if(!summary)continue;
-        await adminStore.legalMonitorItems.updateOne({_id:item._id},{$set:{summary},$push:{history:{state:item.state,at:now,reason:'card_audit_autofix'}}});fixed++;
-        if(item.state==='published'&&item.documentId){const full=await adminStore.legalMonitorItems.findOne({_id:item._id});const record=publicationRecord({...full,id:String(full._id)});const r=await adminStore.content.updateOne({documentId:item.documentId,origin:'legal-monitor',status:'published'},{$set:{text:record.text,updatedAt:now}});republished+=r.modifiedCount||0;}
-      }
+      for(const item of items){const r=await applyCardFix(item,now);if(r.fixed){fixed++;republished+=r.republished;}}
       if(republished)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
       await recordAudit(adminStore,'admin','card_audit_autofix','legalMonitorItems',{fixed,republished});
       return send(req,res,200,{ok:true,fixed,republished});

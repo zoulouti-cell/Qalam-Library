@@ -151,7 +151,25 @@
     if (group === 'judicial' && !names.length) names.push('محكمة النقض');
     if (group === 'french') ['محكمة النقض الفرنسية', 'مجلس الدولة الفرنسي', 'المجلس الدستوري الفرنسي', 'قوانين فرنسية', 'دراسات فرنسية', 'مستجدات فرنسية'].forEach(n => { if (!names.includes(n)) names.push(n); });
     const options = (names.includes(current) ? '' : '<option value="" selected>— اختر القسم —</option>') + names.map(n => '<option value="' + esc(n) + '"' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
-    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button><select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button></div>';
+    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button><select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button><button type="button" class="admin-tool-btn admin-audit-badge" data-admin-audit="' + esc(doc.monitorItemId) + '" aria-expanded="false">تدقيق…</button><div class="admin-audit-detail" hidden></div></div>';
+  }
+  /* تدقيق البطاقة في الواجهة نفسها (للمدير وحده كأدوات النقل): شارة على كل بطاقة مستجدات تُبيّن مطابقتها للقالب،
+     وتفاصيل المخالفات وزر إصلاح آمن لا يكتب محتوى. الحالة تُجلب دفعة واحدة لكل البطاقات المعروضة وتُحفظ مؤقتاً. */
+  const auditCache = new Map(); let auditTimer = 0;
+  function paintAudit(button) {
+    const info = auditCache.get(button.dataset.adminAudit); if (!info) return;
+    const n = info.issues.length; button.textContent = n ? '⚠ ' + n + (n === 1 ? ' مخالفة' : ' مخالفات') : '✓ مطابقة للقالب';
+    button.classList.toggle('audit-bad', !!n); button.classList.toggle('audit-ok', !n);
+    const box = button.nextElementSibling; if (!box) return;
+    box.innerHTML = n ? '<ul>' + info.issues.map(i => '<li>' + esc(i.label) + (i.fixable ? ' <small>(يُصلح تلقائياً)</small>' : '') + '</li>').join('') + '</ul>' + (info.fixable ? '<button type="button" class="admin-tool-btn" data-admin-audit-fix="' + esc(button.dataset.adminAudit) + '">إصلاح آمن</button>' : '<small>ما بقي يحتاج صياغة؛ لا يُصلح تلقائياً.</small>') : '';
+  }
+  function scheduleAudit() {
+    if (!state.isAdmin) return; clearTimeout(auditTimer);
+    auditTimer = setTimeout(async () => {
+      const buttons = [...document.querySelectorAll('[data-admin-audit]')]; buttons.forEach(paintAudit);
+      const ids = [...new Set(buttons.map(b => b.dataset.adminAudit).filter(id => id && !auditCache.has(id)))]; if (!ids.length) return;
+      try { const data = await api('/api/admin/card-audit/items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }); for (const [id, info] of Object.entries(data.items || {})) auditCache.set(id, info); document.querySelectorAll('[data-admin-audit]').forEach(paintAudit); } catch { buttons.forEach(b => { if (!auditCache.has(b.dataset.adminAudit)) b.textContent = 'تدقيق غير متاح'; }); }
+    }, 250);
   }
   async function adminMonitorAction(id, action, extra = {}) {
     const response = await fetch('/api/admin/legal-monitor/items/action', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, ...extra }) });
@@ -1077,6 +1095,12 @@
       if (button.hasAttribute('data-clear-category')) { state.category = ''; state.topic = ''; state.page = 1; renderCategories(); runSearch(); return; }
       if (button.dataset.scope) { state.scope = button.dataset.scope; state.scopeTouched = true; if (state.scope === 'agreements') { state.category = ''; state.topic = ''; } else if (state.topic && state.scope !== 'all') state.category = ''; else if (state.topic && state.scope === 'all') state.category = state.topic; state.page = 1; document.querySelectorAll('[data-scope]').forEach(b => { const active = b === button; b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active)); }); renderCategories(); runSearch(); requestAnimationFrame(()=>$('resultsTitle').scrollIntoView({block:'start',behavior:'smooth'})); return; }
       if (button.dataset.browseGroup) { $('browsePanel').hidden = false; $('browseToggle').setAttribute('aria-expanded','true'); renderBrowseGroup(button.dataset.browseGroup); requestAnimationFrame(() => $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'})); return; }
+      if (button.dataset.adminAudit) { const box = button.nextElementSibling; if (box && auditCache.get(button.dataset.adminAudit)?.issues.length) { box.hidden = !box.hidden; button.setAttribute('aria-expanded', String(!box.hidden)); } return; }
+      if (button.dataset.adminAuditFix) {
+        const id = button.dataset.adminAuditFix; button.disabled = true;
+        try { const r = await api('/api/admin/card-audit/fix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); auditCache.set(id, { issues: r.issues || [], fixable: false }); document.querySelectorAll('[data-admin-audit="' + CSS.escape(id) + '"]').forEach(paintAudit); toast(r.fixed ? 'أُصلحت البطاقة.' : 'لا شيء يُصلح تلقائياً.'); state.previewCache?.delete?.(id); } catch (error) { button.disabled = false; toast(error.message); }
+        return;
+      }
       if (button.dataset.adminDelete) {
         const title = button.dataset.adminTitle || 'هذه البطاقة';
         if (!window.confirm('حذف «' + title + '» من المكتبة؟ تبقى في سلة المحذوفات 30 يوماً ويمكن استعادتها من لوحة الإدارة.')) return;
@@ -1308,6 +1332,7 @@ async function showNewsTicker() {
     const spelling = document.createElement('label'); spelling.className = 'switch-row spell-reference-setting';
     spelling.innerHTML = '<span><strong>تهجئة أرقام الإحالات المركبة</strong><small>قراءة كل رقم وفاصل في أرقام القوانين والملفات والتواريخ، دون تغيير النص المعروض.</small></span><input id="spellReferences" type="checkbox" role="switch">';
     readingSection.append(spelling); $('spellReferences').checked = !!prefs.spellReferences;
+    try { new MutationObserver(() => scheduleAudit()).observe($('results'), { childList: true, subtree: true }); } catch {}
     wireEvents(); showNewsTicker(); showRecentUpdates(); loadSidebarIdentity(); updateSavedCount(); populateVoices(); $('readRate').value = prefs.rate; $('results').innerHTML = skeletons();
     updatePinnedSearch(true);
     window.addEventListener('scroll', () => updatePinnedSearch(), { passive: true });
