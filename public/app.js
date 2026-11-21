@@ -141,11 +141,13 @@
   }
   function adminCardTools(doc) {
     if (!state.isAdmin || doc?.origin !== 'legal-monitor' || !doc.monitorItemId) return '';
-    /* النقل محصور في قسمين: «إضافات النقض» و«نصوص عامة» (وفيه نصوص التحيين). الأقسام الفرنسية لا تُنقل إليها البطاقات يدوياً. */
-    const names = ['إضافات النقض', 'نصوص عامة'];
+    /* أداة النقل تظهر على بطاقات «إضافات النقض» و«نصوص عامة» (وفيه نصوص التحيين) فقط؛ وزر «حذف» يبقى على كل بطاقات الراصد. */
     const current = doc.category || '';
-    const options = (names.includes(current) ? '' : '<option value="" selected>— اختر القسم —</option>') + names.map(n => '<option value="' + esc(n) + '"' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
-    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button><select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button></div>';
+    const canMove = ['إضافات النقض', 'نصوص عامة'].includes(current);
+    const names = (state.categories || []).map(c => c.name).filter(Boolean);
+    const options = names.map(n => '<option value="' + esc(n) + '"' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+    const moveTools = canMove ? '<select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button>' : '';
+    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button>' + moveTools + '</div>';
   }
   async function adminMonitorAction(id, action, extra = {}) {
     const response = await fetch('/api/admin/legal-monitor/items/action', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, ...extra }) });
@@ -1038,7 +1040,7 @@
       }
       if (button.dataset.adminMove) {
         const select = button.parentElement.querySelector('[data-admin-move-select]'), category = select?.value || '';
-        if (!category) { toast('اختر القسم أولاً.'); return; } button.disabled = true;
+        if (!category) return; button.disabled = true;
         try { await adminMonitorAction(button.dataset.adminMove, 'move', { category }); toast('نُقلت البطاقة إلى «' + category + '».'); runSearch(); } catch (error) { toast(error.message); } finally { button.disabled = false; }
         return;
       }
