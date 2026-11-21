@@ -133,6 +133,8 @@ library.setBundledContent([...bundledAgreementTexts,...bundledLegalMonitoringCon
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 async function refreshAgreementOverrides(){if(!adminStore?.agreementOverrides)return;try{setAgreementOverrides(await adminStore.agreementOverrides.find({}).toArray());}catch(error){console.error('agreement overrides:',error?.message||error);}}
 await refreshAgreementOverrides();
+/* سدّ ثغرة السجلات القديمة: تاريخ النفاذ يُنسخ من بطاقة الرصد إلى مادتها المنشورة ليظهر بالأحمر في «نصوص عامة». */
+if(adminStore?.legalMonitorItems&&adminStore?.content){try{const rows=await adminStore.legalMonitorItems.find({state:'published',effectiveDate:{$type:'string',$ne:''}}).project({_id:1,effectiveDate:1}).toArray();for(const row of rows)await adminStore.content.updateMany({origin:'legal-monitor',monitorItemId:String(row._id),effectiveDate:{$exists:false}},{$set:{effectiveDate:row.effectiveDate}});}catch(error){console.error('effectiveDate backfill:',error?.message||error);}}
 /* استعادة كلمة المرور بالبريد؛ تصفير محاولات الدخول الفاشلة بعد نجاحها لأن صاحب الصندوق أثبت ملكيته. */
 const passwordReset=createPasswordReset({store:adminStore,afterReset:(ip,email)=>clearLoginFailures(ip,email)});
 async function ensureBootstrapAdmin(){

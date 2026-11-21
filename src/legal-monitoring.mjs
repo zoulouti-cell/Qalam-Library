@@ -194,7 +194,7 @@ export function publicationRecord(item = {}, now = new Date()) {
     category: publicationCategory(item), subcategory: stage ? `${stage}` : '', date: item.eventDate,
     textKind: 'source_summary', reviewStatus: 'needs_review',
     sourceLabel: item.source?.label || '', sourceUrl: item.source?.url || '',
-    text: `${header}\n\n${item.summary}${item.fullText ? `\n\nالنص الكامل (ترجمة مهنية)\n\n${item.fullText}` : ''}`, originalFiles: original, origin: 'legal-monitor', monitorItemId: item.id,
+    text: `${header}\n\n${item.summary}${item.fullText ? `\n\nالنص الكامل (ترجمة مهنية)\n\n${item.fullText}` : ''}`, originalFiles: original, origin: 'legal-monitor', monitorItemId: item.id, effectiveDate: item.effectiveDate || '',
     createdAt: now, updatedAt: now,
   };
 }
