@@ -14,7 +14,7 @@ const PASSWORD = 'registration-password-123';
 const sent = [];
 const brevo = http.createServer((req, res) => { let raw = ''; req.on('data', c => { raw += c; }); req.on('end', () => { sent.push(JSON.parse(raw)); res.writeHead(201, { 'content-type': 'application/json' }); res.end('{}'); }); });
 await new Promise(r => brevo.listen(0, '127.0.0.1', r));
-const server = await bootServer({ env: { BREVO_API_KEY: 'k', BREVO_SENDER_EMAIL: 'library@example.com', BREVO_API_URL: `http://127.0.0.1:${brevo.address().port}/v3/smtp/email`, LIBRARY_PUBLIC_URL: 'http://127.0.0.1:9', LIBRARY_OWNER_EMAIL: 'owner@example.com', LIBRARY_ACCESS_PASSWORD: 'reader-access-password-for-test' } });
+const server = await bootServer({ env: { NODE_ENV: 'test', QALAM_TEST_READ_LIMIT: '5000', BREVO_API_KEY: 'k', BREVO_SENDER_EMAIL: 'library@example.com', BREVO_API_URL: `http://127.0.0.1:${brevo.address().port}/v3/smtp/email`, LIBRARY_PUBLIC_URL: 'http://127.0.0.1:9', LIBRARY_OWNER_EMAIL: 'owner@example.com', LIBRARY_ACCESS_PASSWORD: 'reader-access-password-for-test' } });
 const browser = await chromium.launch();
 const results = [], check = (name, ok, extra = '') => { results.push(ok); console.log(ok ? 'PASS' : 'FAIL', name, ok ? '' : extra); };
 const quiet = (page, errors) => {
