@@ -141,16 +141,15 @@
   }
   function adminCardTools(doc) {
     if (!state.isAdmin || doc?.origin !== 'legal-monitor' || !doc.monitorItemId) return '';
-    /* قاعدة النقل: القسم الفرنسي بلا نقل أصلًا (كل بطاقة في قسمها)؛ الاجتهادات والأبحاث والدراسات لا تخرج بطاقاتها من قسمها،
+    /* قاعدة النقل موضعية: الفرنسي والاجتهادات والأبحاث والدراسات لا تخرج بطاقاتها من قسمها (النقل بين فروعه)،
        و«إضافات النقض» وجهتها فروع الاجتهادات، وسائر الأقسام يُنقل بينها. */
     const current = doc.category || '', cats = state.categories || [];
     const groupOf = name => (cats.find(c => c.name === name) || {}).group || '';
-    const scoped = ['judicial', 'studies'];
+    const scoped = ['french', 'judicial', 'studies'];
     const group = doc.country === 'fr' ? 'french' : current === 'إضافات النقض' ? 'judicial' : groupOf(current);
-    const deleteBtn = '<button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button>';
-    if (group === 'french') return '<div class="admin-card-tools" aria-label="أدوات المدير">' + deleteBtn + '</div>';
-    const names = cats.filter(c => c.name && c.name !== 'إضافات النقض' && c.group !== 'french' && (scoped.includes(group) ? c.group === group : !scoped.includes(c.group))).map(c => c.name);
+    const names = cats.filter(c => c.name && c.name !== 'إضافات النقض' && (scoped.includes(group) ? c.group === group : !scoped.includes(c.group))).map(c => c.name);
     if (group === 'judicial' && !names.length) names.push('محكمة النقض');
+    if (group === 'french') ['محكمة النقض الفرنسية', 'مجلس الدولة الفرنسي', 'المجلس الدستوري الفرنسي', 'قوانين فرنسية', 'دراسات فرنسية', 'مستجدات فرنسية'].forEach(n => { if (!names.includes(n)) names.push(n); });
     const options = (names.includes(current) ? '' : '<option value="" selected>— اختر القسم —</option>') + names.map(n => '<option value="' + esc(n) + '"' + (n === current ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
     return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-admin-delete="' + esc(doc.monitorItemId) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button><select data-admin-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-admin-move="' + esc(doc.monitorItemId) + '">نقل إلى القسم</button></div>';
   }
