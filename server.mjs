@@ -275,8 +275,9 @@ let legalPublishRun=null;
 function runLegalPublication(){
   if(!adminStore||legalPublishRun)return legalPublishRun;
   legalPublishRun=(async()=>{
-    const due=await adminStore.legalMonitorItems.find({state:'ready',autoPublishAt:{$lte:new Date()}}).limit(20).toArray();
-    for(const item of due){try{if(mayAutoPublish(item))await publishLegalItem({...item,id:item._id},'scheduler');}catch(error){console.error('Scheduled legal publication failed:',error?.message||'unknown error');}}
+    /* تُجلب دفعة أكبر ثم تُصفّى بـmayAutoPublish: البطاقات الممنوعة (كعنوان فرنسي) تبقى «جاهزة» ولا يجوز أن تحتل خانات الدورة فتحجب السليمة. */
+    const due=(await adminStore.legalMonitorItems.find({state:'ready',autoPublishAt:{$lte:new Date()}}).sort({autoPublishAt:1}).limit(500).toArray()).filter(mayAutoPublish).slice(0,20);
+    for(const item of due){try{await publishLegalItem({...item,id:item._id},'scheduler');}catch(error){console.error('Scheduled legal publication failed:',error?.message||'unknown error');}}
   })().finally(()=>{legalPublishRun=null;});
   return legalPublishRun;
 }
