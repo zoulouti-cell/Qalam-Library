@@ -23,7 +23,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner,registrationConfirmUrl,registrationConfirmMessage,registrationApprovedMessage,registrationRejectedMessage } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
-import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,agreementDriveIdFor,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
+import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,agreementDriveIdFor,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,trashOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
@@ -259,6 +259,8 @@ async function runLegalReports(){
 const legalReportTimer=setInterval(()=>runLegalReports().catch(error=>console.error('Legal report scheduler failed:',error?.message||'unknown error')),15_000);
 /* نشر المستجدات بعد مهلة الاعتراض (24 ساعة) ما لم يُتحفَّظ عليها؛ ونشر فوري أو حذف بقرار المدير. */
 async function refreshSupersessions(){try{const rows=await adminStore.legalMonitorItems.find({state:'published',supersedesId:{$type:'string',$ne:''}}).project({supersedesId:1,documentId:1,title:1}).limit(500).toArray();library.setSupersessions(rows.map(r=>({oldId:r.supersedesId,newId:r.documentId||'',newTitle:r.title||''})));}catch{console.error('Supersession refresh failed.');}}
+async function loadDocOverrides(){if(!adminStore)return;try{library.setDocOverrides(await adminStore.docOverrides.find({}).toArray());}catch(error){console.error('Document overrides unavailable:',error?.message||'unknown');}}
+
 /* مزامنة نص المواد المنشورة مع بطاقاتها (العنوان والمصدر والملخص) بعد أي تعديل مباشر على البطاقات. */
 async function syncPublishedTexts(now=new Date()){
   let changed=0;const rows=await adminStore.legalMonitorItems.find({state:'published',documentId:{$exists:true}}).toArray();
@@ -314,6 +316,7 @@ function runLegalPublication(){
   })().finally(()=>{legalPublishRun=null;});
   return legalPublishRun;
 }
+if(adminStore)setTimeout(()=>loadDocOverrides(),0);
 const cardAuditTimer=setInterval(()=>runWeeklyCardAudit().catch(error=>console.error('Weekly card audit failed:',error?.message||'unknown error')),60*60_000);cardAuditTimer.unref();
 if(adminStore)setTimeout(()=>syncPublishedTexts().then(n=>{if(n){console.log('Published texts synced:',n);return adminStore.content.find({status:'published'}).toArray().then(rows=>library.setManagedContent(rows));}}).catch(()=>{}),15_000).unref?.();
 const legalPublishTimer=setInterval(()=>runLegalPublication()?.catch(()=>{}),5*60_000);legalPublishTimer.unref();
@@ -520,7 +523,7 @@ const server=http.createServer(async(req,res)=>{
       const email=Buffer.from(current.account,'base64url').toString('utf8');
       const user=await adminStore.users.findOne({email,active:true},{projection:{email:1,role:1,createdAt:1,lastLoginAt:1,loginCount:1,googleSub:1,passwordHash:1,googleName:1,googlePicture:1}});
       if(!user)return send(req,res,401,{error:'هذا الحساب غير متاح.'});
-      return send(req,res,200,{email:user.email,name:user.googleName||'',picture:user.googlePicture||'',role:user.role,individual:true,createdAt:user.createdAt,lastLoginAt:user.lastLoginAt,loginCount:user.loginCount||0,googleLinked:!!user.googleSub,canChangePassword:!!user.passwordHash});
+      return send(req,res,200,{email:user.email,name:user.googleName||'',picture:user.googlePicture||'',role:current.viewAsReader?'reader':user.role,viewAsReader:current.viewAsReader===true,individual:true,createdAt:user.createdAt,lastLoginAt:user.lastLoginAt,loginCount:user.loginCount||0,googleLinked:!!user.googleSub,canChangePassword:!!user.passwordHash});
     }
     if(p==='/api/account/password'&&req.method==='POST'){
       const current=sessionInfo(req);
@@ -1056,6 +1059,33 @@ const server=http.createServer(async(req,res)=>{
       let originals={total:0,moved:0,failed:0};if(draft.originalFiles?.length){try{originals=await moveOriginalsToDrive(approvedDoc,{subfolder:String(body.driveSubfolder||'')});}catch(error){originals={total:draft.originalFiles.length,moved:0,failed:draft.originalFiles.length,error:error.message||'تعذر نقل الأصول إلى Drive.'};}await recordAudit(adminStore,auditActor(req),'originals_to_drive',documentId,{moved:originals.moved,failed:originals.failed,folder:originals.folder||'',error:originals.error||''});}
       return send(req,res,200,{ok:true,documentId,status:'published',originals,cassationTransfer});
     }
+    /* أدوات المدير على كل البطاقات (لا بطاقات المستجدات وحدها): وثائق القاعدة الأساسية تُخفى أو تُنقل بقرار يُحفظ دون مسّ القاعدة،
+       وملفات رفوف Drive تُحذف إلى سلة Drive أو تُنقل إلى رفّ آخر. كل حذف يمرّ بسلة المحذوفات ويُستعاد منها. */
+    if(p==='/api/admin/document-action'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req,4000);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const id=String(body.id||'').slice(0,160),action=String(body.action||''),doc=id?library.document(id):null;
+      if(!doc)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      if(action==='hide'){await adminStore.docOverrides.updateOne({_id:id},{$set:{hidden:true,title:doc.title,at:new Date()}},{upsert:true});await adminStore.trash.insertOne(makeTrashEntry({kind:'document',label:doc.title,actor:'admin',ref:{docId:id,category:doc.category}}));}
+      else if(action==='move'){const category=String(body.category||'').trim().slice(0,120);if(!category)return send(req,res,400,{error:'اختر القسم.'});await adminStore.docOverrides.updateOne({_id:id},{$set:{category,title:doc.title,at:new Date()}},{upsert:true});}
+      else return send(req,res,400,{error:'إجراء غير معروف.'});
+      await loadDocOverrides();await recordAudit(adminStore,'admin','document_'+action,id,{title:doc.title,category:body.category||''});
+      return send(req,res,200,{ok:true});
+    }
+    if(p==='/api/admin/drive-targets'&&req.method==='GET'){
+      const seen=new Set(),targets=[...Object.entries(DRIVE_SHELVES).map(([name,id])=>({name,id})),...MONITORED_FOLDERS.map(f=>({name:f.path.split(' / ').pop(),id:f.id}))].filter(t=>t.id&&!seen.has(t.id)&&seen.add(t.id));
+      return send(req,res,200,{targets});
+    }
+    if(p==='/api/admin/drive-action'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req,4000);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const id=String(body.id||'').slice(0,200),action=String(body.action||'');
+      try{
+        if(action==='trash'){const r=await trashOriginalDriveFile(id,true);await adminStore.trash.insertOne(makeTrashEntry({kind:'drive',label:String(body.name||r.name||id).slice(0,300),actor:'admin',ref:{driveId:id,folder:String(body.folder||'').slice(0,120)}}));}
+        else if(action==='move'){const target=String(body.target||'').slice(0,200);if(!target)return send(req,res,400,{error:'اختر الرفّ.'});await moveOriginalDriveFile(id,target);}
+        else return send(req,res,400,{error:'إجراء غير معروف.'});
+      }catch(error){return send(req,res,502,{error:error.message||'تعذر تنفيذ العملية في Drive.'});}
+      await recordAudit(adminStore,'admin','drive_'+action,id,{name:body.name||'',target:body.target||''});
+      return send(req,res,200,{ok:true});
+    }
     /* سلة المحذوفات: قائمة، واستعادة، وحذف نهائي بأمر المدير (وإلا تُمحى تلقائياً بعد 30 يوماً). */
     if(p==='/api/admin/trash'&&req.method==='GET'){
       const rows=await adminStore.trash.find({}).sort({deletedAt:-1}).limit(300).toArray();return send(req,res,200,{items:rows.map(trashView)});
@@ -1064,7 +1094,7 @@ const server=http.createServer(async(req,res)=>{
       let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
       const id=String(body.id||'').slice(0,60),action=String(body.action||''),entry=await adminStore.trash.findOne({_id:id});
       if(!entry)return send(req,res,404,{error:'العنصر غير موجود في السلة.'});
-      if(action==='restore'){const r=await restoreTrashEntry(adminStore,entry);library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());await recordAudit(adminStore,'admin','trash_restored',id,{label:entry.label,kind:entry.kind});return send(req,res,200,{ok:true,...r});}
+      if(action==='restore'){const r=await restoreTrashEntry(adminStore,entry,{untrashDrive:id=>trashOriginalDriveFile(id,false)});await loadDocOverrides();library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());await recordAudit(adminStore,'admin','trash_restored',id,{label:entry.label,kind:entry.kind});return send(req,res,200,{ok:true,...r});}
       if(action==='purge'){await adminStore.trash.deleteOne({_id:id});await recordAudit(adminStore,'admin','trash_purged',id,{label:entry.label,kind:entry.kind});return send(req,res,200,{ok:true});}
       return send(req,res,400,{error:'إجراء غير معروف.'});
     }

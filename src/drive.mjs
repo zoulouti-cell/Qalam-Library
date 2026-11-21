@@ -692,3 +692,11 @@ export async function moveOriginalDriveFile(fileId, targetFolderId) {
   await writeFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(item.id)}?${query}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{}' });
   return { id: item.id, moved: true };
 }
+/* حذف ملف من رفوف المكتبة إلى سلة Drive (يُسترجَع خلال 30 يوماً)، أو استرجاعه منها. */
+export async function trashOriginalDriveFile(fileId, trashed = true) {
+  const item = await withinLibrary(fileId);
+  const query = new URLSearchParams({ supportsAllDrives: 'true', fields: 'id,name,trashed,parents' });
+  const response = await writeFetch(`${GOOGLE_API}/drive/v3/files/${encodeURIComponent(item.id)}?${query}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed }) });
+  const data = await response.json().catch(() => ({}));
+  return { id: item.id, name: item.name || data.name || '', parent: item.parents?.[0] || '', trashed: data.trashed === true };
+}

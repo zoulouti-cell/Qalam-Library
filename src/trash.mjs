@@ -6,9 +6,11 @@ export const TRASH_RETENTION_MS = 30 * 24 * 3600 * 1000;
 
 export const TRASH_KINDS = {
   monitor: 'بطاقة مستجدات',
+  drive: 'ملف في رفوف Drive',
+  document: 'وثيقة من المكتبة',
 };
 
-export function makeTrashEntry({ kind, label, actor = 'admin', item = null, contents = [] }, now = new Date()) {
+export function makeTrashEntry({ kind, label, actor = 'admin', item = null, contents = [], ref = null }, now = new Date()) {
   if (!TRASH_KINDS[kind]) throw new Error('نوع محذوف غير معروف.');
   return {
     _id: 'trash_' + randomBytes(9).toString('base64url'),
@@ -16,6 +18,7 @@ export function makeTrashEntry({ kind, label, actor = 'admin', item = null, cont
     label: String(label || '').slice(0, 300) || TRASH_KINDS[kind],
     item,
     contents: Array.isArray(contents) ? contents : [],
+    ref,
     deletedBy: String(actor || 'admin').slice(0, 120),
     deletedAt: now,
     purgeAt: new Date(now.getTime() + TRASH_RETENTION_MS),
@@ -33,13 +36,15 @@ export function trashView(entry = {}) {
     deletedAt: entry.deletedAt,
     purgeAt: entry.purgeAt,
     publishedCount: (entry.contents || []).filter(c => c.status === 'published').length,
-    category: entry.contents?.[0]?.category || entry.item?.publishCategory || '',
+    category: entry.contents?.[0]?.category || entry.item?.publishCategory || entry.ref?.category || entry.ref?.folder || '',
   };
 }
 
 /* الاستعادة: يعود السجل كما كان قبل الحذف (بحالته الأصلية) ويعود محتواه المنشور، ثم تُحذف اللقطة من السلة. */
-export async function restoreTrashEntry(store, entry) {
+export async function restoreTrashEntry(store, entry, hooks = {}) {
   if (!entry) throw new Error('العنصر غير موجود في السلة.');
+  if (entry.kind === 'drive') { await hooks.untrashDrive?.(entry.ref?.driveId); await store.trash.deleteOne({ _id: entry._id }); return { restored: true, kind: 'drive', contents: 0 }; }
+  if (entry.kind === 'document') { await store.docOverrides.updateOne({ _id: entry.ref?.docId }, { $unset: { hidden: '' } }); await store.trash.deleteOne({ _id: entry._id }); return { restored: true, kind: 'document', contents: 0 }; }
   if (entry.kind === 'monitor') {
     if (!entry.item?._id) throw new Error('لقطة البطاقة ناقصة.');
     await store.legalMonitorItems.replaceOne({ _id: entry.item._id }, entry.item, { upsert: true });
