@@ -1208,6 +1208,17 @@ async function showNewsTicker() {
     } catch (error) { try { const old = $('newsTicker'); if (old) old.remove(); const note = document.createElement('p'); note.id = 'newsTicker'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;font-size:12px;color:#8a2b1f'; note.textContent = 'تعذر تحميل شريط الأخبار: ' + (error?.message || 'خطأ غير معروف'); placeTicker(note); } catch {} }
   }
   /* تنبيه ليوم واحد: قوانين يبدأ نفاذها اليوم. */
+  /* وضع «عرض كقارئ»: يطلب المدير من الخادم أن يعامل جلسته قارئًا مؤقتًا، فيرى ما يراه القارئ فعلًا. */
+  function setupReaderView(session) {
+    const button = $('viewAsButton'); if (!button) return;
+    const reader = session.viewAsReader === true;
+    button.hidden = !(session.canToggleReader === true);
+    button.setAttribute('aria-pressed', String(reader)); button.classList.toggle('active', reader);
+    button.title = button.ariaLabel = reader ? 'العودة إلى وضع المدير' : 'عرض المكتبة كقارئ';
+    if (!button.dataset.wired) { button.dataset.wired = '1'; button.addEventListener('click', async () => { button.disabled = true; try { await api('/api/view-as', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: button.classList.contains('active') ? 'admin' : 'reader' }) }); location.reload(); } catch (error) { button.disabled = false; toast(error.message || 'تعذّر تبديل الوضع.'); } }); }
+    $('readerViewBar')?.remove();
+    if (reader) { const bar = document.createElement('div'); bar.id = 'readerViewBar'; bar.setAttribute('role', 'status'); bar.innerHTML = '<span>تشاهد المكتبة كقارئ · لا تظهر أدوات الإدارة ولا ما يخص المدير</span><button type="button">العودة إلى وضع المدير</button>'; bar.querySelector('button').addEventListener('click', () => button.click()); document.body.prepend(bar); }
+  }
   async function showEffectiveAlerts() {
     try {
       const data = await api('/api/legal-monitor/alerts');
@@ -1244,7 +1255,7 @@ async function showNewsTicker() {
     if (responses[0].status === 'fulfilled') {
       applyStats(responses[0].value);
     } else { $('connectionPill').textContent = 'الخدمة غير متاحة'; }
-    if (responses[3].status === 'fulfilled') state.canAdmin = responses[3].value.canAdmin === true;
+    if (responses[3].status === 'fulfilled') { state.canAdmin = responses[3].value.canAdmin === true; setupReaderView(responses[3].value); }
     if (responses[1].status === 'fulfilled') { state.categories = responses[1].value.categories || []; renderCategories(); } else $('categoryList').innerHTML = '<div class="sidebar-loading">تعذّر تحميل المجالات.</div>';
     if (responses[2].status === 'fulfilled') state.capabilities = responses[2].value;
     if (responses[4].status === 'fulfilled') {state.agreementCount=Number(responses[4].value.total)||0;state.agreementBranchCounts=responses[4].value.branches||state.agreementBranchCounts;$('agreementBrowseCount').textContent=fmt(state.agreementCount);renderCategories();}
