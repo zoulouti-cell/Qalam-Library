@@ -164,7 +164,7 @@
     if(judicialMapped){previewUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document?id='+encodeURIComponent(doc.id)+'&mode=download';}
     else if(mapped){previewUrl='/api/drive/document-source?id='+encodeURIComponent(doc.id)+'&mode=preview';downloadUrl='/api/drive/document-source?id='+encodeURIComponent(doc.id)+'&mode=download';}
     const fmtRank = f => { const e = String(f.ext || '').toLowerCase(); return e === 'pdf' ? 0 : (e === 'md' || e === 'markdown') ? 1 : (e === 'html' || e === 'htm') ? 2 : 3; };
-    const uf = (Array.isArray(doc?.originalFiles) ? doc.originalFiles.filter(f => f && f.id) : []).map((f, i) => [f, i]).sort((a, b) => fmtRank(a[0]) - fmtRank(b[0]) || a[1] - b[1]).map(x => x[0]);
+    const uf = (Array.isArray(doc?.originalFiles) ? doc.originalFiles.filter(f => f && f.id) : []).filter((f, i, a) => a.findIndex(x => (x.driveId && x.driveId === f.driveId) || (x.name && x.name === f.name && String(x.ext||'') === String(f.ext||''))) === i).map((f, i) => [f, i]).sort((a, b) => fmtRank(a[0]) - fmtRank(b[0]) || a[1] - b[1]).map(x => x[0]);
     const primaryRank = uf.length ? fmtRank(uf[0]) : 0;
     const formatBadge = uf.length && primaryRank > 0 ? '<span class="source-format-badge" aria-hidden="true">' + (primaryRank === 1 ? 'MD' : primaryRank === 2 ? 'HTML' : esc(String(uf[0].ext || '').toUpperCase())) + '</span>' : '';
     const ufUrl = (f, mode) => f.driveId ? '/api/drive/file?id=' + encodeURIComponent(f.driveId) + '&mode=' + mode : '/api/original?doc=' + encodeURIComponent(doc.id) + '&file=' + encodeURIComponent(f.id) + '&mode=' + mode;

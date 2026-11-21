@@ -51,7 +51,7 @@ export function makeObservation(input = {}) {
     : [country, kind, oneLine(input.officialNumber, 150), eventDate, title.toLocaleLowerCase()].join('|');
   const id = createHash('sha256').update(key).digest('hex');
   const normOriginal = o => o && typeof o === 'object' ? { driveId: oneLine(o.driveId, 200), url: sourceUrl(o.url), name: oneLine(o.name, 300) } : null;
-  const originals = [input.original, ...(Array.isArray(input.originals) ? input.originals : [])].map(normOriginal).filter(o => o && (o.driveId || o.url)).slice(0, 4);
+  const originals = [input.original, ...(Array.isArray(input.originals) ? input.originals : [])].map(normOriginal).filter(o => o && (o.driveId || o.url)).filter((o, i, a) => a.findIndex(x => (x.driveId || x.url) === (o.driveId || o.url)) === i).slice(0, 4);
   const restrictedCassation = country === 'ma' && kind === 'case_law' && /محكمة\s+النقض/.test(court);
   const hasReservation = input.legalReservation === true || input.scientificReservation === true || input.technicalReservation === true;
   const publishableKind = ['research', 'case_law', 'bill', 'legislation'].includes(kind);
@@ -185,7 +185,7 @@ export function publicationRecord(item = {}, now = new Date()) {
     `التاريخ: ${item.eventDate}.`,
     `المصدر: ${item.source?.label || ''}.`,
   ].filter(Boolean).join('\n');
-  const originalList = (Array.isArray(item.originals) && item.originals.length ? item.originals : [item.original]).filter(o => o?.driveId);
+  const originalList = (Array.isArray(item.originals) && item.originals.length ? item.originals : [item.original]).filter(o => o?.driveId).filter((o, i, arr) => arr.findIndex(x => x.driveId === o.driveId) === i);
   const original = originalList.map((o, i) => ({ id: `${item.id.slice(0, 12)}-original${i ? '-' + (i + 1) : ''}`, name: o.name || 'الأصل', ext: /\.(\w{2,4})$/.exec(o.name || '')?.[1]?.toLowerCase() || 'pdf', size: 0, driveId: o.driveId }));
   return {
     documentId: `monitor-${item.id.slice(0, 20)}`, status: 'published', country: item.country,
