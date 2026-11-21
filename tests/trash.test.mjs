@@ -40,5 +40,5 @@ test('«نصوص التحيين» فرع مستقل يراه الجميع وأد
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.ok(app.includes('<h3 class="category-group">نصوص التحيين</h3>'));
   assert.ok(!/state\.canAdmin\) rows\.push\('<button type="button" class="category-button" data-drive-folder="14fPme5j1TWFO458B9N-8N93X7w2yt-3W"/.test(app));
-  assert.ok(app.includes('if(id===UPDATES_FOLDER_ID&&state.canAdmin)attachUpdatesAdmin(pane);'));
+  assert.ok(app.includes('if (id === UPDATES_FOLDER_ID && state.canAdmin) attachUpdatesAdmin(pane);'));
 });

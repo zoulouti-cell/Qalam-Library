@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
-  const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat('ar-MA').format(Number(n)||0),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let queue=[];
-  async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',...options});let j={};try{j=await r.json()}catch{}if(!r.ok){const err=new Error(j.error||'تعذر إتمام الطلب.');err.data=j;throw err;}return j;}
+  const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat('ar-MA').format(Number(n)||0),esc=window.Qalam.esc;let queue=[];
+  const {api}=window.Qalam;
   const adminTabs=document.querySelector('.admin-tabs');
   if(adminTabs&&!$('legalMonitorPanel')){
     const tab=document.createElement('button');tab.type='button';tab.dataset.panel='legalMonitorPanel';tab.innerHTML='<span class="tab-n">8</span>بطاقات التحيين والرصد القانوني';adminTabs.append(tab);

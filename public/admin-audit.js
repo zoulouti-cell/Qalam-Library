@@ -2,8 +2,7 @@
 /* تدقيق البطاقة الموحّدة: كل بطاقات المستجدات (إضافات النقض، القسم الفرنسي، مقترحات القوانين، المستجدات) مقابل القالب. */
 (()=>{
   const tabs=document.querySelector('.admin-tabs');if(!tabs||document.getElementById('cardAuditPanel'))return;
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',...options});let j={};try{j=await r.json();}catch{}if(!r.ok)throw new Error(j.error||'تعذر إتمام الطلب.');return j;}
+  const {esc,api}=window.Qalam;
   const states={ready:'جاهزة',held:'محجوزة',published:'منشورة'};
   const tab=document.createElement('button');tab.type='button';tab.dataset.panel='cardAuditPanel';tab.innerHTML='<span class="tab-n">10</span>تدقيق البطاقات';tabs.append(tab);
   const panel=document.createElement('div');panel.id='cardAuditPanel';panel.className='tab-panel';panel.hidden=true;

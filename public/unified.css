@@ -1,7 +1,7 @@
 /* هوية موحدة مع المكتب الرقمي: أيقونات التحكم، مفاتيح التفعيل، بطاقات الإعدادات، الحساب، والمساعد.
    يُحمَّل بعد بقية الأنماط فيعلو عليها دون تغيير بنيتها. */
-:root{--q-forest-950:#06231a;--q-forest-900:#0b2f24;--q-forest-800:#113a2c;--q-forest-700:#164a38;--q-forest-600:#1c5c45;--q-forest-50:#eef5f1;--q-gold-500:#c39a44;--q-gold-400:#d4ae5c;--q-gold-200:#eedcae;--q-cream:#f7f5ef;--q-line:#e3dccb;--q-ink:#17241e;--q-muted:#58665e;--q-card:#fffefa}
-:root[data-theme="dark"]{--q-cream:#101b16;--q-line:#2a3d34;--q-ink:#e7eee8;--q-muted:#a8b8ae;--q-card:#13241d;--q-forest-50:#142019}
+:root{--q-forest-950:#06231a;--q-forest-900:var(--q-ink-strong);--q-forest-800:var(--q-brand-dark);--q-forest-700:var(--q-brand);--q-forest-600:#1c5c45;--q-forest-50:var(--q-green-soft);--q-gold-500:var(--q-gold);--q-gold-400:#d4ae5c;--q-gold-200:var(--q-gold-soft);--q-cream:var(--q-bg);--q-line:var(--q-line);--q-ink:var(--q-ink);--q-muted:var(--q-muted);--q-card:var(--q-surface)}
+:root[data-theme="dark"]{--q-cream:var(--q-ink);--q-line:#2a3d34;--q-ink:var(--q-green-soft);--q-muted:#a8b8ae;--q-card:var(--q-ink);--q-forest-50:var(--q-ink)}
 
 /* ———— أيقونات التحكم في الشريط العلوي (المظهر، الإعدادات، ملء الشاشة) بقياس المكتب وسمكه ———— */
 /* الأيقونات في أقصى يسار الصفحة، بمعزل عن حاشية الشريط العلوي، كما في المكتب الرقمي */
@@ -13,17 +13,17 @@
 .identity-header .connection-pill{margin-inline-start:6px}
 
 /* ———— مفتاح التفعيل: نفس مفتاح إعدادات المكتب (34×20، أخضر عند التفعيل) ———— */
-.qalam-switch{position:relative;flex:none;display:inline-block;inline-size:34px;block-size:20px;border-radius:999px;background:#d9d3c3;transition:background .18s ease}
+.qalam-switch{position:relative;flex:none;display:inline-block;inline-size:34px;block-size:20px;border-radius:999px;background:var(--q-line);transition:background .18s ease}
 .qalam-switch::before{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;inline-size:16px;block-size:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transition:inset-inline-start .18s ease}
-.qalam-switch.is-on{background:#174734}.qalam-switch.is-on::before{inset-inline-start:16px}
-:root[data-theme="dark"] .qalam-switch{background:#3a4d44}:root[data-theme="dark"] .qalam-switch.is-on{background:#c8a24a}
+.qalam-switch.is-on{background:var(--q-brand)}.qalam-switch.is-on::before{inset-inline-start:16px}
+:root[data-theme="dark"] .qalam-switch{background:#3a4d44}:root[data-theme="dark"] .qalam-switch.is-on{background:var(--q-gold)}
 /* خانات role=switch القائمة تأخذ الشكل نفسه */
-.settings-dialog .switch-row input[role="switch"]{appearance:none;-webkit-appearance:none;position:relative;flex:none;inline-size:34px;block-size:20px;margin:0;border:0;border-radius:999px;background:#d9d3c3;cursor:pointer;transition:background .18s ease}
+.settings-dialog .switch-row input[role="switch"]{appearance:none;-webkit-appearance:none;position:relative;flex:none;inline-size:34px;block-size:20px;margin:0;border:0;border-radius:999px;background:var(--q-line);cursor:pointer;transition:background .18s ease}
 .settings-dialog .switch-row input[role="switch"]::before{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;right:auto;top:auto;inline-size:16px;block-size:16px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transform:none;transition:inset-inline-start .18s ease}
-.settings-dialog .switch-row input[role="switch"]:checked{background:#174734}
+.settings-dialog .switch-row input[role="switch"]:checked{background:var(--q-brand)}
 .settings-dialog .switch-row input[role="switch"]:checked::before{inset-inline-start:16px;transform:none}
 .settings-dialog .switch-row input[role="switch"]:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
-:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]{background:#3a4d44}:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]:checked{background:#c8a24a}
+:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]{background:#3a4d44}:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]:checked{background:var(--q-gold)}
 
 /* ———— الإعدادات: بطاقات بأيقونات كإعدادات المكتب وقلم التحرير ———— */
 .settings-dialog-editorial{width:min(920px,calc(100vw - 32px));border:1px solid var(--q-line);border-radius:22px;background:var(--q-cream);box-shadow:0 30px 80px #06231a40;overflow:hidden}
@@ -47,10 +47,10 @@
 .settings-dialog-editorial .field-label{display:block;margin:2px 0 -4px;font-size:12.5px;font-weight:700;color:var(--q-ink)}
 .settings-dialog-editorial select{width:100%;height:40px;padding:0 12px;border:1px solid var(--q-line);border-radius:10px;background:var(--q-card);color:var(--q-ink);font-size:13px}
 .settings-dialog-editorial .secondary-button{justify-self:start;min-height:38px;padding:7px 14px;border:1px solid var(--q-line);border-radius:10px;background:var(--q-card);color:var(--q-forest-700);font-size:12.5px;font-weight:700}
-.settings-dialog-editorial .secondary-button:hover{border-color:#9fbfaf;background:#f2f7f3}
-.settings-dialog-editorial .privacy-callout{margin:0;padding:10px 12px;border:1px solid #e2c58399;border-radius:12px;background:#fbf6e8;color:#7a5a1e;font-size:12px;line-height:1.7}
-:root[data-theme="dark"] .settings-dialog-editorial .privacy-callout{background:#2b2615;color:#eedcae}
-:root[data-theme="dark"] .settings-card-icon{background:#c8a24a;color:#0b2f24}
+.settings-dialog-editorial .secondary-button:hover{border-color:#9fbfaf;background:var(--q-bg-soft)}
+.settings-dialog-editorial .privacy-callout{margin:0;padding:10px 12px;border:1px solid #e2c58399;border-radius:12px;background:var(--q-bg);color:#7a5a1e;font-size:12px;line-height:1.7}
+:root[data-theme="dark"] .settings-dialog-editorial .privacy-callout{background:#2b2615;color:var(--q-gold-soft)}
+:root[data-theme="dark"] .settings-card-icon{background:var(--q-gold);color:var(--q-ink-strong)}
 @media(max-width:760px){.settings-dialog-editorial .settings-content{grid-template-columns:1fr;padding:14px}}
 .settings-dialog-editorial .settings-content>section.settings-card-wide{grid-column:1/-1}
 .settings-card .about-list{display:grid;gap:8px;margin:0}
@@ -74,12 +74,12 @@
 /* ———— الحساب في الشريط الجانبي: صف واحد لا تكرار فيه — إطار الاسم والصورة، وزر الخروج إلى يساره ———— */
 .account-row{display:flex;align-items:center;gap:6px}
 .account-row .account-identity{flex:1;min-width:0;margin:2px 0 4px}
-.account-logout{display:grid;place-items:center;flex:none;width:34px;height:34px;padding:0;border:0;border-radius:10px;background:transparent;color:#e8d7a5;cursor:pointer;transition:background .15s,color .15s}
+.account-logout{display:grid;place-items:center;flex:none;width:34px;height:34px;padding:0;border:0;border-radius:10px;background:transparent;color:var(--q-gold-soft);cursor:pointer;transition:background .15s,color .15s}
 .account-logout:hover{background:#ffffff14;color:#ffe2a0}
 .account-logout:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
 .account-identity{display:flex;align-items:center;gap:10px;width:100%;margin:0;padding:8px 10px;border:1px solid #ffffff1a;border-radius:14px;background:#ffffff0a;color:inherit;text-align:start;cursor:pointer}
 .account-identity:hover{background:#ffffff12;border-color:#d4ae5c55}
-.account-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;overflow:hidden;border-radius:50%;background:linear-gradient(135deg,#f3d17e,#c39a44);color:#0b2f24;font-weight:800;font-size:15px;box-shadow:0 0 0 2px #d4ae5c66}
+.account-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;overflow:hidden;border-radius:50%;background:linear-gradient(135deg,#f3d17e,var(--q-gold));color:var(--q-ink-strong);font-weight:800;font-size:15px;box-shadow:0 0 0 2px #d4ae5c66}
 .account-avatar img{width:100%;height:100%;object-fit:cover}
 .account-avatar img[hidden],.account-avatar span[hidden]{display:none}
 .account-identity-text{display:grid;min-width:0;line-height:1.35}
@@ -90,7 +90,7 @@
 .account-dialog-header .account-dialog-title{display:flex;align-items:center;gap:10px}
 .account-dialog-header h2{margin:0}
 .account-logout.account-logout-text{display:inline-flex;gap:6px;width:auto;height:32px;padding:0 11px;border:1px solid var(--q-line);border-radius:10px;background:var(--q-card);color:#8a3b2e;font-size:12.5px;font-weight:700}
-.account-logout.account-logout-text:hover{background:#fbeeea;border-color:#e1b7ad;color:#7a2f23}
+.account-logout.account-logout-text:hover{background:var(--q-danger-bg);border-color:#e1b7ad;color:#7a2f23}
 .account-identity.account-identity-large{margin:14px 0 4px;padding:12px 14px;border-color:var(--q-line);background:var(--q-card);cursor:default}
 .account-identity.account-identity-large .account-avatar{width:48px;height:48px;font-size:19px}
 .account-identity.account-identity-large .account-identity-text strong{font-size:16px;color:var(--q-ink)}
@@ -99,7 +99,7 @@
 /* ———— المساعد: أيقونة خطية في قائمة التصفح، لا تُضيء إلا إذا كان المساعد مهيأ ———— */
 .nav-item>span.assistant-nav-icon{display:inline-grid;place-items:center;width:20px;height:20px;font-size:0;color:#8a978e}
 .assistant-nav-icon svg{display:block;width:20px;height:20px}
-:root[data-theme="dark"] .nav-item>span.assistant-nav-icon{color:#5c6b62}
+:root[data-theme="dark"] .nav-item>span.assistant-nav-icon{color:var(--q-muted)}
 #navAssistant.assistant-ready .assistant-nav-icon{color:var(--q-gold-400)}
 /* ———— الدائرة والكتاب نفسهما في البوابة وشاشة الدخول ومحادثة المساعد ———— */
 .assistant-emblem{display:inline-grid;place-items:center;flex:none}
@@ -109,11 +109,11 @@
 
 /* مفتاحا الترجمة والذكاء الاصطناعي: صف بمفتاح كإعدادات المكتب */
 .assistant-tools .assistant-switch{display:flex;flex:0 1 auto;align-items:center;justify-content:space-between;gap:12px;min-height:38px;padding:6px 12px;border:1px solid var(--q-line);border-radius:12px;background:var(--q-card);color:var(--q-ink);font-size:12.5px;font-weight:700}
-.assistant-tools .assistant-switch:hover,.assistant-tools .assistant-switch.active{border-color:#9fbfaf;background:#f2f7f3;color:var(--q-ink)}
+.assistant-tools .assistant-switch:hover,.assistant-tools .assistant-switch.active{border-color:#9fbfaf;background:var(--q-bg-soft);color:var(--q-ink)}
 .assistant-tools .assistant-switch:disabled{opacity:.55;cursor:not-allowed}
 .assistant-switch-label{display:inline-flex;align-items:center;gap:7px}
 .assistant-switch-label svg{color:var(--q-gold-500)}
-:root[data-theme="dark"] .assistant-tools .assistant-switch,:root[data-theme="dark"] .assistant-tools .assistant-switch.active{background:#13241d;border-color:#2a3d34;color:#e7eee8}
+:root[data-theme="dark"] .assistant-tools .assistant-switch,:root[data-theme="dark"] .assistant-tools .assistant-switch.active{background:var(--q-ink);border-color:#2a3d34;color:var(--q-green-soft)}
 .main-nav>.account-row{grid-column:1/-1}
 .main-nav>.account-row{margin-top:2px;padding-top:6px;border-top:1px solid #ffffff14}
 .sidebar-foot .sidebar-settings svg{display:block;width:18px;height:18px}
@@ -122,7 +122,7 @@
 /* ———— الوضع الفاتح الجديد: الشريط الجانبي والعلوي فاتحان أيضًا (بخلاف الهجين والداكن، حيث يبقيان أخضرين
    داكنين ثابتين دائمًا). كل القيم أدناه تقلب نصوص/حدود الشريطين الفاتحة-على-داكن إلى داكنة-على-فاتحة بمعايير
    المكتب (نفس عائلة الألوان: أخضر الغابة والذهبي). محتوى الصفحة نفسه لا يتغيّر، فهو فاتح أصلًا في الهجين كذلك. ———— */
-:root[data-theme="light"]{--lc-text:#163428;--lc-muted:#5c7265;--lc-border:#e3e1cf;--lc-hover:#0f2a1f0f;--lc-panel:#ffffffb3}
+:root[data-theme="light"]{--lc-text:var(--q-brand-dark);--lc-muted:#5c7265;--lc-border:var(--q-line);--lc-hover:#0f2a1f0f;--lc-panel:#ffffffb3}
 :root[data-theme="light"] .sidebar{background:var(--white);color:var(--lc-text);border-inline-start:1px solid var(--lc-border)}
 :root[data-theme="light"] .brand strong{color:var(--lc-text)}
 :root[data-theme="light"] .brand small{color:var(--lc-muted)}
@@ -131,23 +131,23 @@
 :root[data-theme="light"] .nav-item>span{color:#7f9586}
 :root[data-theme="light"] .nav-item b{color:var(--lc-muted);border-color:var(--lc-border)}
 :root[data-theme="light"] .nav-item:hover,:root[data-theme="light"] .nav-item.active{background:var(--lc-hover);color:#0d2419}
-:root[data-theme="light"] .nav-item.active>span{color:#8a6a2d}
+:root[data-theme="light"] .nav-item.active>span{color:var(--q-gold-deep)}
 :root[data-theme="light"] .category-heading{border-top-color:var(--lc-border)}
 :root[data-theme="light"] .category-heading h2{color:var(--lc-text)}
-:root[data-theme="light"] .category-heading .tiny-button{color:#8a6a2d;border-color:#c39a4450}
+:root[data-theme="light"] .category-heading .tiny-button{color:var(--q-gold-deep);border-color:#c39a4450}
 :root[data-theme="light"] .tiny-button{color:var(--lc-muted)}
-:root[data-theme="light"] .category-search{border-color:var(--lc-border);background:#f3f2ea}
+:root[data-theme="light"] .category-search{border-color:var(--lc-border);background:var(--q-bg)}
 :root[data-theme="light"] .category-search span{color:#7f9586}
 :root[data-theme="light"] .category-search input{color:var(--lc-text)}
 :root[data-theme="light"] .category-search input::placeholder{color:var(--lc-muted)}
 :root[data-theme="light"] .category-list{scrollbar-color:#cdd3c6 transparent}
-:root[data-theme="light"] .category-group{color:#8a6a2d;border-top-color:var(--lc-border)}
-:root[data-theme="light"] .category-group.agreement-sidebar-heading{color:#8a6a2d!important;border-top-color:var(--lc-border)}
+:root[data-theme="light"] .category-group{color:var(--q-gold-deep);border-top-color:var(--lc-border)}
+:root[data-theme="light"] .category-group.agreement-sidebar-heading{color:var(--q-gold-deep)!important;border-top-color:var(--lc-border)}
 :root[data-theme="light"] .category-tier{color:var(--lc-muted);border-inline-end-color:#bda46699}
 :root[data-theme="light"] .category-button{color:var(--lc-text)}
 :root[data-theme="light"] .category-button b{color:var(--lc-muted)}
 :root[data-theme="light"] .category-button:hover,:root[data-theme="light"] .category-button.selected{background:var(--lc-hover);color:#0d2419}
-:root[data-theme="light"] .category-button.selected{color:#8a6a2d}
+:root[data-theme="light"] .category-button.selected{color:var(--q-gold-deep)}
 :root[data-theme="light"] .sidebar-loading{color:var(--lc-muted)}
 :root[data-theme="light"] .sidebar-foot{border-top-color:var(--lc-border);background:#0000000a}
 :root[data-theme="light"] .sidebar-foot strong,:root[data-theme="light"] .sidebar-foot small{color:var(--lc-muted)}
@@ -155,7 +155,7 @@
 :root[data-theme="light"] .sidebar-foot .icon-button{color:var(--lc-muted)}
 :root[data-theme="light"] .nav-item>span.assistant-nav-icon{color:#7f9586}
 :root[data-theme="light"] .account-identity{border-color:var(--lc-border);background:var(--lc-panel)}
-:root[data-theme="light"] .account-identity:hover{background:#f3f2ea;border-color:#d4ae5c55}
+:root[data-theme="light"] .account-identity:hover{background:var(--q-bg);border-color:#d4ae5c55}
 :root[data-theme="light"] .account-identity-text strong{color:var(--lc-text)}
 :root[data-theme="light"] .account-identity-text small{color:var(--lc-muted)}
 :root[data-theme="light"] .main-nav>.account-row{border-top-color:var(--lc-border)}
@@ -167,9 +167,9 @@
 :root[data-theme="light"] .topbar-description{color:var(--lc-muted)}
 :root[data-theme="light"] .identity-header .connection-pill{color:var(--lc-muted)}
 :root[data-theme="light"] .identity-header .connection-pill i{background:#2f7a56}
-:root[data-theme="light"] .identity-header .icon-button{color:#163428}
+:root[data-theme="light"] .identity-header .icon-button{color:var(--q-brand-dark)}
 :root[data-theme="light"] .identity-header .icon-button:hover{background:var(--lc-hover)}
-:root[data-theme="light"] .identity-header .topbar-actions .header-control{color:#163428}
+:root[data-theme="light"] .identity-header .topbar-actions .header-control{color:var(--q-brand-dark)}
 :root[data-theme="light"] .identity-header .topbar-actions .header-control:hover{background:var(--lc-hover);color:#0d2419}
 
 .account-viewas.active{background:#ffffff1f;color:#ffe2a0}
@@ -180,6 +180,6 @@
 .updates-admin label{display:flex;gap:.35rem;align-items:center;font-size:.85rem}
 .updates-admin input{min-width:10rem;padding:2px 6px;border:1px solid #c9b98f;border-radius:6px;font:inherit}
 .admin-audit-badge.audit-ok{color:#2f6b45;border-color:#9cc7a9}
-.admin-audit-badge.audit-bad{color:#8a2b1f;border-color:#d9a79f;background:#fff4f1}
-.admin-audit-detail{flex-basis:100%;font-size:.85rem;padding:.4rem .6rem;border:1px dashed #d9a79f;border-radius:8px;background:#fffaf8}
+.admin-audit-badge.audit-bad{color:#8a2b1f;border-color:#d9a79f;background:var(--q-danger-bg)}
+.admin-audit-detail{flex-basis:100%;font-size:.85rem;padding:.4rem .6rem;border:1px dashed #d9a79f;border-radius:8px;background:var(--q-bg-soft)}
 .admin-audit-detail ul{margin:.2rem 1rem .4rem;padding:0}
