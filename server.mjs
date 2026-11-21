@@ -829,6 +829,19 @@ const server=http.createServer(async(req,res)=>{
       try{
         if(action==='title'){const t=String(body.title||'').replace(/\s+/g,' ').trim().slice(0,500);if(t.length<3)return send(req,res,400,{error:'العنوان قصير جداً.'});const patch={title:t,titleEdited:true};if(item.state==='held'&&String(item.holdReason||'').startsWith('العنوان غير معرَّب')&&!titleNeedsArabic({...item,title:t}))patch.holdReason='';await adminStore.legalMonitorItems.updateOne({_id:id},{$set:patch,$push:{history:{state:item.state,at:now,reason:'manager_title_edit'}}});}
         else if(action==='supersedes'){const oid=String(body.oldId||'').trim().slice(0,160),otitle=String(body.oldTitle||'').trim().slice(0,300);await adminStore.legalMonitorItems.updateOne({_id:id},oid?{$set:{supersedesId:oid,supersedesTitle:otitle}}:{$unset:{supersedesId:'',supersedesTitle:''}});if(item.state==='published')await refreshSupersessions();}
+        else if(action==='prepare'){
+          if(item.state==='published')return send(req,res,409,{error:'السجل منشور أصلاً.'});
+          const pdfUrl=String(item.source?.url||'');if(!/\.pdf(\?|$)/i.test(pdfUrl))return send(req,res,409,{error:'مصدر هذا السجل ليس رابط PDF مباشراً؛ أضف الأصل يدوياً.'});
+          const savedSettings=await adminStore.settings.findOne({_id:'library'}),ocrSettings=savedSettings?.ocr||{},prepKey=geminiOcrApiKey(openSecret(ocrSettings.geminiApiKeyEncrypted));
+          if(!geminiOcrEnabled(ocrSettings.engine)||!prepKey)return send(req,res,409,{error:'لم يُضبط مفتاح Gemini في المكتبة؛ أضفه من الإدارة ← القراءة الآلية ثم أعد المحاولة.',code:'no_key'});
+          if(activeDriveOcr)return send(req,res,409,{error:'هناك عملية استخراج قيد التنفيذ؛ انتظر اكتمالها.'});activeDriveOcr=true;
+          try{
+            const {bytes}=await fetchOfficialPdf(pdfUrl),prompt='استخرج النص الظاهر في هذا المستند كاملاً وبأمانة حرفية، باللغة العربية كما كُتب. حافظ على أرقام المواد والفصول والتواريخ وعلى ترتيب الصفحات والفقرات. لا تلخص ولا تشرح ولا تضف عناوين من عندك. أعد النص المستخرج وحده. إذا تعذر قراءة موضع فضع [غير مقروء].';
+            const {text}=await extractGeminiPdf(geminiOcrModel(),prepKey,bytes,prompt),clean=String(text||'').trim();
+            if(clean.length<200)return send(req,res,422,{error:'لم يُستخرج نص كافٍ من الملف؛ لم يُحفظ شيء.'});
+            await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{fullText:clean.slice(0,150000)},$push:{history:{state:item.state,at:now,reason:'prepared_text_extracted'}}});
+          }finally{activeDriveOcr=false;}
+        }
         else if(action==='category'){const cat=String(body.category||'').trim().slice(0,80);await adminStore.legalMonitorItems.updateOne({_id:id},cat?{$set:{publishCategory:cat}}:{$unset:{publishCategory:''}});}
         else if(action==='hold'){await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'held',holdReason:'تحفظ المدير على النشر.',autoPublishAt:null},$push:{history:{state:'held',at:now,reason:'manager_reservation'}}});}
         else if(action==='release'){if(item.state!=='held')return send(req,res,409,{error:'السجل ليس محجوزاً.'});await adminStore.legalMonitorItems.updateOne({_id:id},{$set:{state:'ready',holdReason:'',readyForAutomaticPublication:true,autoPublishAt:scheduleAfterRelease(item,now)},$push:{history:{state:'ready',at:now,reason:'manager_release'}}});}
