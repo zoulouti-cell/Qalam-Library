@@ -26,7 +26,9 @@ import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCook
 import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,agreementDriveIdFor,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
-import { readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
+import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
+import { auditReport,fixCard } from './src/card-audit.mjs';
+import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -857,6 +859,9 @@ const server=http.createServer(async(req,res)=>{
         }
         else if(action==='delete'){
           const docId=item.documentId||`monitor-${String(id).slice(0,20)}`;
+          /* لقطة في سلة المحذوفات قبل الحذف: البطاقة كاملة ومحتواها المنشور، تُستعاد بزر واحد خلال 30 يوماً. */
+          const gone=await adminStore.content.find({documentId:docId,origin:'legal-monitor'}).toArray();
+          await adminStore.trash.insertOne(makeTrashEntry({kind:'monitor',label:item.title,actor,item,contents:gone},now));
           await adminStore.content.deleteMany({documentId:docId,origin:'legal-monitor'});
           /* شاهد حذف: يبقى المعرّف بحالة dismissed حتى لا يعيد الجامع استيراده ولا يظهر في أي قائمة. */
           await adminStore.legalMonitorItems.replaceOne({_id:id},{_id:id,id,state:'dismissed',kind:item.kind,country:item.country,title:item.title,dismissedAt:now,dismissedBy:actor});
@@ -1008,6 +1013,41 @@ const server=http.createServer(async(req,res)=>{
       await adminStore.content.updateMany({documentId,status:'published'},{$set:{status:'superseded',updatedAt:new Date()}});await adminStore.content.updateOne({_id:draft._id},{$set:{status:'published',pendingCassation:false,publishedAt:new Date(),publishedBy:auditActor(req),approvedAt:new Date(),updatedAt:new Date()}});await recordAudit(adminStore,auditActor(req),draft.pendingCassation?'cassation_decision_approved_and_published':'content_published',documentId,{title:draft.title,sourceUrl:draft.sourceUrl});library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());if(draft.contributionId){const done=await moveContribution(draft.contributionId,'published',{publishedDocumentId:documentId,publishedAt:new Date()});if(done)void mailContributor(done,'published');}
       let originals={total:0,moved:0,failed:0};if(draft.originalFiles?.length){try{originals=await moveOriginalsToDrive(approvedDoc,{subfolder:String(body.driveSubfolder||'')});}catch(error){originals={total:draft.originalFiles.length,moved:0,failed:draft.originalFiles.length,error:error.message||'تعذر نقل الأصول إلى Drive.'};}await recordAudit(adminStore,auditActor(req),'originals_to_drive',documentId,{moved:originals.moved,failed:originals.failed,folder:originals.folder||'',error:originals.error||''});}
       return send(req,res,200,{ok:true,documentId,status:'published',originals,cassationTransfer});
+    }
+    /* سلة المحذوفات: قائمة، واستعادة، وحذف نهائي بأمر المدير (وإلا تُمحى تلقائياً بعد 30 يوماً). */
+    if(p==='/api/admin/trash'&&req.method==='GET'){
+      const rows=await adminStore.trash.find({}).sort({deletedAt:-1}).limit(300).toArray();return send(req,res,200,{items:rows.map(trashView)});
+    }
+    if(p==='/api/admin/trash'&&req.method==='POST'){
+      let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const id=String(body.id||'').slice(0,60),action=String(body.action||''),entry=await adminStore.trash.findOne({_id:id});
+      if(!entry)return send(req,res,404,{error:'العنصر غير موجود في السلة.'});
+      if(action==='restore'){const r=await restoreTrashEntry(adminStore,entry);library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());await recordAudit(adminStore,'admin','trash_restored',id,{label:entry.label,kind:entry.kind});return send(req,res,200,{ok:true,...r});}
+      if(action==='purge'){await adminStore.trash.deleteOne({_id:id});await recordAudit(adminStore,'admin','trash_purged',id,{label:entry.label,kind:entry.kind});return send(req,res,200,{ok:true});}
+      return send(req,res,400,{error:'إجراء غير معروف.'});
+    }
+    /* تدقيق البطاقة الموحّدة لكل بطاقات المستجدات: تقرير، وإصلاح آمن لا يكتب محتوى (ترتيب الأقسام، حذف الملاحظات التقنية، تصحيح سطر «الأصل»). */
+    if(p==='/api/admin/card-audit'&&req.method==='GET'){
+      const items=await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({fullText:0,history:0}).toArray();return send(req,res,200,auditReport(items));
+    }
+    if(p==='/api/admin/card-audit'&&req.method==='POST'){
+      const items=await adminStore.legalMonitorItems.find({state:{$ne:'dismissed'}}).project({fullText:0}).toArray(),now=new Date();let fixed=0,republished=0;
+      for(const item of items){
+        const summary=fixCard(item);if(!summary)continue;
+        await adminStore.legalMonitorItems.updateOne({_id:item._id},{$set:{summary},$push:{history:{state:item.state,at:now,reason:'card_audit_autofix'}}});fixed++;
+        if(item.state==='published'&&item.documentId){const full=await adminStore.legalMonitorItems.findOne({_id:item._id});const record=publicationRecord({...full,id:String(full._id)});const r=await adminStore.content.updateOne({documentId:item.documentId,origin:'legal-monitor',status:'published'},{$set:{text:record.text,updatedAt:now}});republished+=r.modifiedCount||0;}
+      }
+      if(republished)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
+      await recordAudit(adminStore,'admin','card_audit_autofix','legalMonitorItems',{fixed,republished});
+      return send(req,res,200,{ok:true,fixed,republished});
+    }
+    /* ربط ملفات «نصوص التحيين» في Drive ببطاقاتها في الراصد: يعرض للمدير حالة كل نص والقسم المقترح لنقله إليه. */
+    if(p==='/api/admin/updates-texts/links'&&req.method==='GET'){
+      const ids=String(url.searchParams.get('ids')||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,200);
+      if(!ids.length)return send(req,res,200,{links:{}});
+      const rows=await adminStore.legalMonitorItems.find({$or:[{'original.driveId':{$in:ids}},{'originals.driveId':{$in:ids}}],state:{$ne:'dismissed'}}).project({title:1,state:1,kind:1,country:1,court:1,publishCategory:1,original:1,originals:1,currentStage:1}).toArray();
+      const links={};for(const r of rows){const linked=[r.original,...(r.originals||[])].filter(o=>o?.driveId&&ids.includes(o.driveId));for(const o of linked)links[o.driveId]={id:r._id,title:r.title,state:r.state,category:publicationCategory(r),chosen:!!r.publishCategory,stagesComplete:lawStagesComplete(r)};}
+      return send(req,res,200,{links});
     }
     if(p==='/api/admin/content/delete'&&req.method==='POST'){
       let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}const documentId=String(body.documentId||'').slice(0,120),doomed=await adminStore.content.findOne({documentId,status:'draft',contributionId:{$exists:true}}),result=await adminStore.content.deleteMany({documentId,status:'draft'});if(doomed?.contributionId)await adminStore.contributions.updateOne({id:doomed.contributionId,status:'reviewing'},{$set:{status:'pending',statusChangedAt:new Date(),updatedAt:new Date()},$unset:{draftDocumentId:''}});if(!result.deletedCount)return send(req,res,404,{error:'لا توجد مسودة قابلة للحذف؛ لا يمكن حذف سجل منشور من هنا.'});await recordAudit(adminStore,'admin','draft_deleted',documentId);return send(req,res,200,{ok:true});
