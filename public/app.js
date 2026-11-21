@@ -1266,8 +1266,11 @@ async function showNewsTicker() {
     button.setAttribute('aria-pressed', String(reader)); button.classList.toggle('active', reader);
     button.title = button.ariaLabel = reader ? 'العودة إلى وضع المدير' : 'عرض المكتبة كقارئ';
     if (!button.dataset.wired) { button.dataset.wired = '1'; button.addEventListener('click', async () => { button.disabled = true; try { await api('/api/view-as', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: button.classList.contains('active') ? 'admin' : 'reader' }) }); location.reload(); } catch (error) { button.disabled = false; toast(error.message || 'تعذّر تبديل الوضع.'); } }); }
+    /* لا شريط عائم: الأيقونة وحدها تبيّن الوضع — عين في وضع المدير (للانتقال إلى القارئ)، ودرع المدير في وضع القارئ (للعودة). */
     $('readerViewBar')?.remove();
-    if (reader) { const bar = document.createElement('div'); bar.id = 'readerViewBar'; bar.setAttribute('role', 'status'); bar.innerHTML = '<span>تشاهد المكتبة كقارئ · لا تظهر أدوات الإدارة ولا ما يخص المدير</span><button type="button">العودة إلى وضع المدير</button>'; bar.querySelector('button').addEventListener('click', () => button.click()); document.body.prepend(bar); }
+    button.innerHTML = reader
+      ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6L12 3Z"></path><path d="m9 12 2.2 2.2L15.2 10"></path></svg>'
+      : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
   }
   async function showEffectiveAlerts() {
     try {
