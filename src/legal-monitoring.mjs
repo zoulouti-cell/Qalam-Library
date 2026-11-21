@@ -34,11 +34,26 @@ export function officialSource(source = {}) {
 /* العنوان الفرنسي الخام (دون حرف عربي) لا يُنشر تلقائياً: يلزم تعريبه أو تعديله من المدير. */
 export const titleNeedsArabic = (record = {}) => record.country === 'fr' && !!record.title && !/[\u0600-\u06FF]/.test(String(record.title));
 
+
+/* تطبيع تلقائي لما يكتبه الجامع: عنوان المصدر بالعربية، وحذف الملاحظات التقنية من متن البطاقة. */
+const FR_MONTHS = { janvier: 'يناير', 'février': 'فبراير', fevrier: 'فبراير', mars: 'مارس', avril: 'أبريل', mai: 'ماي', juin: 'يونيو', juillet: 'يوليوز', 'août': 'غشت', aout: 'غشت', septembre: 'شتنبر', octobre: 'أكتوبر', novembre: 'نونبر', 'décembre': 'دجنبر', decembre: 'دجنبر' };
+export function arabicSourceLabel(label = '') {
+  let text = String(label || '').replace(/\s+/g, ' ').trim();
+  if (!text || !/[A-Za-zÀ-ÿ]/.test(text.replace(/L[ée]gifrance|JORF|Judilibre|DILA/gi, ''))) return text;
+  text = text.replace(/JORF\s*n°\s*(\d+)\s*du\s*(\d{1,2})(?:er)?\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/gi, (_, n, d, m, y) => `العدد ${n} بتاريخ ${d} ${FR_MONTHS[m.toLowerCase()] || m} ${y}`);
+  if (/L[ée]gifrance/i.test(text) && !/الجريدة الرسمية الفرنسية/.test(text)) text = text.replace(/L[ée]gifrance\s*[—–-]?\s*(Journal officiel|JORF)?/i, 'الجريدة الرسمية الفرنسية (Légifrance) — ').replace(/\s*[—–-]\s*$/, '');
+  else if (/L[ée]gifrance/i.test(text) && /الجريدة الرسمية الفرنسية \(JORF\)/.test(text)) text = text.replace('(JORF)', '').replace(/\s+/g, ' ').replace(/Légifrance\s*–\s*الجريدة الرسمية الفرنسية/i, 'الجريدة الرسمية الفرنسية (Légifrance)');
+  return text.replace(/\s+/g, ' ').replace(/\s—\s—\s/g, ' — ').trim();
+}
+export function stripTechnicalNotes(text = '') {
+  return String(text || '').replace(/[؛;]?\s*[^؛.\n]*\b(curl|wget|python|Firecrawl)\b[^؛.\n]*[؛.]?/gi, m => /^[؛;]/.test(m.trim()) ? '' : m.replace(/[^؛.\n]*\b(curl|wget|python|Firecrawl)\b[^؛.\n]*/i, '').trim());
+}
+
 export function makeObservation(input = {}) {
   const country = ['ma', 'fr'].includes(input.country) ? input.country : '';
   const kind = ['legislation', 'bill', 'case_law', 'research', 'justice_digital'].includes(input.kind) ? input.kind : '';
-  const source = { url: sourceUrl(input.source?.url), label: oneLine(input.source?.label, 200), official: input.source?.official === true, verified: input.source?.verified === true };
-  const title = oneLine(input.title, 500), summary = String(input.summary ?? '').trim().slice(0, 20000), fullText = String(input.fullText ?? '').trim().slice(0, 150000);
+  const source = { url: sourceUrl(input.source?.url), label: arabicSourceLabel(oneLine(input.source?.label, 200)), official: input.source?.official === true, verified: input.source?.verified === true };
+  const title = oneLine(input.title, 500), summary = stripTechnicalNotes(String(input.summary ?? '').trim()).slice(0, 20000), fullText = String(input.fullText ?? '').trim().slice(0, 150000);
   const eventDate = isoDate(input.eventDate), receivedAt = input.receivedAt ? new Date(input.receivedAt) : new Date();
   if (!country || !kind || title.length < 3 || summary.length < 40 || !eventDate || Number.isNaN(receivedAt.getTime()) || !officialSource(source)) return { error: 'الملاحظة ناقصة أو مصدرها الرسمي غير متحقق منه.' };
   const reference = oneLine(input.reference, 300), court = oneLine(input.court, 200), caseNumber = oneLine(input.caseNumber, 120);
