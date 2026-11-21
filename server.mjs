@@ -23,7 +23,7 @@ import { applyLocalCorrection,localCorrectionHistory,localOcrCandidate,revertLoc
 import { connectAdminStore,sealSecret,openSecret,recordAudit,hashPassword,verifyPassword,Binary } from './src/admin-store.mjs';
 import { emailReady,ownerEmail,validEmail,activationToken,tokenDigest,safeToken,activationUrl,sendMail,activationMessage,notifyOwner,registrationConfirmUrl,registrationConfirmMessage,registrationApprovedMessage,registrationRejectedMessage } from './src/account-mail.mjs';
 import { googleLoginConfig,beginGoogleLogin,finishGoogleFlow,clearGoogleFlowCookie,exchangeGoogleCode,exchangeGoogleTokens,revokeGoogleToken,DRIVE_WRITE_SCOPE } from './src/google-login.mjs';
-import { countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,agreementDriveIdFor,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
+import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoot,listDriveFolder,openDrivePdf,openDriveSourceFile,readDrivePdf,searchDrivePdfs,matchDrivePdf,listAgreementPdfs,agreementDriveIdFor,scanLibraryPdfs,scanFolderPdfs,resolveDocumentSourcePdf,resolveJudicialDrivePdf,driveOriginalsStatus,resolveOriginalsFolder,uploadOriginalFile,moveOriginalDriveFile,judicialFolderIdFor,frenchJudicialFolderIdFor,FRENCH_UPDATES_FOLDER_ID,MOROCCAN_UPDATES_FOLDER_ID,setDriveUserWriter,forgetDriveUserToken,probeDriveWriteAccess, isPendingCassationDriveItem, PENDING_CASSATION_FOLDER_ID } from './src/drive.mjs';
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
@@ -131,6 +131,8 @@ if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موج
 const library=new Library(file),limits=new Map();
 library.setBundledContent([...bundledAgreementTexts,...bundledLegalMonitoringContent,...bundledFrenchStudies]);
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
+async function refreshAgreementOverrides(){if(!adminStore?.agreementOverrides)return;try{setAgreementOverrides(await adminStore.agreementOverrides.find({}).toArray());}catch(error){console.error('agreement overrides:',error?.message||error);}}
+await refreshAgreementOverrides();
 /* استعادة كلمة المرور بالبريد؛ تصفير محاولات الدخول الفاشلة بعد نجاحها لأن صاحب الصندوق أثبت ملكيته. */
 const passwordReset=createPasswordReset({store:adminStore,afterReset:(ip,email)=>clearLoginFailures(ip,email)});
 async function ensureBootstrapAdmin(){
@@ -879,6 +881,27 @@ const server=http.createServer(async(req,res)=>{
     }
     if(p==='/api/drive/match'&&req.method==='GET'){
       try{return send(req,res,200,await matchDrivePdf(url.searchParams.get('q')||'',url.searchParams.get('source')||'',url.searchParams.get('exactName')||'',url.searchParams.get('exactPath')||''));}catch(error){return send(req,res,503,{error:error.message||'تعذر مطابقة الوثيقة مع أصلها في Drive.'});}
+    }
+    if(p==='/api/admin/agreements/item'&&req.method==='POST'){
+      if(!adminStore?.agreementOverrides)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
+      let body;try{body=await jsonBody(req);}catch{return send(req,res,400,{error:'صيغة البيانات غير صالحة.'});}
+      const treatyId=String(body.treatyId||'').trim(),action=String(body.action||'');
+      if(!/^\d{1,10}$/.test(treatyId)||!['move','hide','restore'].includes(action))return send(req,res,400,{error:'طلب غير صالح.'});
+      const groupOfFile=f=>String(f.agreementSubcategory||'').trim()||String(f.path||'').split(' / ').filter(Boolean).at(-1)||'';
+      try{
+        const actor=auditActor(req),now=new Date();
+        if(action==='restore'){const gone=await adminStore.agreementOverrides.deleteOne({treatyId});await refreshAgreementOverrides();await recordAudit(adminStore,actor,'agreement_restored',treatyId,{});return send(req,res,200,{ok:true,restored:gone.deletedCount>0});}
+        const listing=(await listAgreementPdfs('',1,2000)).files,current=listing.find(f=>String(f.treatyId||'')===treatyId);
+        if(!current)return send(req,res,404,{error:'الاتفاقية غير موجودة في الفهرس.'});
+        if(action==='hide'){await adminStore.agreementOverrides.updateOne({treatyId},{$set:{treatyId,hidden:true,updatedAt:now,updatedBy:actor}},{upsert:true});await refreshAgreementOverrides();await recordAudit(adminStore,actor,'agreement_hidden',treatyId,{title:String(current.title||current.name||'').slice(0,200)});return send(req,res,200,{ok:true});}
+        const kind=String(body.kind||''),group=String(body.group||'').trim().slice(0,120);
+        if(!['ثنائية','متعددة'].includes(kind)||!group)return send(req,res,400,{error:'اختر الفرع والمجلد.'});
+        if(!listing.some(f=>f.agreementKind===kind&&groupOfFile(f)===group))return send(req,res,400,{error:'المجلد المطلوب غير موجود في هذا الفرع.'});
+        await adminStore.agreementOverrides.updateOne({treatyId},{$set:{treatyId,kind,group,hidden:false,updatedAt:now,updatedBy:actor}},{upsert:true});
+        await refreshAgreementOverrides();
+        await recordAudit(adminStore,actor,'agreement_moved',treatyId,{from:{kind:current.agreementKind||'',group:groupOfFile(current)},to:{kind,group}});
+        return send(req,res,200,{ok:true,kind,group});
+      }catch(error){return send(req,res,503,{error:error.message||'تعذر تنفيذ الإجراء.'});}
     }
     if(p==='/api/drive/agreements'&&req.method==='GET'){
       try{return send(req,res,200,await listAgreementPdfs(url.searchParams.get('q')||'',url.searchParams.get('page')||1,url.searchParams.get('limit')||20));}catch(error){return send(req,res,503,{error:error.message||'تعذر فهرسة ملفات الاتفاقيات والمعاهدات في Drive.'});}
