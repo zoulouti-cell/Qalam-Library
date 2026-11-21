@@ -68,6 +68,7 @@ export async function connectAdminStore(uri) {
       contributions: db.collection('userContributions'),
       contributionFiles: db.collection('contributionFiles'),
       trash: db.collection('libraryTrash'),
+      docOverrides: db.collection('documentOverrides'),
     };
   } catch (error) {
     await client.close().catch(() => {});

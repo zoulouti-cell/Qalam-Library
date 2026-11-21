@@ -139,8 +139,29 @@
   function metadata(doc) {
     return { id: doc.id, title: doc.title, type: doc.type, kind: doc.kind || '', category: doc.category, subcategory: doc.subcategory || '', date: doc.date || '', textKind: doc.textKind, reviewStatus: doc.reviewStatus, issues: doc.issues || [], abrogated: !!doc.abrogated, snippet: doc.snippet || '', lawNumber: doc.lawNumber || '', decisionNumber: doc.decisionNumber || '', caseNumber: doc.caseNumber || '', sourceUrl: doc.sourceUrl || '', officialUrl: doc.officialUrl || '', driveSourceName:doc.driveSourceName||'',driveSourcePath:doc.driveSourcePath||'',driveAlternateFileId:doc.driveAlternateFileId||'',driveAlternateFileName:doc.driveAlternateFileName||'',driveSourceStatus:doc.driveSourceStatus||'',judicialIndex:!!doc.judicialIndex };
   }
+  /* أدوات المدير على وثائق المكتبة الأساسية (القوانين والاجتهادات والدراسات…): حذف إلى سلة المحذوفات، ونقل إلى قسم آخر. */
+  function adminDocTools(doc) {
+    const current = doc.category || '', names = (state.categories || []).map(c => c.name).filter(Boolean);
+    const options = '<option value="" selected>— نقل إلى قسم —</option>' + names.filter(n => n !== current).map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
+    return '<div class="admin-card-tools" aria-label="أدوات المدير"><button type="button" class="admin-tool-btn danger" data-doc-hide="' + esc(doc.id) + '" data-admin-title="' + esc(doc.title || '') + '">حذف</button><select data-doc-move-select aria-label="القسم">' + options + '</select><button type="button" class="admin-tool-btn" data-doc-move="' + esc(doc.id) + '">نقل إلى القسم</button></div>';
+  }
+  /* أدوات المدير على ملفات رفوف Drive (المستجدات المغربية، نصوص التحيين، الرفوف الفرنسية…): حذف إلى سلة Drive ونقل إلى رفّ آخر. */
+  let driveTargets = null;
+  async function attachDriveAdmin(pane, folderName) {
+    if (!state.isAdmin) return;
+    const cards = [...pane.querySelectorAll('.drive-text-card[data-file-id]')]; if (!cards.length) return;
+    try { driveTargets = driveTargets || (await api('/api/admin/drive-targets')).targets || []; } catch { return; }
+    for (const card of cards) {
+      if (card.querySelector('.drive-admin-tools')) continue;
+      const name = card.querySelector('strong')?.textContent.replace(/^📄\s*/, '') || '';
+      const bar = document.createElement('div'); bar.className = 'admin-card-tools drive-admin-tools';
+      bar.innerHTML = '<button type="button" class="admin-tool-btn danger" data-drive-trash="' + esc(card.dataset.fileId) + '" data-name="' + esc(name) + '" data-folder="' + esc(folderName) + '">حذف</button><select data-drive-move-select aria-label="الرفّ"><option value="" selected>— نقل إلى رفّ —</option>' + driveTargets.filter(t => t.name !== folderName).map(t => '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>').join('') + '</select><button type="button" class="admin-tool-btn" data-drive-move="' + esc(card.dataset.fileId) + '" data-name="' + esc(name) + '">نقل</button>';
+      card.append(bar);
+    }
+  }
   function adminCardTools(doc) {
-    if (!state.isAdmin || doc?.origin !== 'legal-monitor' || !doc.monitorItemId) return '';
+    if (!state.isAdmin || !doc?.id) return '';
+    if (doc.origin !== 'legal-monitor' || !doc.monitorItemId) return adminDocTools(doc);
     /* قاعدة النقل موضعية: الفرنسي والاجتهادات والأبحاث والدراسات لا تخرج بطاقاتها من قسمها (النقل بين فروعه)،
        و«إضافات النقض» وجهتها فروع الاجتهادات، وسائر الأقسام يُنقل بينها. */
     const current = doc.category || '', cats = state.categories || [];
@@ -553,6 +574,7 @@
         ' عنصر</strong></div>' +
         (rows || '<p class="sidebar-loading">هذا المجلد فارغ.</p>');
       if (id === UPDATES_FOLDER_ID && state.canAdmin) attachUpdatesAdmin(pane);
+      attachDriveAdmin(pane, name);
       pane.querySelectorAll('[data-drive-excerpt]').forEach(async el => {
         try {
           const r = await fetch('/api/drive/file?id=' + encodeURIComponent(el.dataset.driveExcerpt) + '&mode=preview', {
@@ -1360,6 +1382,30 @@
       if (button.hasAttribute('data-clear-category')) { state.category = ''; state.topic = ''; state.page = 1; renderCategories(); runSearch(); return; }
       if (button.dataset.scope) { state.scope = button.dataset.scope; state.scopeTouched = true; if (state.scope === 'agreements') { state.category = ''; state.topic = ''; } else if (state.topic && state.scope !== 'all') state.category = ''; else if (state.topic && state.scope === 'all') state.category = state.topic; state.page = 1; document.querySelectorAll('[data-scope]').forEach(b => { const active = b === button; b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active)); }); renderCategories(); runSearch(); requestAnimationFrame(()=>$('resultsTitle').scrollIntoView({block:'start',behavior:'smooth'})); return; }
       if (button.dataset.browseGroup) { $('browsePanel').hidden = false; $('browseToggle').setAttribute('aria-expanded','true'); renderBrowseGroup(button.dataset.browseGroup); requestAnimationFrame(() => $('browsePanel').scrollIntoView({behavior:'smooth',block:'start'})); return; }
+      if (button.dataset.docHide) {
+        if (!window.confirm('حذف «' + (button.dataset.adminTitle || 'هذه الوثيقة') + '» من المكتبة؟ تبقى في سلة المحذوفات ويمكن استعادتها من لوحة الإدارة.')) return;
+        button.disabled = true;
+        try { await api('/api/admin/document-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: button.dataset.docHide, action: 'hide' }) }); toast('حُذفت الوثيقة.'); button.closest('.result-card')?.remove(); } catch (error) { button.disabled = false; toast(error.message); }
+        return;
+      }
+      if (button.dataset.docMove) {
+        const category = button.parentElement.querySelector('[data-doc-move-select]')?.value || '';
+        if (!category) { toast('اختر القسم أولاً.'); return; } button.disabled = true;
+        try { await api('/api/admin/document-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: button.dataset.docMove, action: 'move', category }) }); toast('نُقلت الوثيقة إلى «' + category + '».'); runSearch(); } catch (error) { toast(error.message); } finally { button.disabled = false; }
+        return;
+      }
+      if (button.dataset.driveTrash) {
+        if (!window.confirm('حذف «' + (button.dataset.name || 'هذا الملف') + '»؟ يُنقل إلى سلة Drive ويُستعاد من سلة المحذوفات خلال 30 يوماً.')) return;
+        button.disabled = true;
+        try { await api('/api/admin/drive-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: button.dataset.driveTrash, action: 'trash', name: button.dataset.name, folder: button.dataset.folder }) }); toast('حُذف الملف.'); button.closest('.drive-text-card')?.remove(); } catch (error) { button.disabled = false; toast(error.message); }
+        return;
+      }
+      if (button.dataset.driveMove) {
+        const select = button.parentElement.querySelector('[data-drive-move-select]'), target = select?.value || '';
+        if (!target) { toast('اختر الرفّ أولاً.'); return; } button.disabled = true;
+        try { await api('/api/admin/drive-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: button.dataset.driveMove, action: 'move', target, name: button.dataset.name }) }); toast('نُقل الملف إلى «' + select.selectedOptions[0].textContent + '».'); button.closest('.drive-text-card')?.remove(); } catch (error) { button.disabled = false; toast(error.message); }
+        return;
+      }
       if (button.dataset.adminAudit) { const box = button.nextElementSibling; if (box && auditCache.get(button.dataset.adminAudit)?.issues.length) { box.hidden = !box.hidden; button.setAttribute('aria-expanded', String(!box.hidden)); } return; }
       if (button.dataset.adminAuditFix) {
         const id = button.dataset.adminAuditFix; button.disabled = true;
