@@ -662,16 +662,17 @@ const server=http.createServer(async(req,res)=>{
         await recordAudit(adminStore,actor,'registration_unblocked',email);
         return send(req,res,200,{ok:true,email,decision});
       }
-      if(!['review','rejected'].includes(target.accountStatus))return send(req,res,409,{error:'هذا الحساب ليس طلب تسجيل بانتظار القرار.'});
+      /* «unconfirmed»: لم يصل بريد التأكيد أو لم يُضغط رابطه؛ يجوز للمدير تفعيله مباشرة أو رفضه. */
+      if(!['review','rejected','unconfirmed'].includes(target.accountStatus))return send(req,res,409,{error:'هذا الحساب ليس طلب تسجيل بانتظار القرار.'});
       if(decision==='reject'){
-        const done=await adminStore.users.updateOne({_id:target._id,accountStatus:{$in:['review','rejected']}},{$set:{accountStatus:'rejected',active:false,rejectedAt:now,rejectedBy:actor,rejectedUntil:new Date(now.getTime()+7*86400000),updatedAt:now}});
+        const done=await adminStore.users.updateOne({_id:target._id,accountStatus:{$in:['review','rejected','unconfirmed']}},{$set:{accountStatus:'rejected',active:false,rejectedAt:now,rejectedBy:actor,rejectedUntil:new Date(now.getTime()+7*86400000),updatedAt:now},$unset:{activationTokenHash:'',activationExpiresAt:''}});
         if(!done.matchedCount)return send(req,res,409,{error:'تغيّرت حالة الطلب؛ حدّث القائمة.'});
         await recordAudit(adminStore,actor,'registration_rejected',email);
         let mailSent=false;
         if(target.accountStatus==='review'&&emailReady()){try{const mail=registrationRejectedMessage();await sendMail(email,mail.subject,mail.text,mail.html);mailSent=true;await adminStore.users.updateOne({_id:target._id},{$set:{decisionMailSentAt:new Date()}});}catch(error){console.error('Rejection mail failed:',error?.message||'delivery_error');}}
         return send(req,res,200,{ok:true,email,decision,mailSent});
       }
-      const done=await adminStore.users.updateOne({_id:target._id,accountStatus:{$in:['review','rejected']}},{$set:{accountStatus:'active',active:true,role:decision,activatedAt:now,approvedAt:now,approvedBy:actor,mustChangePassword:false,updatedAt:now},$unset:{rejectedUntil:'',rejectedAt:'',rejectedBy:''}});
+      const done=await adminStore.users.updateOne({_id:target._id,accountStatus:{$in:['review','rejected','unconfirmed']}},{$set:{accountStatus:'active',active:true,role:decision,activatedAt:now,approvedAt:now,approvedBy:actor,mustChangePassword:false,updatedAt:now,...(target.accountStatus==='unconfirmed'?{emailConfirmedBy:'admin'}:{})},$unset:{rejectedUntil:'',rejectedAt:'',rejectedBy:'',activationTokenHash:'',activationExpiresAt:''}});
       if(!done.matchedCount)return send(req,res,409,{error:'تغيّرت حالة الطلب؛ حدّث القائمة.'});
       await recordAudit(adminStore,actor,'registration_approved',email,{role:decision});
       let mailSent=false;
