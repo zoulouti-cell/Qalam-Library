@@ -1,4 +1,4 @@
-/* ربط Drive للكتابة بحساب المدير (OAuth): حساب الخدمة لا يملك مساحة تخزين، فتُرفع الأصول بحساب المدير المربوط. */
+/* ربط Drive للكتابة بحساب المدير (OAuth): حساب الخدمة لا يملك مساحة تخزين، فتُرفع الأصول بحساب المدير المتصل. */
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { bootServer, sessionCookie } from './fixtures/boot-server.mjs';

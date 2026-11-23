@@ -54,7 +54,7 @@ async function run(label, viewport, mobile) {
   /* 2) بطاقة الإعدادات قبل الربط */
   await page.click('[data-panel="settingsPanel"]'); await page.waitForSelector('#driveWriteCard');
   await page.waitForFunction(() => document.getElementById('driveWriteState').textContent !== 'جارٍ التحقق');
-  check(`${label}: قبل الربط: الحالة «غير مربوط» وزر الربط ظاهر`, (await page.locator('#driveWriteState').innerText()).includes('غير مربوط') && await page.locator('#driveWriteConnect').isVisible() && await page.locator('#driveWriteDisconnect').isHidden());
+  check(`${label}: قبل الربط: الحالة «غير متصل» وزر الربط ظاهر`, (await page.locator('#driveWriteState').innerText()).includes('غير متصل') && await page.locator('#driveWriteConnect').isVisible() && await page.locator('#driveWriteDisconnect').isHidden());
   check(`${label}: رابط الربط يشير إلى مسار الخادم`, (await page.getAttribute('#driveWriteConnect', 'href')) === '/api/admin/drive/connect');
   await page.screenshot({ path: path.join(SHOTS, `${label}-1-before.png`) });
 
@@ -67,7 +67,7 @@ async function run(label, viewport, mobile) {
   check(`${label}: يُمسح ‎?drive=‎ من العنوان`, !page.url().includes('drive='), page.url());
   await page.waitForFunction(() => document.getElementById('driveWriteState').textContent.includes('جاهز للكتابة'));
   const account = await page.locator('#driveWriteAccount').innerText();
-  check(`${label}: يظهر الحساب المربوط`, account.includes('zoulouti@gmail.com'), account);
+  check(`${label}: يظهر الحساب المتصل`, account.includes('zoulouti@gmail.com'), account);
   check(`${label}: زر فك الربط ظاهر وزر الربط صار «إعادة الربط»`, await page.locator('#driveWriteDisconnect').isVisible() && /إعادة الربط/.test(await page.locator('#driveWriteConnect').innerText()));
   await page.screenshot({ path: path.join(SHOTS, `${label}-2-connected.png`) });
   if (mobile || viewport.width < 600) {
@@ -81,14 +81,14 @@ async function run(label, viewport, mobile) {
   await page.evaluate(id => window.dispatchEvent(new CustomEvent('qalam:open-draft', { detail: { id } })), draft.body.documentId);
   await page.waitForSelector('#editor:not([hidden]) #docTitle');
   await page.waitForFunction(() => /zoulouti@gmail\.com/.test(document.getElementById('destStatus').textContent), null, { timeout: 8000 }).catch(() => {});
-  check(`${label}: المحرر يذكر الحساب المربوط`, /zoulouti@gmail\.com/.test(await page.locator('#destStatus').innerText()), await page.locator('#destStatus').innerText());
+  check(`${label}: المحرر يذكر الحساب المتصل`, /zoulouti@gmail\.com/.test(await page.locator('#destStatus').innerText()), await page.locator('#destStatus').innerText());
 
   /* 5) فك الربط بخطوتين */
   await page.click('[data-panel="settingsPanel"]'); await page.waitForSelector('#driveWriteDisconnect:not([hidden])');
   await page.click('#driveWriteDisconnect');
-  check(`${label}: الضغطة الأولى تطلب التأكيد ولا تفك الربط`, /تأكيد/.test(await page.locator('#driveWriteDisconnect').innerText()) && (await page.locator('#driveWriteState').innerText()).includes('مربوط'));
+  check(`${label}: الضغطة الأولى تطلب التأكيد ولا تفك الربط`, /تأكيد/.test(await page.locator('#driveWriteDisconnect').innerText()) && (await page.locator('#driveWriteState').innerText()).includes('متصل'));
   await page.click('#driveWriteDisconnect');
-  await page.waitForFunction(() => document.getElementById('driveWriteState').textContent.includes('غير مربوط'));
+  await page.waitForFunction(() => document.getElementById('driveWriteState').textContent.includes('غير متصل'));
   check(`${label}: بعد التأكيد يُفك الربط ويُلغى الرمز`, /فُكّ الربط/.test(await page.locator('#driveWriteMsg').innerText()) && drive.revoked.has(drive.REFRESH_TOKEN) && await page.locator('#driveWriteDisconnect').isHidden());
   check(`${label}: لا أخطاء في الكونسول`, errors.length === 0, errors.join(' | '));
   await context.close();
