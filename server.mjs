@@ -29,7 +29,7 @@ import { createPasswordReset } from './src/password-reset.mjs';
 import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
 import { runLegalFeed } from './src/legal-feed.mjs';
 import { auditReport,auditCard,fixCard,decisionKey,isCardKind } from './src/card-audit.mjs';
-import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
+import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,partnerUpdates,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url)),PUBLIC=path.join(ROOT,'public');
@@ -420,6 +420,14 @@ const server=http.createServer(async(req,res)=>{
       if(!validEmail(email))return send(req,res,200,{linked:false});
       const user=await adminStore.users.findOne({email,active:true,accountStatus:{$ne:'pending'}},{projection:{_id:1}});
       return send(req,res,200,{linked:!!user});
+    }
+    if(p==='/api/partner/updates'&&req.method==='GET'){
+      // لمنصة قلم: مستجدات الشهر المنشورة بكلماتها المفتاحية، تربطها المنصة بملفات المشتركين في المكتبة.
+      if(!(process.env.QALAM_PARTNER_SECRET||''))return send(req,res,503,{error:'الربط مع منصة قلم غير مهيأ.'});
+      if(!partnerAuthorized(req))return send(req,res,403,{error:'غير مصرح.'});
+      if(!adminStore)return send(req,res,200,{updates:[]});
+      const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-30*86400000)}},{projection:{fullText:0}}).sort({publishedAt:-1}).limit(80).toArray();
+      return send(req,res,200,{updates:partnerUpdates(rows.map(r=>({...r,id:r._id})))});
     }
     if(p==='/api/auth/google/status'&&req.method==='GET')return send(req,res,200,{available:googleLoginConfig().available&&!!adminStore});
     if(p==='/api/auth/google/start'&&req.method==='GET'){
