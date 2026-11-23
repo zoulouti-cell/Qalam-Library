@@ -121,9 +121,10 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .drive-text-card .drive-actions a[href*="mode=download"]{background:var(--q-brand-dark);color:#f4e3a6;border-color:var(--q-brand-dark)}
 .news-ticker-note{position:relative;z-index:5;margin-top:8px!important}
 
-/* شريط الأخبار: كبسولة تولد من حرف القاف في شعار قلم؛ بدايتها مخفية تحت ساق القاف السفلى فلا يظهر طرفها */
-.news-ticker{margin:44px 48px 14px 0!important;padding:0 10px 0 8px!important;height:30px;position:relative;z-index:5;gap:8px!important;border:0!important;border-radius:999px 0 0 999px!important;background:#fcfbe5!important;box-shadow:0 1px 5px rgba(11,47,36,.10);overflow:visible!important}
-.news-ticker-logo{position:absolute;right:-46px;top:-35px;width:54px;height:72px;display:block;z-index:1;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(11,47,36,.25))}
+/* شريط الأخبار: الكبسولة تمر خلف حرف القاف وتنتهي عند حافته اليمنى دون أن تتجاوزها */
+.news-ticker{margin:18px 8px 18px 0!important;padding:0 44px 0 8px!important;height:38px;position:relative;z-index:5;gap:8px!important;border:0!important;border-radius:999px 0 0 999px!important;background:transparent!important;box-shadow:none;overflow:visible!important}
+.news-ticker::before{content:'';position:absolute;inset:0;z-index:-1;border-radius:inherit;background:#fcfbe5;box-shadow:0 1px 5px rgba(11,47,36,.10);-webkit-mask-image:linear-gradient(to left,transparent 0,#000 7px);mask-image:linear-gradient(to left,transparent 0,#000 7px)}
+.news-ticker-logo{position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:48px;height:64px;display:block;z-index:1;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(11,47,36,.25))}
 .news-ticker-track{position:relative;height:30px;direction:ltr;overflow:hidden}
 .news-ticker-lane{position:absolute;top:0;left:0;display:block!important;padding-inline-start:0!important;animation:none!important;white-space:nowrap;line-height:30px;will-change:transform}
 .news-ticker-lane a{display:inline-block;margin-inline-end:42px;color:#0b2f24;font-weight:600}
