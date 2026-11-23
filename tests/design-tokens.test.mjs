@@ -21,7 +21,7 @@ test('الخطوط موحّدة بالمتغيرات خارج تعريفات @fo
 test('المكتبة المساعدة المشتركة تغني عن النسخ المكررة في صفحات الإدارة', () => {
   const common = readFileSync(new URL('common.js', pub), 'utf8');
   assert.ok(common.includes('window.Qalam=Object.freeze({esc,api,post})'));
-  for (const f of ['admin.js', 'admin-trash.js', 'admin-audit.js', 'admin-contrib.js']) assert.ok(!/async function api\(/.test(readFileSync(new URL(f, pub), 'utf8')), f);
+  for (const f of ['admin.js', 'admin-trash.js', 'admin-audit.js', 'admin-contrib.js', 'admin-import.js']) assert.ok(!/async function api\(/.test(readFileSync(new URL(f, pub), 'utf8')), f);
   const admin = readFileSync(new URL('admin.html', pub), 'utf8');
   assert.ok(admin.indexOf('/common.js') < admin.indexOf('/admin.js'));
 });
