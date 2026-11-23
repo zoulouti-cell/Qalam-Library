@@ -1537,7 +1537,15 @@
       const dismissed = new Set(prefs.updatesDismissed || []);
       const fresh = (data.updates || []).filter(u => !dismissed.has(u.id));
       const old = $('recentUpdates'); if (old) old.remove();
-      if (!fresh.length) return;
+      /* بعد الإغلاق تبقى المستجدات قابلة لإعادة الفتح بزر صغير في مكانها. */
+      if (!fresh.length) {
+        if (!(data.updates || []).length) return;
+        const reopen = document.createElement('button'); reopen.type = 'button'; reopen.id = 'recentUpdates'; reopen.className = 'updates-reopen';
+        reopen.textContent = 'عرض المستجدات القانونية والقضائية (' + fmt(data.updates.length) + ')';
+        reopen.addEventListener('click', () => { prefs.updatesDismissed = []; store.set('preferences', prefs); showRecentUpdates(); });
+        const anchor = $('ingestionStatus'); anchor.parentNode.insertBefore(reopen, anchor);
+        return;
+      }
       const box = document.createElement('section'); box.id = 'recentUpdates'; box.className = 'ingestion-status'; box.setAttribute('aria-label', 'المستجدات القانونية والقضائية');
       const top = document.createElement('div'); top.className = 'ingestion-top';
       const title = document.createElement('strong'); title.textContent = 'مستجدات قانونية وقضائية جديدة (' + fmt(fresh.length) + ')';
@@ -1572,6 +1580,13 @@ async function showNewsTicker() {
       const effective = (alertData.alerts || []).map(x => ({ id: 'eff-' + x.id, title: 'اليوم أول يوم نفاذ: ' + x.title, country: x.country, documentId: x.documentId, url: '#', effective: true }));
       const old = $('newsTicker'); if (old) old.remove();
       if (!fresh.length && !effective.length) {
+        /* أُغلق الشريط وما زالت فيه أخبار: يبقى الشعار وحده زراً لإعادة فتحه. */
+        if ((data.items || []).some(u => /^https?:\/\//i.test(u.url))) {
+          const reopen = document.createElement('button'); reopen.type = 'button'; reopen.id = 'newsTicker'; reopen.className = 'news-ticker-reopen'; reopen.title = 'إعادة فتح شريط الأخبار'; reopen.setAttribute('aria-label', 'إعادة فتح شريط الأخبار');
+          reopen.innerHTML = '<img src="/assets/qalam-ticker-logo.png" alt="" width="35" height="46">';
+          reopen.addEventListener('click', () => { prefs.tickerDismissed = []; store.set('preferences', prefs); showNewsTicker(); });
+          placeTicker(reopen); return;
+        }
         if (data.diag) { const note = document.createElement('p'); note.id = 'newsTicker'; note.className = 'news-ticker-note'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;border:1px dashed #cdbf95;border-radius:9px;font-size:12px;color:#6b5a27;background:#fffaf0'; note.textContent = 'شريط الأخبار (يراه المدير وحده الآن): لا توجد عناصر لعرضها — منشور: ' + data.diag.published + '، بانتظار الاعتماد: ' + data.diag.pending + (data.diag.pendingWithoutUrl ? '، بلا رابط رسمي صالح: ' + data.diag.pendingWithoutUrl : '') + '.'; placeTicker(note); }
         return;
       }
