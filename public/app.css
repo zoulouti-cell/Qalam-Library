@@ -123,7 +123,7 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 
 /* شريط الأخبار: كبسولة تخرج من دائرة شعار قلم في اليمين، بلون خلفية الشعار ودون إطار ظاهر */
 .news-ticker{margin:16px 0!important;padding:0 52px 0 8px!important;height:38px;position:relative;z-index:5;gap:8px!important;border:0!important;border-radius:999px!important;background:#fcfbe5!important;box-shadow:0 1px 5px rgba(11,47,36,.10);overflow:visible!important}
-.news-ticker-logo{position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;display:block;background:#fcfbe5;z-index:1}
+.news-ticker-logo{position:absolute;right:-2px;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;display:block;z-index:1}
 .news-ticker-track{position:relative;height:30px;direction:ltr;overflow:hidden}
 .news-ticker-lane{position:absolute;top:0;left:0;display:block!important;padding-inline-start:0!important;animation:none!important;white-space:nowrap;line-height:30px;will-change:transform}
 .news-ticker-lane a{display:inline-block;margin-inline-end:42px;color:#0b2f24;font-weight:600}
