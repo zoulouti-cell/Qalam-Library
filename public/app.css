@@ -121,19 +121,14 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .drive-text-card .drive-actions a[href*="mode=download"]{background:var(--q-brand-dark);color:#f4e3a6;border-color:var(--q-brand-dark)}
 .news-ticker-note{position:relative;z-index:5;margin-top:8px!important}
 
-/* شريط الأخبار: كبسولة على نسق «مباشر»، دائرة شعار قلم يميناً، خلفية بلون خلفية الشعار وإطار ذهبي */
-.news-ticker{margin:14px 0!important;padding:5px 6px 5px 12px!important;position:relative;z-index:5;gap:10px!important;border:1.5px solid #c9a24a!important;border-radius:999px!important;background:#fdfbe5!important;box-shadow:0 2px 10px rgba(11,47,36,.08)}
-.news-ticker-logo{flex:none;width:40px;height:40px;border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(201,162,74,.45)}
+/* شريط الأخبار: كبسولة تولد من حرف القاف في شعار قلم؛ بدايتها مخفية تحت ساق القاف السفلى فلا يظهر طرفها */
+.news-ticker{margin:44px 48px 14px 0!important;padding:0 10px 0 8px!important;height:30px;position:relative;z-index:5;gap:8px!important;border:0!important;border-radius:999px 0 0 999px!important;background:#fcfbe5!important;box-shadow:0 1px 5px rgba(11,47,36,.10);overflow:visible!important}
+.news-ticker-logo{position:absolute;right:-46px;top:-35px;width:54px;height:72px;display:block;z-index:1;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(11,47,36,.25))}
 .news-ticker-track{position:relative;height:30px;direction:ltr;overflow:hidden}
 .news-ticker-lane{position:absolute;top:0;left:0;display:block!important;padding-inline-start:0!important;animation:none!important;white-space:nowrap;line-height:30px;will-change:transform}
 .news-ticker-lane a{display:inline-block;margin-inline-end:42px;color:#0b2f24;font-weight:600}
-.news-ticker-live{flex:none;display:inline-flex;align-items:center;gap:6px;color:#b3261e;font-weight:800;font-size:14px;letter-spacing:.2px;white-space:nowrap}
-.news-ticker-live i{width:9px;height:9px;border-radius:50%;background:#d32f2f;display:inline-block;animation:news-ticker-pulse 1.6s ease-in-out infinite}
-@keyframes news-ticker-pulse{50%{opacity:.25}}
-@media(prefers-reduced-motion:reduce){.news-ticker-live i{animation:none}}
 .news-ticker-close{flex:none;width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:#6b5a27;font-size:20px;line-height:1;cursor:pointer;padding:0}
 .news-ticker-close:hover,.news-ticker-close:focus-visible{background:rgba(201,162,74,.18);color:#0b2f24}
-@media(max-width:560px){.news-ticker-logo{width:34px;height:34px}.news-ticker-live{font-size:12.5px}}
 
 .md-body{line-height:1.95;font-size:15px}.md-body h2,.md-body h3,.md-body h4{margin:14px 0 6px;color:var(--q-brand-dark)}.md-body p{margin:6px 0}.md-body ul,.md-body ol{margin:6px 0;padding-inline-start:22px}.md-body blockquote{margin:8px 0;padding:4px 12px;border-inline-start:3px solid #c9b66b;background:var(--q-bg)}.md-body hr{border:0;border-top:1px solid var(--q-line);margin:12px 0}.md-body code{background:var(--q-green-soft);padding:0 4px;border-radius:4px}
 .md-table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}.md-table th,.md-table td{border:1px solid var(--q-line);padding:5px 8px;text-align:start;vertical-align:top}.md-table th{background:var(--q-green-soft)}
