@@ -18,12 +18,14 @@
 .qalam-switch.is-on{background:var(--q-brand)}.qalam-switch.is-on::before{inset-inline-start:16px}
 :root[data-theme="dark"] .qalam-switch{background:#3a4d44}:root[data-theme="dark"] .qalam-switch.is-on{background:var(--q-gold)}
 /* خانات role=switch القائمة تأخذ الشكل نفسه */
-.settings-dialog .switch-row input[role="switch"]{appearance:none;-webkit-appearance:none;position:relative;flex:none;inline-size:34px;block-size:20px;margin:0;border:0;border-radius:999px;background:var(--q-line);cursor:pointer;transition:background .18s ease}
-.settings-dialog .switch-row input[role="switch"]::before{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;right:auto;top:auto;inline-size:16px;block-size:16px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0003;transform:none;transition:inset-inline-start .18s ease}
-.settings-dialog .switch-row input[role="switch"]:checked{background:var(--q-brand)}
-.settings-dialog .switch-row input[role="switch"]:checked::before{inset-inline-start:16px;transform:none}
-.settings-dialog .switch-row input[role="switch"]:focus-visible{outline:2px solid var(--q-gold-400);outline-offset:2px}
-:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]{background:#3a4d44}:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]:checked{background:var(--q-gold)}
+/* مفاتيح التفعيل بألوان قلم التحرير في المكتب: مطفأ = مسار عاجي بإطار ذهبي ومقبض أبيض، مشغّل = مسار أخضر ومقبض ذهبي */
+.settings-dialog .switch-row input[role="switch"]{appearance:none;-webkit-appearance:none;position:relative;flex:none;inline-size:40px;block-size:22px;margin:0;border:1.5px solid #bba051;border-radius:999px;background:#f3ecd8;cursor:pointer;transition:background .18s ease,border-color .18s ease}
+.settings-dialog .switch-row input[role="switch"]::before{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;right:auto;top:auto;inline-size:15px;block-size:15px;width:15px;height:15px;border-radius:50%;background:#fff;border:1px solid #bba051;box-shadow:0 1px 2px #0003;transform:none;transition:inset-inline-start .18s ease,background .18s ease}
+.settings-dialog .switch-row input[role="switch"]:checked{background:#173d31;border-color:#173d31}
+.settings-dialog .switch-row input[role="switch"]:checked::before{inset-inline-start:20px;background:#c8a24a;border-color:#c8a24a;transform:none}
+.settings-dialog .switch-row input[role="switch"]:focus-visible{outline:2px solid #c8a24a;outline-offset:2px}
+.settings-dialog .switch-row input[role="switch"]:disabled{cursor:not-allowed;opacity:.5;border-style:dashed}
+:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]{background:#133c31;border-color:#bba051}:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]:checked{background:#c8a24a;border-color:#c8a24a}:root[data-theme="dark"] .settings-dialog .switch-row input[role="switch"]:checked::before{background:#092b23;border-color:#092b23}
 
 /* ———— الإعدادات: بطاقات بأيقونات كإعدادات المكتب وقلم التحرير ———— */
 .settings-dialog-editorial{width:min(920px,calc(100vw - 32px));border:1px solid var(--q-line);border-radius:22px;background:var(--q-cream);box-shadow:0 30px 80px #06231a40;overflow:hidden}
