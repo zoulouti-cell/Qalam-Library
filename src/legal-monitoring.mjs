@@ -273,3 +273,24 @@ export function readinessOf(item = {}, oldLawCandidate = null) {
   const complete = [original, text, place, oldLaw].every(x => ['ok', 'na', 'suggested'].includes(x.state)) && original.state === 'ok' && text.state === 'ok';
   return { original, text, place, oldLaw, complete };
 }
+
+/* لمنصة قلم (بسر الشراكة): ما نُشر خلال المدة، مع كلماته المفتاحية من سطر «الكلمات المفتاحية:» في البطاقة،
+   لتربطه المنصة بملفات المكتب. لا ملخص ولا نص كامل: العنوان والمراجع والكلمات والرابط فقط. */
+export function partnerUpdates(items = [], now = new Date(), days = 30) {
+  const since = now.getTime() - days * 86400000;
+  const keywordsOf = summary => {
+    const m = String(summary || '').match(/الكلمات المفتاحية:\s*([^\n]+)/);
+    return m ? m[1].split(/[،,؛;]/).map(s => s.trim()).filter(s => s && s.length <= 60).slice(0, 12) : [];
+  };
+  return (items || [])
+    .filter(i => i.state === 'published' && i.publishedAt && new Date(i.publishedAt).getTime() >= since)
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+    .slice(0, 80)
+    .map(i => ({
+      id: String(i.id), title: String(i.title || ''), country: i.country, kind: i.kind,
+      court: i.court || '', reference: i.officialNumber || i.caseNumber || i.reference || '',
+      eventDate: i.eventDate || '', effectiveDate: i.effectiveDate || '', publishedAt: i.publishedAt,
+      documentId: i.documentId || `monitor-${String(i.id).slice(0, 20)}`,
+      keywords: keywordsOf(i.summary),
+    }));
+}
