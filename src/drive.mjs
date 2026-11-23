@@ -536,7 +536,7 @@ export async function readDrivePdf(id, maxBytes = 20 * 1024 * 1024) {
 export function libraryDriveRoot() { return LOCAL_ORIGINALS_ROOT ? 'local-folder:' : DRIVE_ROOT_FOLDER_ID; }
 
 /* ───────── كتابة أصول الإضافات المعتمدة في Drive ─────────
-   الكتابة تتم بحساب المدير المربوط عبر OAuth («ربط Drive للكتابة») لأن حسابات الخدمة لا تملك مساحة تخزين،
+   الكتابة تتم بحساب المدير المتصل عبر OAuth («ربط Drive للكتابة») لأن حسابات الخدمة لا تملك مساحة تخزين،
    وتُستعمل مساحة صاحب الحساب. إن لم يكن هناك ربط يُجرَّب حساب الخدمة (ينجح فقط داخل Drive مشترك).
    كل القراءة الأخرى تبقى بحساب الخدمة وبصلاحية القراءة فقط. */
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -571,10 +571,10 @@ async function userWriteToken(force = false) {
 function driveWriteError(status, reason = '', via = 'service', email = '') {
   const who = email ? ` (${email})` : '';
   const message = via === 'user'
-    ? (reason === 'storageQuotaExceeded' ? `مساحة حساب Drive المربوط${who} ممتلئة؛ أفرغوا مساحة أو اربطوا حسابًا آخر.`
+    ? (reason === 'storageQuotaExceeded' ? `مساحة حساب Drive المتصل${who} ممتلئة؛ أفرغوا مساحة أو اربطوا حسابًا آخر.`
       : status === 401 ? `انتهت صلاحية ربط Drive${who}؛ افتحوا الإعدادات واضغطوا «ربط Drive للكتابة» لإعادة الربط.`
-      : status === 403 ? `الحساب المربوط${who} لا يملك صلاحية الكتابة في مجلد الأصول.`
-      : status === 404 ? `مجلد الأصول أو المجلد الفرعي غير موجود أو غير متاح للحساب المربوط${who}.`
+      : status === 403 ? `الحساب المتصل${who} لا يملك صلاحية الكتابة في مجلد الأصول.`
+      : status === 404 ? `مجلد الأصول أو المجلد الفرعي غير موجود أو غير متاح للحساب المتصل${who}.`
       : `تعذرت الكتابة إلى Drive (HTTP ${status}).`)
     : (reason === 'storageQuotaExceeded' ? 'حساب خدمة Drive لا يملك مساحة تخزين؛ اضغطوا «ربط Drive للكتابة» في الإعدادات لاستعمال حساب المدير بدلًا منه.'
       : status === 401 ? 'تعذر تفويض حساب خدمة Drive للكتابة؛ اضغطوا «ربط Drive للكتابة» في الإعدادات لاستعمال حساب المدير.'

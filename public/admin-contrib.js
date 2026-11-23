@@ -195,14 +195,14 @@
   function renderDriveCard(d) {
     const pill = $('driveWriteState'); if (!pill) return;
     const link = d.connection, connect = $('driveWriteConnect'), off = $('driveWriteDisconnect');
-    let tone = 'bad', label = 'غير مربوط';
-    if (link && d.ready) { tone = 'ok'; label = 'مربوط · جاهز للكتابة'; }
+    let tone = 'bad', label = 'غير متصل';
+    if (link && d.ready) { tone = 'ok'; label = 'متصل · جاهز للكتابة'; }
     else if (link && d.reauthorize) label = 'يلزم إعادة الربط';
-    else if (link) label = 'مربوط · تعذّرت الكتابة';
+    else if (link) label = 'متصل · تعذّرت الكتابة';
     pill.textContent = label; pill.className = 'status-pill ' + tone;
     $('driveWriteAccount').textContent = link
-      ? `الحساب المربوط: ${link.email || '—'} · منذ ${when(link.connectedAt)}${d.ready ? '' : ' — ' + (d.error || 'تعذر فحص الربط.')}`
-      : (d.connectable === false ? 'دخول Google غير مهيأ للمكتبة؛ أضف GOOGLE_OAUTH_CLIENT_ID وGOOGLE_OAUTH_CLIENT_SECRET في Render لتفعيل الربط.' : 'لا يوجد حساب مربوط؛ تُجرَّب الكتابة بحساب الخدمة وهو بلا مساحة تخزين فتتعثر الأصول وتبقى على الخادم.');
+      ? `الحساب المتصل: ${link.email || '—'} · منذ ${when(link.connectedAt)}${d.ready ? '' : ' — ' + (d.error || 'تعذر فحص الربط.')}`
+      : (d.connectable === false ? 'دخول Google غير مهيأ للمكتبة؛ أضف GOOGLE_OAUTH_CLIENT_ID وGOOGLE_OAUTH_CLIENT_SECRET في Render لتفعيل الربط.' : 'لا يوجد حساب متصل؛ تُجرَّب الكتابة بحساب الخدمة وهو بلا مساحة تخزين فتتعثر الأصول وتبقى على الخادم.');
     connect.hidden = d.connectable === false;
     connect.textContent = link ? 'إعادة الربط أو تبديل الحساب' : 'ربط Drive للكتابة';
     off.hidden = !link; off.classList.remove('confirm'); off.textContent = 'فك الربط';
