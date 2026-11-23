@@ -117,6 +117,20 @@ test('القرار: للمدير فقط، والقبول كقارئ يفتح ا�
   assert.equal(audit.length, 1); assert.equal(audit[0].details.role, 'reader');
 });
 
+test('التفعيل المباشر: المدير يفعّل حساباً لم يؤكد بريده، ويبطل رابط التأكيد', { skip }, async () => {
+  const email = 'unconfirmed.direct@example.com', since = sink.sent.length;
+  assert.equal((await post('/api/register', { email, password: PASSWORD })).status, 200);
+  const token = tokenFrom(await mailTo(email, { since }));
+  assert.equal((await userDoc(email)).accountStatus, 'unconfirmed');
+  const approved = await post('/api/admin/users/decision', { email, decision: 'reader' }, { cookie: admin });
+  assert.equal(approved.status, 200);
+  const user = await userDoc(email);
+  assert.deepEqual([user.accountStatus, user.active, user.role, user.emailConfirmedBy], ['active', true, 'reader', 'admin']);
+  assert.ok(!user.activationTokenHash, 'لا يبقى رابط تأكيد صالح');
+  assert.equal((await post('/api/register/confirm', { token })).status, 400);
+  assert.equal((await post('/api/login', { email, password: PASSWORD })).status, 200);
+});
+
 test('القبول كمدير يمنح الدور ويضيف سطر صلاحية الإدارة', { skip }, async () => {
   const email = 'approved.admin@example.com';
   await registerAndConfirm(email);
