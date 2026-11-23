@@ -78,7 +78,8 @@ export function findDuplicates(items = []) {
 }
 
 export function auditReport(items = []) {
-  const live = items.filter(it => it.state !== 'dismissed' && isCardKind(it));
+  /* مرشحو التغذية اليومية ليسوا بطاقات بعد: لا يُدقَّقون حتى يكتب الجامع بطاقتهم. */
+  const live = items.filter(it => it.state !== 'dismissed' && !it.candidate && isCardKind(it));
   const cards = live.map(it => ({ id: it._id || it.id, title: it.title, state: it.state, category: publicationCategory(it), issues: auditCard(it) })).filter(c => c.issues.length);
   const byCategory = {};
   for (const it of live) { const c = publicationCategory(it); byCategory[c] = byCategory[c] || { total: 0, faulty: 0 }; byCategory[c].total++; }

@@ -27,6 +27,7 @@ import { setAgreementOverrides,countShelfPdfs,warmAgreementIndex,libraryDriveRoo
 import { clientIp } from './src/client-ip.mjs';
 import { createPasswordReset } from './src/password-reset.mjs';
 import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
+import { runLegalFeed } from './src/legal-feed.mjs';
 import { auditReport,auditCard,fixCard,decisionKey,isCardKind } from './src/card-audit.mjs';
 import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
@@ -317,6 +318,15 @@ function runLegalPublication(){
   return legalPublishRun;
 }
 if(adminStore)setTimeout(()=>loadDocOverrides(),0);
+/* التغذية اليومية الثابتة من المصادر الرسمية المفتوحة (بعد الثامنة صباحاً بتوقيت المغرب، مرة في اليوم). */
+async function runDailyLegalFeed(now=new Date()){
+  if(!adminStore||process.env.QALAM_LEGAL_FEED==='off'||process.env.NODE_ENV==='test')return;
+  const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Casablanca',hour:'2-digit',hourCycle:'h23'}).format(now));
+  if(hour<8)return;
+  const r=await runLegalFeed(adminStore,{now});
+  if(!r.skipped)console.log('Legal feed:',JSON.stringify({found:r.found,added:r.added,expired:r.expired,errors:r.errors.length}));
+}
+const legalFeedTimer=setInterval(()=>runDailyLegalFeed().catch(error=>console.error('Legal feed failed:',error?.message||'unknown error')),60*60_000);legalFeedTimer.unref();setTimeout(()=>runDailyLegalFeed().catch(()=>{}),90_000).unref();
 const cardAuditTimer=setInterval(()=>runWeeklyCardAudit().catch(error=>console.error('Weekly card audit failed:',error?.message||'unknown error')),60*60_000);cardAuditTimer.unref();
 if(adminStore)setTimeout(()=>syncPublishedTexts().then(n=>{if(n){console.log('Published texts synced:',n);return adminStore.content.find({status:'published'}).toArray().then(rows=>library.setManagedContent(rows));}}).catch(()=>{}),15_000).unref?.();
 const legalPublishTimer=setInterval(()=>runLegalPublication()?.catch(()=>{}),5*60_000);legalPublishTimer.unref();
@@ -371,7 +381,7 @@ function validSession(req){return !!sessionInfo(req);}
 /* طلب موثّق بالمفتاح السري المشترك مع منصة قلم (خادم إلى خادم، لا جلسة متصفح). منصة قلم تتحقق هي نفسها
    من أن المستخدم مسجّل لديها قبل أي استدعاء بهذا المفتاح؛ هنا نثبت فقط أن الطلب صادر من تلك المنصة. */
 function collectorAuthorized(req){const secret=process.env.LEGAL_MONITOR_TOKEN||'';if(secret.length<32)return false;const given=Buffer.from(String(req.headers['x-monitor-token']||'')),expected=Buffer.from(secret);return given.length===expected.length&&timingSafeEqual(given,expected);}
-function collectorRoute(req,p){return req.method==='POST'&&p==='/api/admin/legal-monitor/items'&&collectorAuthorized(req);}
+function collectorRoute(req,p){return ((req.method==='POST'&&p==='/api/admin/legal-monitor/items')||(req.method==='GET'&&p==='/api/admin/legal-monitor/candidates'))&&collectorAuthorized(req);}
 function partnerAuthorized(req){const partnerSecret=process.env.QALAM_PARTNER_SECRET||'';if(!partnerSecret)return false;const given=Buffer.from(String(req.headers['x-qalam-partner-secret']||'')),expected=Buffer.from(partnerSecret);return given.length===expected.length&&timingSafeEqual(given,expected);}
 function issueSession(res,role,account='legacy'){const expiry=String(Date.now()+7*86400000),payload=expiry+'.'+role+'.'+account,signature=createHmac('sha256',sessionSecret).update(payload).digest('hex');res.setHeader('Set-Cookie',`qalam_session=${payload}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800`);}
 function localEditor(req){const remote=String(req.socket.remoteAddress||'').replace(/^::ffff:/,'');return ['127.0.0.1','::1'].includes(remote)&&sameOrigin(req);}
@@ -829,6 +839,13 @@ const server=http.createServer(async(req,res)=>{
       const rows=await adminStore.legalMonitorReports.find({}).sort({generatedAt:-1}).limit(30).toArray();
       return send(req,res,200,{timeZone:'Africa/Casablanca',reports:rows.map(({_id,type,localDate,title,text,status,generatedAt,sourceCount})=>({id:_id,type,localDate,title,text,status,generatedAt,sourceCount}))});
     }
+    /* مرشحو التغذية اليومية: يقرؤهم الجامع برمز الراصد فيكتب بطاقة كل مرشح يستوفي المعيار بالرقم نفسه. */
+    if(p==='/api/admin/legal-monitor/candidates'&&req.method==='GET'){
+      if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
+      const rows=await adminStore.legalMonitorItems.find({candidate:true,state:'held'}).project({_id:1,country:1,kind:1,court:1,caseNumber:1,officialNumber:1,reference:1,eventDate:1,title:1,originalTitle:1,source:1,receivedAt:1}).sort({eventDate:-1}).limit(200).toArray();
+      const feed=await adminStore.settings.findOne({_id:'legal-feed'},{projection:{lastResult:1}});
+      return send(req,res,200,{candidates:rows.map(({_id,...r})=>({id:_id,...r})),lastRun:feed?.lastResult||null});
+    }
     if(p==='/api/admin/legal-monitor/items'&&(req.method==='GET'||req.method==='POST')){
       if(!adminStore)return send(req,res,503,{error:'قاعدة إدارة المكتبة غير متاحة.'});
       if(req.method==='GET'){
@@ -863,7 +880,7 @@ const server=http.createServer(async(req,res)=>{
           }
           if(stale.length)library.setManagedContent(await adminStore.content.find({status:'published'}).toArray());
         }
-        await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,...(previous?.publishCategory?{publishCategory:previous.publishCategory}:{}),...(previous?.titleEdited?{title:previous.title,titleEdited:true}:{}),...(previous?.supersedesId?{supersedesId:previous.supersedesId,supersedesTitle:previous.supersedesTitle||''}:{}),_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
+        await adminStore.legalMonitorItems.replaceOne({_id:item.id},{...stored,candidate:false,...(previous?.publishCategory?{publishCategory:previous.publishCategory}:{}),...(previous?.titleEdited?{title:previous.title,titleEdited:true}:{}),...(previous?.supersedesId?{supersedesId:previous.supersedesId,supersedesTitle:previous.supersedesTitle||''}:{}),_id:item.id,receivedBy:previous?.receivedBy||auditActor(req)},{upsert:true});
         if(!previous)await recordAudit(adminStore,auditActor(req),'legal_monitor_item_recorded',item.id,{country:item.country,kind:item.kind,title:item.title,state:item.state});
         else if(item.kind==='bill'||item.kind==='legislation')await recordAudit(adminStore,auditActor(req),'legal_monitor_item_updated',item.id,{country:item.country,stage:stored.currentStage,title:stored.title});
         return send(req,res,previous?200:201,{ok:true,id:item.id,updated:!!previous,state:stored.state,stage:stored.currentStage,holdReason:stored.holdReason});
