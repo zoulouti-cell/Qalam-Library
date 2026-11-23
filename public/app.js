@@ -1606,7 +1606,7 @@ async function showNewsTicker() {
       const close = document.createElement('button'); close.type = 'button'; close.className = 'news-ticker-close'; close.textContent = '×'; close.setAttribute('aria-label', 'إغلاق الشريط'); close.title = 'إغلاق';
       close.addEventListener('click', () => { stopped = true; running?.cancel(); prefs.tickerDismissed = [...new Set([...(prefs.tickerDismissed || []), ...fresh.map(u => u.id)])].slice(-200); store.set('preferences', prefs); bar.remove(); });
       /* دائرة الشعار يميناً يخرج منها الشريط، ثم العناوين، وزر الإغلاق يساراً. */
-      const logo = document.createElement('img'); logo.className = 'news-ticker-logo'; logo.src = '/assets/qalam-ticker-logo.png'; logo.alt = ''; logo.width = 48; logo.height = 48; logo.decoding = 'async';
+      const logo = document.createElement('img'); logo.className = 'news-ticker-logo'; logo.src = '/assets/qalam-ticker-logo.png'; logo.alt = ''; logo.width = 54; logo.height = 54; logo.decoding = 'async';
       bar.append(logo, track, close);
       placeTicker(bar); /* تحت بطاقات «ابدأ التصفح» */
     } catch (error) { try { const old = $('newsTicker'); if (old) old.remove(); const note = document.createElement('p'); note.id = 'newsTicker'; note.style.cssText = 'margin:0 0 12px;padding:6px 12px;font-size:12px;color:#8a2b1f'; note.textContent = 'تعذر تحميل شريط الأخبار: ' + (error?.message || 'خطأ غير معروف'); placeTicker(note); } catch {} }
