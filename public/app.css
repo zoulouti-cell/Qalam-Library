@@ -173,3 +173,5 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .compare-dialog del{color:var(--muted);text-decoration:line-through}
 .compare-dialog .compare-diff{line-height:2;border-top:1px solid var(--q-line-soft);padding-top:8px}
 .reader-add-case{font-size:20px}
+.follows-dialog .follows-list{margin:10px 0 0;padding-inline-start:18px;line-height:2}
+.follows-dialog #followLaw{margin:8px 0}

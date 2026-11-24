@@ -30,6 +30,7 @@ import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
 import { runLegalFeed } from './src/legal-feed.mjs';
 import { auditReport,auditCard,fixCard,decisionKey,isCardKind } from './src/card-audit.mjs';
 import { RefIndex, articleText } from './src/ref-index.mjs';
+import { cleanFollow, followId, digest, digestMail, MAX_FOLLOWS } from './src/follows.mjs';
 import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,partnerUpdates,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
@@ -328,6 +329,22 @@ async function runDailyLegalFeed(now=new Date()){
   const r=await runLegalFeed(adminStore,{now});
   if(!r.skipped)console.log('Legal feed:',JSON.stringify({found:r.found,added:r.added,expired:r.expired,errors:r.errors.length}));
 }
+/* التنبيهات الشخصية: كل ساعة، ما نُشر منذ آخر جولة يُطابَق بمتابعات المشتركين، ورسالة واحدة مجمّعة لكل منهم */
+async function runFollowDigest(now=new Date()){
+  if(!adminStore||!emailReady()||process.env.NODE_ENV==='test')return;
+  const state=await adminStore.settings.findOne({_id:'follow-digest'});
+  const since=state?.lastAt?new Date(state.lastAt):now;
+  await adminStore.settings.updateOne({_id:'follow-digest'},{$set:{lastAt:now}},{upsert:true});
+  if(!state?.lastAt)return;
+  const items=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gt:since,$lte:now}},{projection:{fullText:0}}).limit(200).toArray();
+  if(!items.length)return;
+  const users=await adminStore.users.find({active:true,'follows.0':{$exists:true}},{projection:{email:1,follows:1}}).toArray();
+  const base=String(process.env.LIBRARY_PUBLIC_URL||'https://qalam-library.onrender.com').replace(/\/+$/,'');
+  for(const [email,hits] of digest(items,users)){
+    try{const mail=digestMail(hits,base);await sendMail(email,mail.subject,mail.text,mail.html);}catch(error){console.error('Follow digest mail failed:',error?.message||'unknown error');}
+  }
+}
+const followTimer=setInterval(()=>runFollowDigest().catch(error=>console.error('Follow digest failed:',error?.message||'unknown error')),60*60_000);followTimer.unref();setTimeout(()=>runFollowDigest().catch(()=>{}),120_000).unref();
 const legalFeedTimer=setInterval(()=>runDailyLegalFeed().catch(error=>console.error('Legal feed failed:',error?.message||'unknown error')),60*60_000);legalFeedTimer.unref();setTimeout(()=>runDailyLegalFeed().catch(()=>{}),90_000).unref();
 const cardAuditTimer=setInterval(()=>runWeeklyCardAudit().catch(error=>console.error('Weekly card audit failed:',error?.message||'unknown error')),60*60_000);cardAuditTimer.unref();
 if(adminStore)setTimeout(()=>syncPublishedTexts().then(n=>{if(n){console.log('Published texts synced:',n);return adminStore.content.find({status:'published'}).toArray().then(rows=>library.setManagedContent(rows));}}).catch(()=>{}),15_000).unref?.();
@@ -1352,6 +1369,21 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/categories')return send(req,res,200,{categories:withShelfCounts(library.categories())});
     if(p==='/api/search')return send(req,res,200,library.search(Object.fromEntries(url.searchParams)));
     if(p==='/api/suggest')return send(req,res,200,library.suggest(url.searchParams.get('q')));
+    if(p==='/api/follows'||p==='/api/follows/remove'){
+      // متابعات المشترك (قانون أو موضوع): تُحفظ في حسابه، ويصله بريد مجمّع بما يخصها
+      const info=sessionInfo(req);let email='';try{email=info&&!['env','legacy'].includes(info.account)?Buffer.from(info.account,'base64url').toString('utf8'):'';}catch{email='';}
+      if(!adminStore||!email)return send(req,res,403,{error:'المتابعة للحسابات الشخصية.'});
+      const user=await adminStore.users.findOne({email},{projection:{follows:1}});
+      if(!user)return send(req,res,403,{error:'الحساب غير موجود.'});
+      let follows=Array.isArray(user.follows)?user.follows:[];
+      if(req.method==='GET')return send(req,res,200,{follows,mail:emailReady()});
+      if(req.method!=='POST')return send(req,res,405,{error:'طريقة غير مدعومة.'});
+      let body={};try{body=await jsonBody(req,2000);}catch{return send(req,res,400,{error:'طلب غير صالح.'});}
+      if(p==='/api/follows/remove')follows=follows.filter(f=>f.id!==String(body.id||''));
+      else{const f=cleanFollow(body);if(!f)return send(req,res,400,{error:'اختر قانوناً أو اكتب موضوعاً.'});const id=followId(f);if(!follows.some(x=>x.id===id)){if(follows.length>=MAX_FOLLOWS)return send(req,res,400,{error:'بلغتم الحد الأقصى للمتابعات.'});follows=[...follows,{...f,id,at:new Date()}];}}
+      await adminStore.users.updateOne({_id:user._id},{$set:{follows}});
+      return send(req,res,200,{follows,mail:emailReady()});
+    }
     if(p==='/api/refs/resolve'&&req.method==='GET'){
       // إحالة واردة في نص («الفصل 230 من ق.ل.ع») → وثيقة القانون وموضع الفصل منه
       const r=refIndex.resolve(String(url.searchParams.get('text')||'').slice(0,300));

@@ -10,6 +10,8 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const get = async url => { const r = await fetch(url, { credentials: 'same-origin' }); if (!r.ok) throw new Error('تعذر الطلب.'); return r.json(); };
   const OFFICE = 'https://qalam-office.onrender.com';
+  const state = { lawKey: '', lawTitle: '' };
+  const post = async (url, body) => { const r = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.error || 'تعذر الحفظ.'); return data; };
 
   /* «الفصل 230 من ق.ل.ع» / «المادة 204 من القانون رقم 58.25» / «الفصلين 38 و39 من قانون المسطرة المدنية» */
   const REF = /(?:ال)?(?:فصل|فصلين|فصول|مادة|مادتين|مواد)\s+[0-9٠-٩]{1,4}(?:[-–][0-9٠-٩]{1,3})?(?:\s*(?:و|،|,)\s*[0-9٠-٩]{1,4})*\s+(?:من|في)\s+(?:ال)?(?:قانون|ظهير|مدونة|مجموعة)?\s*(?:رقم\s*)?(?:[0-9]{1,3}\.[0-9]{2}|ق\s*\.?\s*[لمج]\s*\.?\s*[عمج]?\s*\.?|م\s*\.?\s*[أاتشح]\s*\.?\s*(?:ع\.?)?|الالتزامات والعقود|المسطرة المدنية|المسطرة الجنائية|القانون الجنائي|الجنائي|الأسرة|التجارة|الشغل|الحقوق العينية|السير|التحفيظ العقاري|الدستور|المحاماة)/gu;
@@ -53,6 +55,7 @@
       h.append(tools);
     }
     body._annotations = data.articles || {};
+    state.lawKey = data.lawKey || ''; state.lawTitle = doc.title || '';
   }
 
   function showAnnotations(button) {
@@ -132,16 +135,50 @@
     b.addEventListener('click', addToCase); tools.append(b);
   }
 
+  /* ---------- المتابعة: بريد مجمّع بما يُنشر عن قانون أو موضوع ---------- */
+  async function openFollows() {
+    let d = document.getElementById('followsDialog');
+    if (!d) {
+      d = document.createElement('dialog'); d.id = 'followsDialog'; d.className = 'compare-dialog follows-dialog';
+      d.innerHTML = '<form method="dialog" class="compare-head"><strong>المتابعة</strong><button class="icon-button" aria-label="إغلاق">×</button></form><p class="compare-legend">يصلكم بريد واحد مجمّع كلما نشر راصد المكتبة جديداً يخص ما تتابعونه.</p><div id="followLaw"></div><div class="compare-pick"><label>أو موضوعاً <input id="followTopic" type="text" placeholder="مثل: التطليق للشقاق"></label><button type="button" id="followTopicAdd" class="primary-button">تابِع</button></div><ul id="followList" class="follows-list"></ul><p id="followMsg" class="compare-legend"></p>';
+      document.body.append(d);
+      d.querySelector('#followTopicAdd').addEventListener('click', async () => { const q = d.querySelector('#followTopic').value.trim(); if (!q) return; await save({ type: 'topic', q }); d.querySelector('#followTopic').value = ''; });
+    }
+    const list = d.querySelector('#followList'), msg = d.querySelector('#followMsg'), law = d.querySelector('#followLaw');
+    const draw = data => {
+      const follows = data.follows || [];
+      const followed = follows.some(f => f.id === 'law:' + state.lawKey);
+      law.innerHTML = state.lawKey ? '<button type="button" class="primary-button" data-follow-law>' + (followed ? 'تتابعون هذا القانون ✓' : 'تابِع هذا القانون: ' + esc(state.lawTitle)) + '</button>' : '';
+      list.innerHTML = follows.map(f => '<li>' + esc(f.title || f.q || f.key) + ' <button type="button" class="article-tool" data-unfollow="' + esc(f.id) + '">إلغاء</button></li>').join('') || '<li class="muted">لا متابعات بعد.</li>';
+      msg.textContent = data.mail === false ? 'خدمة البريد غير مهيأة حالياً؛ تُحفظ المتابعات وتُرسل حين تُهيأ.' : '';
+    };
+    const save = async body => { try { draw(await post('/api/follows', body)); } catch (e) { msg.textContent = e.message; } };
+    d.onclick = async e => {
+      if (e.target.closest('[data-follow-law]') && state.lawKey) await save({ type: 'law', key: state.lawKey, title: state.lawTitle });
+      const un = e.target.closest('[data-unfollow]'); if (un) { try { draw(await post('/api/follows/remove', { id: un.dataset.unfollow })); } catch (err) { msg.textContent = err.message; } }
+    };
+    try { draw(await get('/api/follows')); } catch { msg.textContent = 'المتابعة متاحة للحسابات الشخصية بعد الدخول.'; list.innerHTML = ''; law.innerHTML = ''; }
+    d.showModal();
+  }
+  function ensureFollowButton() {
+    const tools = document.querySelector('#reader .reader-header-tools');
+    if (!tools || document.getElementById('readerFollow')) return;
+    const b = document.createElement('button'); b.type = 'button'; b.id = 'readerFollow'; b.className = 'icon-button reader-add-case';
+    b.title = 'تابِع هذا القانون أو موضوعاً، ويصلكم بريد بكل جديد يخصه'; b.setAttribute('aria-label', b.title); b.textContent = '🔔';
+    b.addEventListener('click', openFollows); tools.append(b);
+  }
+
   function process() {
     const body = document.getElementById('readerBody'), doc = bridge()?.state?.document;
     if (!body || !doc || body.dataset.connectedFor === doc.id + ':' + body.childElementCount) return;
     body.dataset.connectedFor = doc.id + ':' + body.childElementCount;
+    state.lawKey = ''; state.lawTitle = doc.title || '';
     linkify(body); annotate(body, doc);
   }
 
   function init() {
     if (!bridge()) return setTimeout(init, 200);
-    ensureAddButton();
+    ensureAddButton(); ensureFollowButton();
     const body = document.getElementById('readerBody');
     if (body) new MutationObserver(() => requestAnimationFrame(process)).observe(body, { childList: true });
     document.addEventListener('click', e => {
