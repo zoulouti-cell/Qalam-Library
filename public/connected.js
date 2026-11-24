@@ -4,6 +4,7 @@
  * - النص المذيَّل: تحت كل فصل من القوانين الأساسية زر «اجتهاد (ن)» بالقرارات التي أحالت عليه.
  * - مقارنة نسختين: زر «قارن» على كل فصل، يعرض نصه بجانب فصل من نص آخر، المضاف والمحذوف ظاهران.
  * - «أضِف إلى ملف»: يرسل الوثيقة (أو المقطع المحدد) إلى ملف في مكتب المستخدم على منصة قلم.
+ * - ملفات البحث: يجمع المشترك نصوصاً ومقاطع مع ملاحظاته، ويصدّرها Word أو PDF.
  */
 (() => {
   const bridge = () => window.qalamBridge;
@@ -168,6 +169,61 @@
     b.addEventListener('click', openFollows); tools.append(b);
   }
 
+  /* ---------- ملفات البحث: جمع النصوص والمقاطع مع ملاحظة، ثم تصديرها Word أو PDF ---------- */
+  let folderView = '';
+  async function openFolders() {
+    const doc = bridge().state.document;
+    const quote = String(window.getSelection?.() || '').trim().slice(0, 3000);
+    let d = document.getElementById('foldersDialog');
+    if (!d) {
+      d = document.createElement('dialog'); d.id = 'foldersDialog'; d.className = 'compare-dialog follows-dialog';
+      d.innerHTML = '<form method="dialog" class="compare-head"><strong>ملفات البحث</strong><button class="icon-button" aria-label="إغلاق">×</button></form><p id="folderWhat" class="compare-legend"></p><div class="compare-pick"><label>ملف جديد <input id="folderName" type="text" maxlength="120" placeholder="مثل: التطليق للشقاق — الاجتهاد"></label><button type="button" id="folderCreate" class="primary-button">إنشاء</button></div><div id="folderBody"></div><p id="folderMsg" class="compare-legend"></p>';
+      document.body.append(d);
+    }
+    const body = d.querySelector('#folderBody'), msg = d.querySelector('#folderMsg'), what = d.querySelector('#folderWhat');
+    const item = doc ? { docId: doc.id, title: doc.title, citation: doc.citation || '', quote } : null;
+    what.textContent = item ? (quote ? 'المقطع المحدد من: ' : 'الوثيقة: ') + doc.title : 'افتحوا وثيقة لإضافتها، أو تصفحوا ملفاتكم.';
+    const draw = data => {
+      const folders = data.folders || [];
+      const open = folders.find(f => f.id === folderView);
+      if (open) {
+        body.innerHTML = '<p><button type="button" class="article-tool" data-fback>→ كل الملفات</button> <strong>' + esc(open.name) + '</strong> (' + open.items.length + ')</p>' +
+          '<p><a class="primary-button" href="/api/folders/export?format=word&id=' + encodeURIComponent(open.id) + '">تصدير Word</a> <button type="button" class="article-tool" data-fprint="' + esc(open.id) + '">طباعة / PDF</button> <button type="button" class="article-tool" data-frename="' + esc(open.id) + '">إعادة تسمية</button> <button type="button" class="article-tool" data-fremove="' + esc(open.id) + '">حذف الملف</button></p>' +
+          '<ol class="follows-list">' + open.items.map(x => '<li><a href="#" data-open-doc="' + esc(x.docId) + '">' + esc(x.title) + '</a>' + (x.quote ? '<br><small>«' + esc(x.quote.slice(0, 160)) + (x.quote.length > 160 ? '…' : '') + '»</small>' : '') + (x.note ? '<br><small>ملاحظة: ' + esc(x.note) + '</small>' : '') + '<br><button type="button" class="article-tool" data-fup="' + esc(x.id) + '">↑</button><button type="button" class="article-tool" data-fdown="' + esc(x.id) + '">↓</button><button type="button" class="article-tool" data-fnote="' + esc(x.id) + '">ملاحظة</button><button type="button" class="article-tool" data-fdel="' + esc(x.id) + '">إزالة</button></li>').join('') + '</ol>';
+      } else {
+        folderView = '';
+        body.innerHTML = '<ul class="follows-list">' + (folders.map(f => '<li><strong>' + esc(f.name) + '</strong> (' + f.items.length + ') ' + (item ? '<button type="button" class="primary-button" data-fadd="' + esc(f.id) + '">أضِف هنا</button> ' : '') + '<button type="button" class="article-tool" data-fopen="' + esc(f.id) + '">فتح</button></li>').join('') || '<li class="muted">لا ملفات بحث بعد. أنشئوا أول ملف.</li>') + '</ul>';
+      }
+    };
+    const act = async payload => { try { const r = await post('/api/folders', payload); msg.textContent = r.duplicate ? 'هذا العنصر موجود في الملف.' : ''; draw(r); return r; } catch (e) { msg.textContent = e.message; } };
+    d.querySelector('#folderCreate').onclick = async () => { const name = d.querySelector('#folderName').value.trim(); if (!name) return; const r = await act({ action: 'create', name, ...(item ? { item } : {}) }); if (r) { d.querySelector('#folderName').value = ''; if (item) msg.textContent = 'أُنشئ الملف وأُضيف إليه العنصر.'; } };
+    d.onclick = async e => {
+      const t = e.target.closest('button,a'); if (!t) return;
+      const ds = t.dataset, fid = folderView;
+      if (ds.fadd) { const r = await act({ action: 'add', folderId: ds.fadd, item }); if (r && !r.duplicate) msg.textContent = 'أُضيف إلى «' + (r.folder?.name || '') + '».'; }
+      else if (ds.fopen) { folderView = ds.fopen; draw(await get('/api/folders')); }
+      else if (ds.fback !== undefined) { folderView = ''; draw(await get('/api/folders')); }
+      else if (ds.fup) await act({ action: 'move', folderId: fid, itemId: ds.fup, dir: 'up' });
+      else if (ds.fdown) await act({ action: 'move', folderId: fid, itemId: ds.fdown, dir: 'down' });
+      else if (ds.fdel) await act({ action: 'removeItem', folderId: fid, itemId: ds.fdel });
+      else if (ds.fnote) { const note = prompt('ملاحظتكم على هذا العنصر:'); if (note !== null) await act({ action: 'note', folderId: fid, itemId: ds.fnote, note }); }
+      else if (ds.frename) { const name = prompt('الاسم الجديد لملف البحث:'); if (name) await act({ action: 'rename', id: ds.frename, name }); }
+      else if (ds.fremove) { if (confirm('حذف ملف البحث بكل عناصره؟')) { folderView = ''; await act({ action: 'remove', id: ds.fremove }); } }
+      else if (ds.fprint) { const w = window.open('/api/folders/export?id=' + encodeURIComponent(ds.fprint), '_blank'); if (w) w.addEventListener('load', () => setTimeout(() => w.print(), 300)); }
+      else if (ds.openDoc) d.close();
+    };
+    try { draw(await get('/api/folders')); } catch { msg.textContent = 'ملفات البحث متاحة للحسابات الشخصية بعد الدخول.'; body.innerHTML = ''; }
+    if (!d.open) d.showModal();
+  }
+  function ensureFolderButton() {
+    const tools = document.querySelector('#reader .reader-header-tools');
+    if (!tools || document.getElementById('readerFolder')) return;
+    const b = document.createElement('button'); b.type = 'button'; b.id = 'readerFolder'; b.className = 'icon-button reader-add-case';
+    b.title = 'أضِف هذه الوثيقة (أو المقطع المحدد) إلى ملف بحث، وصدّره Word أو PDF'; b.setAttribute('aria-label', b.title); b.textContent = '📁';
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', openFolders); tools.append(b);
+  }
+
   function process() {
     const body = document.getElementById('readerBody'), doc = bridge()?.state?.document;
     if (!body || !doc || body.dataset.connectedFor === doc.id + ':' + body.childElementCount) return;
@@ -178,7 +234,7 @@
 
   function init() {
     if (!bridge()) return setTimeout(init, 200);
-    ensureAddButton(); ensureFollowButton();
+    ensureAddButton(); ensureFollowButton(); ensureFolderButton();
     const body = document.getElementById('readerBody');
     if (body) new MutationObserver(() => requestAnimationFrame(process)).observe(body, { childList: true });
     document.addEventListener('click', e => {
