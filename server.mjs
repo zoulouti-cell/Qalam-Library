@@ -31,6 +31,7 @@ import { runLegalFeed } from './src/legal-feed.mjs';
 import { auditReport,auditCard,fixCard,decisionKey,isCardKind } from './src/card-audit.mjs';
 import { RefIndex, articleText } from './src/ref-index.mjs';
 import { cleanFollow, followId, digest, digestMail, MAX_FOLLOWS } from './src/follows.mjs';
+import { applyFolders, exportFolder } from './src/research-folders.mjs';
 import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,partnerUpdates,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
@@ -1392,6 +1393,32 @@ const server=http.createServer(async(req,res)=>{
       else{const f=cleanFollow(body);if(!f)return send(req,res,400,{error:'اختر قانوناً أو اكتب موضوعاً.'});const id=followId(f);if(!follows.some(x=>x.id===id)){if(follows.length>=MAX_FOLLOWS)return send(req,res,400,{error:'بلغتم الحد الأقصى للمتابعات.'});follows=[...follows,{...f,id,at:new Date()}];}}
       await adminStore.users.updateOne({_id:user._id},{$set:{follows}});
       return send(req,res,200,{follows,mail:emailReady()});
+    }
+    if(p==='/api/folders'||p==='/api/folders/export'){
+      // ملفات البحث للمشترك: تُحفظ في حسابه، وتُصدَّر Word أو صفحة طباعة (PDF)
+      const info=sessionInfo(req);let email='';try{email=info&&!['env','legacy'].includes(info.account)?Buffer.from(info.account,'base64url').toString('utf8'):'';}catch{email='';}
+      if(!adminStore||!email)return send(req,res,403,{error:'ملفات البحث للحسابات الشخصية.'});
+      const user=await adminStore.users.findOne({email},{projection:{folders:1,name:1}});
+      if(!user)return send(req,res,403,{error:'الحساب غير موجود.'});
+      const folders=Array.isArray(user.folders)?user.folders:[];
+      if(p==='/api/folders/export'&&req.method==='GET'){
+        const folder=folders.find(f=>f.id===String(url.searchParams.get('id')||''));
+        if(!folder)return send(req,res,404,{error:'ملف البحث غير موجود.'});
+        const texts={};for(const item of folder.items||[]){if(item.quote||texts[item.docId]!==undefined)continue;let d=null;try{d=library.document(item.docId);}catch{d=null;}texts[item.docId]=String(d?.text||'').slice(0,6000);}
+        const word=url.searchParams.get('format')==='word';
+        const html=exportFolder(folder,{baseUrl:String(process.env.LIBRARY_PUBLIC_URL||'https://qalam-library.onrender.com').replace(/\/+$/,''),texts,word,owner:user.name||''});
+        if(!word)return send(req,res,200,html,'text/html; charset=utf-8');
+        const name=encodeURIComponent((String(folder.name).replace(/[\\/:*?"<>|\r\n]/g,'_')||'بحث')+'.doc');
+        res.writeHead(200,{...headers,'Content-Type':'application/msword; charset=utf-8','Content-Disposition':`attachment; filename="research.doc"; filename*=UTF-8''${name}`,'Cache-Control':'no-store'});
+        return res.end('\ufeff'+html);
+      }
+      if(req.method==='GET')return send(req,res,200,{folders});
+      if(req.method!=='POST')return send(req,res,405,{error:'طريقة غير مدعومة.'});
+      let body={};try{body=await jsonBody(req,8000);}catch{return send(req,res,400,{error:'طلب غير صالح.'});}
+      const r=applyFolders(folders,body);
+      if(r.error)return send(req,res,400,{error:r.error});
+      await adminStore.users.updateOne({_id:user._id},{$set:{folders:r.folders}});
+      return send(req,res,200,{folders:r.folders,folder:r.folder||null,duplicate:!!r.duplicate});
     }
     if(p==='/api/refs/resolve'&&req.method==='GET'){
       // إحالة واردة في نص («الفصل 230 من ق.ل.ع») → وثيقة القانون وموضع الفصل منه
