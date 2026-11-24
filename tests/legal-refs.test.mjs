@@ -44,3 +44,23 @@ test('النص المذيَّل: القرارات تُفهرس بفصول الق
   assert.deepEqual(ready.articles['230'].map(d => d.id), ['d2', 'd1']);
   assert.deepEqual(ready.articles['231'].map(d => d.id), ['d2']);
 });
+
+test('بناء الفهرس في خيط مستقل من قاعدة على القرص', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const file = path.join(mkdtempSync(path.join(tmpdir(), 'refs-')), 'lib.sqlite');
+  const db = new DatabaseSync(file);
+  db.exec('CREATE TABLE documents (id TEXT, title TEXT, type TEXT, category TEXT, date TEXT, law_number TEXT, body BLOB)');
+  const insert = db.prepare('INSERT INTO documents VALUES (?,?,?,?,?,?,?)');
+  insert.run('national:1', 'القانون رقم 70.03 بمثابة مدونة الأسرة', 'national', '', '', '70.03', brotliCompressSync(Buffer.from('نص')));
+  insert.run('d1', 'قرار نفقة', 'juriscassation', '', '2025-02-01', '', brotliCompressSync(Buffer.from('خرق المادة 94 من مدونة الأسرة')));
+  db.close();
+  const library = { file, managedDocs: new Map(), db: new DatabaseSync(file, { readOnly: true }) };
+  const index = new RefIndex(library);
+  await index.build();
+  const ann = await index.annotationsFor({ title: 'القانون رقم 70.03 بمثابة مدونة الأسرة', lawNumber: '70.03' });
+  assert.deepEqual(ann.articles['94'].map(d => d.id), ['d1']);
+  assert.equal(index.resolve('المادة 94 من مدونة الأسرة').id, 'national:1');
+});
