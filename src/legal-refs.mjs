@@ -9,13 +9,13 @@ export const LAWS = [
   /* المسطرة المدنية: القانون 58.25 (نافذ منذ 24 غشت 2026) يرقّم «مواد»، والظهير القديم (1974) يرقّم «فصولاً»؛
      فالإحالة بـ«الفصل» تذهب إلى القديم، وبـ«المادة» أو بالرقم 58.25 إلى الجديد. */
   { key: 'cpc', title: 'المسطرة المدنية', number: '58.25', abbr: ['ق.م.م', 'ق م م', 'م.م'], names: ['قانون المسطرة المدنية', 'المسطرة المدنية'] },
-  { key: 'cpp', title: 'المسطرة الجنائية', abbr: ['ق.م.ج', 'ق م ج', 'م.ج'], names: ['قانون المسطرة الجنائية', 'المسطرة الجنائية'] },
+  { key: 'cpp', title: 'المسطرة الجنائية', number: '22.01', abbr: ['ق.م.ج', 'ق م ج', 'م.ج'], names: ['قانون المسطرة الجنائية', 'المسطرة الجنائية'] },
   { key: 'penal', title: 'مجموعة القانون الجنائي', abbr: ['ق.ج', 'ق ج', 'م.ق.ج'], names: ['مجموعة القانون الجنائي', 'القانون الجنائي'] },
-  { key: 'family', title: 'مدونة الأسرة', abbr: ['م.أ', 'م أ', 'م.ا'], names: ['مدونة الأسرة', 'مدونة الاسرة'] },
-  { key: 'commerce', title: 'مدونة التجارة', abbr: ['م.ت', 'م ت'], names: ['مدونة التجارة'] },
-  { key: 'labour', title: 'مدونة الشغل', abbr: ['م.ش', 'م ش'], names: ['مدونة الشغل'] },
-  { key: 'realrights', title: 'مدونة الحقوق العينية', abbr: ['م.ح.ع', 'م ح ع'], names: ['مدونة الحقوق العينية'] },
-  { key: 'traffic', title: 'مدونة السير', abbr: [], names: ['مدونة السير على الطرق', 'مدونة السير'] },
+  { key: 'family', title: 'مدونة الأسرة', number: '70.03', abbr: ['م.أ', 'م أ', 'م.ا'], names: ['مدونة الأسرة', 'مدونة الاسرة'] },
+  { key: 'commerce', title: 'مدونة التجارة', number: '15.95', abbr: ['م.ت', 'م ت'], names: ['مدونة التجارة'] },
+  { key: 'labour', title: 'مدونة الشغل', number: '65.99', abbr: ['م.ش', 'م ش'], names: ['مدونة الشغل'] },
+  { key: 'realrights', title: 'مدونة الحقوق العينية', number: '39.08', abbr: ['م.ح.ع', 'م ح ع'], names: ['مدونة الحقوق العينية'] },
+  { key: 'traffic', title: 'مدونة السير', number: '52.05', abbr: [], names: ['مدونة السير على الطرق', 'مدونة السير'] },
   { key: 'registration', title: 'التحفيظ العقاري', abbr: [], names: ['ظهير التحفيظ العقاري', 'قانون التحفيظ العقاري', 'التحفيظ العقاري'] },
   { key: 'constitution', title: 'دستور المملكة المغربية لسنة 2011', abbr: [], names: ['الدستور', 'دستور المملكة'] },
   { key: 'bar', title: 'مهنة المحاماة', number: '66.23', abbr: [], names: ['القانون المنظم لمهنة المحاماة', 'قانون مهنة المحاماة'] },
@@ -61,16 +61,33 @@ export function parseRefs(text) {
   return out;
 }
 
+function numberIn(text) {
+  const found = String(text).match(/\b\d{1,3}\.\d{2}\b/g) || [];
+  for (const n of found) { const law = NUMBERED.find(l => l.number === n); if (law) return law.key; }
+  return '';
+}
+
 /* مفتاح القانون لوثيقة تشريعية: من رقمها أولاً، ثم من عنوانها المطابق لأسماء القانون */
 export function lawKeyOf(title = '', lawNumber = '') {
   const number = normalizeRef(lawNumber);
   const byNumber = NUMBERED.find(law => number && number === law.number);
   if (byNumber) return byNumber.key;
-  if (/المسطره المدنيه|المسطرة المدنية/.test(normalizeRef(title)) && !/58\.25/.test(normalizeRef(title))) return 'cpc1974';
-  const t = normalizeRef(title).replace(/^(ال)?(ظهير|قانون|مدونه|مدونة)\s+(شريف\s+)?/, '');
+  const raw = normalizeRef(title);
+  if (/اتفاقي|معاهد|بروتوكول|مرسوم|قرار/.test(raw)) return '';
+  /* «القانون رقم 70.03 بمثابة مدونة الأسرة» / «ظهير شريف بمثابة قانون يتعلق بالمسطرة المدنية» → اسم القانون نفسه */
+  const t = raw
+    .replace(/^[\d.]+\s*[—-]\s*/, '')
+    .replace(/^(ال)?(ظهير\s+شريف|ظهير|قانون|القانون)(\s+رقم\s+[\d.\-]+)?(\s+(الصادر|المؤرخ)[^،]*?(?=\s(بمثابه|المتعلق|يتعلق|بتنفيذ)|$))?\s*/, '')
+    .replace(/^(بمثابه|بمثابة)\s+(قانون\s+)?(يتعلق\s+)?(ب)?/, '')
+    .replace(/^(المتعلق|يتعلق)\s+(ب)?/, '')
+    .replace(/^ال(?=مسطر)/, 'ال')
+    .trim();
+  const titled = numberIn(raw);
+  if (titled) return titled;
+  if (/^(قانون\s+)?ال?مسطر[هة] المدني[هة]/.test(t)) return 'cpc1974';
   for (const law of LAWS) {
     const names = [law.title, ...law.names].map(normalizeRef);
-    if (names.some(name => t === name || t === name.replace(/^(قانون|ظهير|مدونة)\s+/, ''))) return law.key;
+    if (names.some(name => t === name || t.startsWith(name + ' ') || t === name.replace(/^(قانون|ظهير|مدونة)\s+/, ''))) return law.key;
   }
   return '';
 }

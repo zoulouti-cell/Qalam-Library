@@ -4,9 +4,34 @@
  * يُبنى مرة في الخلفية عند أول طلب ثم يُحفظ في الذاكرة؛ القاعدة للقراءة فقط.
  */
 import { brotliDecompressSync } from 'node:zlib';
+import { Worker } from 'node:worker_threads';
 import { parseRefs, lawKeyOf, normalizeRef } from './legal-refs.mjs';
 
 const MAX_PER_ARTICLE = 12;
+export const DECISIONS_SQL = "SELECT id,title,type,category,date,body FROM documents WHERE type IN ('juriscassation','judicial')";
+
+/* يفهرس صفوف القرارات: «مفتاح القانون|رقم الفصل» → قرارات (الأحدث أولاً) */
+export function indexRows(rows) {
+  const index = new Map();
+  for (const row of rows) {
+    if (row.type === 'judicial' && /دراسات|تقارير|تقرير|مقالات|نشرة|مجلة|أبحاث|ابحاث|بحوث/.test(row.category || '')) continue;
+    let text = '';
+    try { text = brotliDecompressSync(Buffer.from(row.body)).toString('utf8'); } catch { continue; }
+    const seen = new Set();
+    for (const ref of parseRefs(text.slice(0, 60000))) {
+      for (const article of ref.articles) {
+        const key = `${ref.lawKey}|${article}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const list = index.get(key) || [];
+        if (list.length < MAX_PER_ARTICLE) list.push({ id: row.id, title: String(row.title || '').slice(0, 200), date: row.date || '' });
+        index.set(key, list);
+      }
+    }
+  }
+  for (const list of index.values()) list.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return index;
+}
 
 export function articleText(text, n) {
   const source = String(text || '');
@@ -34,7 +59,7 @@ export class RefIndex {
       if (!current || String(row.title).length < String(current.title).length) map.set(key, { id: row.id, title: row.title });
     }
     for (const doc of this.library.managedDocs?.values?.() || []) {
-      if ((doc.type || 'national') !== 'national') continue;
+      if ((doc.type || 'national') !== 'national' || /^agreement-/.test(String(doc.documentId || ''))) continue;
       const key = lawKeyOf(doc.title, doc.lawNumber || '');
       if (key && !map.has(key)) map.set(key, { id: doc.documentId, title: doc.title });
     }
@@ -51,35 +76,23 @@ export class RefIndex {
     return { lawKey: ref.lawKey, articles: ref.articles, id: law.id, title: law.title, needle: article ? `${word} ${article}` : '' };
   }
 
-  /* يبني الفهرس على دفعات صغيرة حتى لا يحجز الخادم */
+  /* يبني الفهرس في خيط مستقل (worker) حين تتوفر قاعدة على القرص، فلا يُحجز الخادم؛ وإلا (الاختبارات) في الخيط نفسه */
   build() {
     if (this.annotations) return Promise.resolve(this.annotations);
     if (this.building) return this.building;
+    if (this.library.file) {
+      this.building = new Promise((resolve, reject) => {
+        const worker = new Worker(new URL('./ref-index-worker.mjs', import.meta.url), { workerData: { file: this.library.file } });
+        worker.once('message', entries => { this.annotations = new Map(entries); this.building = null; resolve(this.annotations); });
+        worker.once('error', error => { this.building = null; reject(error); });
+      });
+      return this.building;
+    }
     this.building = (async () => {
-      const index = new Map();
-      const rows = this.library.db.prepare("SELECT id,title,type,category,date,body FROM documents WHERE type IN ('juriscassation','judicial')").all();
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (row.type === 'judicial' && /دراسات|تقارير|تقرير|مقالات|نشرة|مجلة|أبحاث|ابحاث|بحوث/.test(row.category || '')) continue;
-        let text = '';
-        try { text = brotliDecompressSync(Buffer.from(row.body)).toString('utf8'); } catch { continue; }
-        const seen = new Set();
-        for (const ref of parseRefs(text.slice(0, 60000))) {
-          for (const article of ref.articles) {
-            const key = `${ref.lawKey}|${article}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            const list = index.get(key) || [];
-            if (list.length < MAX_PER_ARTICLE) list.push({ id: row.id, title: String(row.title || '').slice(0, 200), date: row.date || '' });
-            index.set(key, list);
-          }
-        }
-        if (i % 200 === 199) await new Promise(resolve => setImmediate(resolve));
-      }
-      for (const list of index.values()) list.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-      this.annotations = index;
+      const rows = this.library.db.prepare(DECISIONS_SQL).all();
+      this.annotations = indexRows(rows);
       this.building = null;
-      return index;
+      return this.annotations;
     })();
     return this.building;
   }
