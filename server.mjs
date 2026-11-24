@@ -29,6 +29,7 @@ import { createPasswordReset } from './src/password-reset.mjs';
 import { makeTrashEntry,trashView,restoreTrashEntry } from './src/trash.mjs';
 import { runLegalFeed } from './src/legal-feed.mjs';
 import { auditReport,auditCard,fixCard,decisionKey,isCardKind } from './src/card-audit.mjs';
+import { RefIndex, articleText } from './src/ref-index.mjs';
 import { publicationCategory,readinessOf,lawNumberOf, dueReports,renderReport,makeObservation,mergeLegislativeObservation,mayAutoPublish,tickerWindowStart,titleNeedsArabic,canAutoPublishAfterRelease,scheduleAfterRelease,moveLawsToLawSections,lawStagesComplete,publicationRecord,effectiveToday,partnerUpdates,recentUpdates,tickerItems,isTickerItem,PUBLICATION_DELAY_MS,REPORTS } from './src/legal-monitoring.mjs';
 import { KINDS as CONTRIB_KINDS,NOTE_TYPES,STATUSES as CONTRIB_STATUSES,LIMITS as CONTRIB_LIMITS,extractFileText,sniffOriginal,safeFileName,newFileId,ORIGINAL_MIME,originalsSection,originalDriveName,validateAddition,validateNote,draftFromContribution,userView as contributionView,contributionMail,ownerContributionMail,oneLine as contribLine,cleanText as contribClean } from './src/contributions.mjs';
 
@@ -132,6 +133,7 @@ async function extractGeminiPdf(model,apiKey,sourceBytes,prompt){
 const file=process.env.QALAM_DB_PATH||path.join(ROOT,'data','library.sqlite');
 if(!fs.existsSync(file))throw new Error('قاعدة المكتبة غير موجودة. شغّل node tools/build-library.mjs أولاً.');
 const library=new Library(file),limits=new Map();
+const refIndex=new RefIndex(library);
 library.setBundledContent([...bundledAgreementTexts,...bundledLegalMonitoringContent,...bundledFrenchStudies]);
 const adminStore=await connectAdminStore(process.env.MONGODB_URI||'');
 async function refreshAgreementOverrides(){if(!adminStore?.agreementOverrides)return;try{setAgreementOverrides(await adminStore.agreementOverrides.find({}).toArray());}catch(error){console.error('agreement overrides:',error?.message||error);}}
@@ -428,6 +430,28 @@ const server=http.createServer(async(req,res)=>{
       if(!adminStore)return send(req,res,200,{updates:[]});
       const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-30*86400000)}},{projection:{fullText:0}}).sort({publishedAt:-1}).limit(80).toArray();
       return send(req,res,200,{updates:partnerUpdates(rows.map(r=>({...r,id:r._id})))});
+    }
+    if(p==='/api/partner/sso'&&req.method==='GET'){
+      // الدخول الموحّد من منصة قلم: رمز قصير العمر موقّع بسر الشراكة، لمرة واحدة، لحساب قارئ فعّال بالبريد نفسه
+      const secret=process.env.QALAM_PARTNER_SECRET||'';
+      const go=(to)=>{res.writeHead(302,{...headers,'Cache-Control':'no-store',Location:to});return res.end();};
+      if(!secret||!adminStore)return go('/');
+      const token=String(url.searchParams.get('t')||''),[payload,signature]=token.split('.');
+      const expected=createHmac('sha256',secret).update('qalam-sso:'+String(payload||'')).digest('base64url');
+      const valid=payload&&signature&&signature.length===expected.length&&timingSafeEqual(Buffer.from(signature),Buffer.from(expected));
+      let data=null;try{data=valid?JSON.parse(Buffer.from(payload,'base64url').toString('utf8')):null;}catch{data=null;}
+      const nextRaw=String(url.searchParams.get('next')||'/'),next=/^\/(?!\/)[^\s]*$/.test(nextRaw)?nextRaw:'/';
+      if(!data||typeof data.email!=='string'||!(data.exp>Date.now())||data.exp>Date.now()+180000||!data.nonce)return go('/');
+      globalThis.__ssoNonces??=new Map();for(const [k,v] of globalThis.__ssoNonces)if(v<Date.now())globalThis.__ssoNonces.delete(k);
+      if(globalThis.__ssoNonces.has(data.nonce))return go('/');globalThis.__ssoNonces.set(data.nonce,data.exp);
+      const email=data.email.trim().toLowerCase();
+      const user=await adminStore.users.findOne({email,active:true,accountStatus:{$nin:['pending','permanent']}});
+      // المدير لا يدخل بالرمز: دخوله بكلمة المرور أو Google وحدهما
+      if(!user||user.role==='admin'||user.mustChangePassword)return go('/');
+      await adminStore.users.updateOne({_id:user._id},{$set:{lastLoginAt:new Date(),lastSeenAt:new Date()},$inc:{loginCount:1}});
+      try{await recordAudit(adminStore,user.email,'partner_sso_login',user.email);}catch{}
+      issueSession(res,user.role,Buffer.from(user.email).toString('base64url'));
+      const cookie=res.getHeader('Set-Cookie');res.writeHead(302,{...headers,'Cache-Control':'no-store','Set-Cookie':cookie,Location:next});return res.end();
     }
     if(p==='/api/auth/google/status'&&req.method==='GET')return send(req,res,200,{available:googleLoginConfig().available&&!!adminStore});
     if(p==='/api/auth/google/start'&&req.method==='GET'){
@@ -1328,6 +1352,24 @@ const server=http.createServer(async(req,res)=>{
     if(p==='/api/categories')return send(req,res,200,{categories:withShelfCounts(library.categories())});
     if(p==='/api/search')return send(req,res,200,library.search(Object.fromEntries(url.searchParams)));
     if(p==='/api/suggest')return send(req,res,200,library.suggest(url.searchParams.get('q')));
+    if(p==='/api/refs/resolve'&&req.method==='GET'){
+      // إحالة واردة في نص («الفصل 230 من ق.ل.ع») → وثيقة القانون وموضع الفصل منه
+      const r=refIndex.resolve(String(url.searchParams.get('text')||'').slice(0,300));
+      return send(req,res,200,r||{id:''});
+    }
+    if(p==='/api/refs/annotations'&&req.method==='GET'){
+      // النص المذيَّل: القرارات التي أحالت على كل فصل من هذا القانون
+      const d=library.document(String(url.searchParams.get('doc')||'').slice(0,120));
+      if(!d)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      return send(req,res,200,await refIndex.annotationsFor(d));
+    }
+    if(p==='/api/refs/article'&&req.method==='GET'){
+      // نص فصل واحد من وثيقة (للمقارنة بين نسختين)
+      const d=library.document(String(url.searchParams.get('doc')||'').slice(0,120));
+      if(!d)return send(req,res,404,{error:'الوثيقة غير موجودة.'});
+      const n=String(url.searchParams.get('n')||'').slice(0,12);
+      return send(req,res,200,{id:d.id,title:d.title,n,text:articleText(d.text||'',n)});
+    }
     if(p==='/api/document'){
       const d=library.document((url.searchParams.get('id')||'').slice(0,120));return send(req,res,d?200:404,d||{error:'الوثيقة غير موجودة في هذه النسخة.'});
     }

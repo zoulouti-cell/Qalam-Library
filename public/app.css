@@ -154,3 +154,22 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 #recentUpdates .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:8px;background:transparent;color:#537343;cursor:pointer}
 #recentUpdates .icon-btn:hover,#recentUpdates .icon-btn:focus-visible{background:#e2ebd6}
 #recentUpdates .icon-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* المكتبة المترابطة: الإحالات روابط، الاجتهاد تحت الفصل، المقارنة، الإضافة إلى ملف */
+#readerBody .ref-link{color:var(--green);text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
+#readerBody .article-tools{display:inline-flex;gap:6px;margin-inline-start:10px;vertical-align:middle}
+#readerBody .article-tool{font:500 12px var(--q-font-ui);padding:2px 9px;border:1px solid var(--q-line);border-radius:999px;background:var(--q-bg-soft);color:var(--green);cursor:pointer}
+#readerBody .article-tool:hover{background:var(--q-green-soft)}
+#readerBody .article-annotations{margin:4px 0 12px;padding:8px 12px;border:1px solid var(--q-line-soft);border-radius:10px;background:var(--q-bg-soft);font-size:.9em}
+#readerBody .article-annotations ul{margin:4px 0 0;padding-inline-start:18px}
+.compare-dialog{width:min(980px,96vw);max-height:90vh;border:1px solid var(--q-line);border-radius:14px;padding:14px;background:var(--q-bg)}
+.compare-dialog .compare-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.compare-dialog .compare-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.compare-dialog .compare-pick select{min-width:240px;max-width:100%}
+.compare-dialog .compare-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+@media (max-width:700px){.compare-dialog .compare-cols{grid-template-columns:1fr}}
+.compare-dialog .compare-cols section{border:1px solid var(--q-line-soft);border-radius:10px;padding:8px 10px;max-height:32vh;overflow:auto}
+.compare-dialog ins{background:var(--q-green-soft);text-decoration:none}
+.compare-dialog del{color:var(--muted);text-decoration:line-through}
+.compare-dialog .compare-diff{line-height:2;border-top:1px solid var(--q-line-soft);padding-top:8px}
+.reader-add-case{font-size:20px}
