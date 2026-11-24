@@ -456,7 +456,7 @@ const server=http.createServer(async(req,res)=>{
       if(!r||!r.id)return send(req,res,200,{found:false,lawKey:r?.lawKey||''});
       const d=library.document(r.id),n=r.articles[0]||'';
       const ann=d?await refIndex.annotationsFor(d):{articles:{}};
-      return send(req,res,200,{found:true,id:r.id,title:r.title,n,needle:r.needle,text:d?articleText(d.text||'',n).slice(0,4000):'',decisions:(ann.articles?.[n]||[]).slice(0,3),building:!!ann.building});
+      return send(req,res,200,{found:true,id:r.id,title:r.title,n,needle:r.needle,repealed:r.repealed||null,text:d?articleText(d.text||'',n).slice(0,4000):'',decisions:(ann.articles?.[n]||[]).slice(0,3),building:!!ann.building});
     }
     if(p==='/api/partner/sso'&&req.method==='GET'){
       // الدخول الموحّد من منصة قلم: رمز قصير العمر موقّع بسر الشراكة، لمرة واحدة، لحساب قارئ فعّال بالبريد نفسه

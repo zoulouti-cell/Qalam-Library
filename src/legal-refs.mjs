@@ -69,6 +69,8 @@ function numberIn(text) {
 
 /* مفتاح القانون لوثيقة تشريعية: من رقمها أولاً، ثم من عنوانها المطابق لأسماء القانون */
 export function lawKeyOf(title = '', lawNumber = '') {
+  /* ظهير 1974 الملغى: عنوانه يذكر 58.25 الذي نسخه، فيُعرف برقم ظهيره قبل كل شيء */
+  if (/1\.74\.447/.test(`${title} ${lawNumber}`)) return 'cpc1974';
   const number = normalizeRef(lawNumber);
   const byNumber = NUMBERED.find(law => number && number === law.number);
   if (byNumber) return byNumber.key;
@@ -91,5 +93,10 @@ export function lawKeyOf(title = '', lawNumber = '') {
   }
   return '';
 }
+
+/* القوانين المنسوخة: مفتاح القانون الجديد وبيان النسخ */
+export const REPEALED = {
+  cpc1974: { by: 'cpc', note: 'نُسخ ظهير 1974 بالمادة 644 من القانون 58.25 المتعلق بالمسطرة المدنية (الجريدة الرسمية عدد 7485 بتاريخ 23 فبراير 2026). الترقيم في القانون الجديد مختلف.' },
+};
 
 export const lawTitle = key => key === 'cpc1974' ? 'قانون المسطرة المدنية (ظهير 1974)' : LAWS.find(l => l.key === key)?.title || '';

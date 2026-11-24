@@ -64,3 +64,11 @@ test('بناء الفهرس في خيط مستقل من قاعدة على الق
   assert.deepEqual(ann.articles['94'].map(d => d.id), ['d1']);
   assert.equal(index.resolve('المادة 94 من مدونة الأسرة').id, 'national:1');
 });
+
+test('ظهير 1974 الملغى يُعرف برقمه رغم ذكر 58.25 في عنوانه، ويحمل بيان النسخ', async () => {
+  const { lawKeyOf, REPEALED } = await import('../src/legal-refs.mjs');
+  const title = 'تم نسخ مقتضيات الظهير الشريف بمثابة قانون رقم 1.74.447 بتاريخ 11 من رمضان 1394 (28 شتنبر 1974) بالمصادقة على نص قانون المسطرة المدنية، كما تم تغييره وتتميمه بمقتضى المادة 644 من الظهير الشريف رقم 1.26.07 بتنفيذ القانون رقم 58.25 المتعلق بالمسطرة المدنية';
+  assert.equal(lawKeyOf(title), 'cpc1974');
+  assert.equal(lawKeyOf('58.25 — المسطرة المدنية', '58.25'), 'cpc');
+  assert.equal(REPEALED.cpc1974.by, 'cpc');
+});

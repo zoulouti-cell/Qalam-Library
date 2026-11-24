@@ -5,7 +5,7 @@
  */
 import { brotliDecompressSync } from 'node:zlib';
 import { Worker } from 'node:worker_threads';
-import { parseRefs, lawKeyOf, normalizeRef } from './legal-refs.mjs';
+import { parseRefs, lawKeyOf, normalizeRef, REPEALED } from './legal-refs.mjs';
 
 const MAX_PER_ARTICLE = 12;
 export const DECISIONS_SQL = "SELECT id,title,type,category,date,body FROM documents WHERE type IN ('juriscassation','judicial')";
@@ -73,7 +73,9 @@ export class RefIndex {
     if (!law) return { lawKey: ref.lawKey, articles: ref.articles, id: '' };
     const article = ref.articles[0] || '';
     const word = /ماد/.test(normalizeRef(ref.text)) ? 'المادة' : 'الفصل';
-    return { lawKey: ref.lawKey, articles: ref.articles, id: law.id, title: law.title, needle: article ? `${word} ${article}` : '' };
+    const repealed = REPEALED[ref.lawKey];
+    const successor = repealed ? this.lawDocs().get(repealed.by) : null;
+    return { lawKey: ref.lawKey, articles: ref.articles, id: law.id, title: law.title, needle: article ? `${word} ${article}` : '', ...(repealed ? { repealed: { note: repealed.note, replacedById: successor?.id || '', replacedByTitle: successor?.title || '' } } : {}) };
   }
 
   /* يبني الفهرس في خيط مستقل (worker) حين تتوفر قاعدة على القرص، فلا يُحجز الخادم؛ وإلا (الاختبارات) في الخيط نفسه */
@@ -107,6 +109,8 @@ export class RefIndex {
       const [lawKey, article] = k.split('|');
       if (lawKey === key) articles[article] = list;
     }
-    return { lawKey: key, articles };
+    const repealed = REPEALED[key];
+    const successor = repealed ? this.lawDocs().get(repealed.by) : null;
+    return { lawKey: key, articles, ...(repealed ? { repealed: { note: repealed.note, replacedById: successor?.id || '', replacedByTitle: successor?.title || '' } } : {}) };
   }
 }
