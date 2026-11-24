@@ -448,6 +448,15 @@ const server=http.createServer(async(req,res)=>{
       const rows=await adminStore.legalMonitorItems.find({state:'published',publishedAt:{$gte:new Date(Date.now()-30*86400000)}},{projection:{fullText:0}}).sort({publishedAt:-1}).limit(80).toArray();
       return send(req,res,200,{updates:partnerUpdates(rows.map(r=>({...r,id:r._id})))});
     }
+    if(p==='/api/partner/ref'&&req.method==='GET'){
+      // لمنصة قلم (بسر الشراكة): إحالة مكتوبة في مذكرة → نص الفصل وأحدث القرارات التي أحالت عليه
+      if(!partnerAuthorized(req))return send(req,res,403,{error:'غير مصرح.'});
+      const r=refIndex.resolve(String(url.searchParams.get('text')||'').slice(0,300));
+      if(!r||!r.id)return send(req,res,200,{found:false,lawKey:r?.lawKey||''});
+      const d=library.document(r.id),n=r.articles[0]||'';
+      const ann=d?await refIndex.annotationsFor(d):{articles:{}};
+      return send(req,res,200,{found:true,id:r.id,title:r.title,n,needle:r.needle,text:d?articleText(d.text||'',n).slice(0,4000):'',decisions:(ann.articles?.[n]||[]).slice(0,3),building:!!ann.building});
+    }
     if(p==='/api/partner/sso'&&req.method==='GET'){
       // الدخول الموحّد من منصة قلم: رمز قصير العمر موقّع بسر الشراكة، لمرة واحدة، لحساب قارئ فعّال بالبريد نفسه
       const secret=process.env.QALAM_PARTNER_SECRET||'';
