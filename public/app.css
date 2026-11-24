@@ -175,3 +175,5 @@ html[data-qalam-desktop="true"] #accountIdentity,html[data-qalam-desktop="true"]
 .reader-add-case{font-size:20px}
 .follows-dialog .follows-list{margin:10px 0 0;padding-inline-start:18px;line-height:2}
 .follows-dialog #followLaw{margin:8px 0}
+
+.repealed-banner{margin:0 0 12px;padding:8px 12px;border-radius:8px;background:#fff4e5;border:1px solid #f0c27a;color:#7a4b00;font-size:.92em;line-height:1.7}.repealed-banner a{color:inherit;text-decoration:underline;margin-inline-start:6px}

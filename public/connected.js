@@ -36,7 +36,7 @@
   async function openRef(text) {
     try {
       const r = await get('/api/refs/resolve?text=' + encodeURIComponent(text));
-      if (r.id) bridge().openDocument(r.id, r.needle || '');
+      if (r.id) { bridge().openDocument(r.id, r.needle || ''); if (r.repealed) bridge().toast('نص منسوخ: ' + r.repealed.note); }
       else bridge().toast('هذا القانون غير متاح بعد في المكتبة.');
     } catch { bridge().toast('تعذر فتح الإحالة.'); }
   }
@@ -54,6 +54,11 @@
       const tools = document.createElement('span'); tools.className = 'article-tools';
       tools.innerHTML = (list.length ? '<button type="button" class="article-tool" data-annot="' + esc(n) + '">اجتهاد (' + list.length + ')</button>' : '') + '<button type="button" class="article-tool" data-compare="' + esc(n) + '">قارن</button>';
       h.append(tools);
+    }
+    if (data.repealed && !body.querySelector('.repealed-banner')) {
+      const banner = document.createElement('p'); banner.className = 'repealed-banner';
+      banner.innerHTML = '⚠️ ' + esc(data.repealed.note) + (data.repealed.replacedById ? ' <a href="#" data-open-doc="' + esc(data.repealed.replacedById) + '">افتح القانون الجديد</a>' : '');
+      body.prepend(banner);
     }
     body._annotations = data.articles || {};
     state.lawKey = data.lawKey || ''; state.lawTitle = doc.title || '';
