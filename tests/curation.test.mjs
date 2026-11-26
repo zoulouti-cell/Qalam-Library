@@ -7,10 +7,11 @@ import { brotliCompressSync } from 'node:zlib';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { makeLibraryDb } from './fixtures/make-library-db.mjs';
 import { catalogCategory, orderedCategories, FRENCH_SHELVES, DRIVE_SHELVES } from '../src/catalog.mjs';
 
-const tool = new URL('../tools/curate-library.mjs', import.meta.url).pathname;
+const tool = fileURLToPath(new URL('../tools/curate-library.mjs', import.meta.url));
 
 test('التنقية تحذف بطاقات «محتوى» الفارغة والنسخ المتطابقة نصاً وعنواناً، وتُبقي المتشابه بنصوص مختلفة', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qalam-curate-'));

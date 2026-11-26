@@ -1177,7 +1177,16 @@
     const c=state.capabilities||{};
     return !!(c.ai?.available||c.translation?.available||c.webSearch?.available);
   }
-  function openSettings() { if (state.mic) stopMic(true); refreshSettings(); if (!$('settings').open) $('settings').showModal(); }
+  function openSettings() {
+    if (state.mic) stopMic(true);
+    refreshSettings();
+    const dialog = $('settings');
+    if (window.matchMedia('(max-width: 720px)').matches) {
+      dialog.dataset.mobileSettings = 'topics';
+      dialog.querySelector('.settings-content').scrollTop = 0;
+    }
+    if (!dialog.open) dialog.showModal();
+  }
   function audioStatus(text, settingsLink = false) {
     $('readerAudioStatus').hidden = !text; $('readerAudioStatus').textContent = text;
     if (settingsLink) { const button = document.createElement('button'); button.textContent = 'تفضيلات الصوت'; button.addEventListener('click', openSettings); $('readerAudioStatus').append(button); }
@@ -1479,12 +1488,73 @@
     $('clearTopQuery').addEventListener('click', clearSearchQuery); $('clearBottomQuery').addEventListener('click', clearSearchQuery);
     $('clearHistory').addEventListener('click', () => { state.history = []; store.set('history', []); renderLocalView(); toast('مُسح سجل القراءة على هذا الجهاز.'); });
     ['settingsBtn', 'sidebarSettings', 'footerSettings'].forEach(id => $(id).addEventListener('click', openSettings));
+    const officeSwitch = $('officeEmblemSwitch');
+    if (officeSwitch) {
+      document.addEventListener('pointerdown', event => { if (!officeSwitch.contains(event.target)) officeSwitch.open = false; });
+      document.addEventListener('keydown', event => { if (event.key === 'Escape') officeSwitch.open = false; });
+    }
+    const themeButton = $('themeToggle');
+    const themeHome = themeButton.parentElement;
+    const phoneLayout = window.matchMedia('(max-width: 720px)');
+    const preferences = $('settings');
+    const settingsContent = preferences.querySelector('.settings-content');
+    const topics = document.createElement('nav');
+    topics.className = 'mobile-preference-topics';
+    topics.setAttribute('aria-label', $('settingsTitle').textContent);
+    const appearance = document.createElement('section');
+    appearance.className = 'settings-card mobile-appearance-card';
+    const appearanceTitle = document.createElement('h3');
+    appearanceTitle.textContent = document.documentElement.lang === 'fr' ? 'Apparence' : 'المظهر';
+    appearance.append(appearanceTitle);
+    settingsContent.prepend(topics, appearance);
+    const preferenceCards = Array.from(settingsContent.querySelectorAll(':scope > .settings-card'));
+    const heading = $('settingsTitle');
+    const settingsTitle = heading.textContent;
+    const showTopics = () => {
+      preferences.dataset.mobileSettings = 'topics';
+      heading.textContent = settingsTitle;
+      topics.querySelector('button')?.focus();
+    };
+    preferenceCards.forEach(card => {
+      const title = card.querySelector('h3')?.textContent;
+      if (!title) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = title;
+      button.addEventListener('click', () => {
+        preferenceCards.forEach(item => item.classList.toggle('selected-preference', item === card));
+        preferences.dataset.mobileSettings = 'section';
+        heading.textContent = title;
+        settingsContent.scrollTop = 0;
+        $('settingsClose').focus();
+      });
+      topics.append(button);
+    });
+    const placeAppearance = () => {
+      if (phoneLayout.matches) appearance.append(themeButton);
+      else {
+        themeHome.insertBefore(themeButton, $('settingsBtn'));
+        delete preferences.dataset.mobileSettings;
+        heading.textContent = settingsTitle;
+      }
+    };
+    phoneLayout.addEventListener('change', placeAppearance);
+    placeAppearance();
     $('themeToggle').addEventListener('click', () => { const cur = document.documentElement.dataset.theme; const i = THEME_ORDER.indexOf(cur); applyTheme(THEME_ORDER[(i < 0 ? 0 : i + 1) % THEME_ORDER.length]); });
     $('logoutButton').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('accountIdentity')?.addEventListener('click',openAccount); $('accountClose').addEventListener('click',()=>$('accountDialog').close()); $('accountLogout').addEventListener('click',async()=>{try{await fetch('/api/logout',{method:'POST',credentials:'same-origin'});}finally{location.replace('/login');}});
     $('accountDialog').addEventListener('click',event=>{if(event.target===$('accountDialog'))$('accountDialog').close();});
     $('accountPasswordForm').addEventListener('submit',async event=>{event.preventDefault();const status=$('accountPasswordStatus');status.textContent='جارٍ الحفظ…';try{const response=await fetch('/api/account/password',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({password:$('accountCurrentPassword').value,newPassword:$('accountNewPassword').value})}),data=await response.json();if(!response.ok)throw new Error(data.error||'تعذر تغيير كلمة المرور.');event.target.reset();status.textContent='حُفظت كلمة المرور الجديدة.';}catch(error){status.textContent=error.message;}});
-    $('settingsClose').addEventListener('click', () => $('settings').close());$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
+    $('settingsClose').addEventListener('click', () => {
+      if (phoneLayout.matches && preferences.dataset.mobileSettings === 'section') showTopics();
+      else preferences.close();
+    });$('trustDetails').addEventListener('click', () => $('trustDialog').showModal()); $('trustClose').addEventListener('click', () => $('trustDialog').close());
+    preferences.addEventListener('cancel', event => {
+      if (phoneLayout.matches && preferences.dataset.mobileSettings === 'section') {
+        event.preventDefault();
+        showTopics();
+      }
+    });
     $('driveSourceClose').addEventListener('click',()=>$('driveSourceDialog').close());$('driveSourceDialog').addEventListener('click',event=>{if(event.target===$('driveSourceDialog'))$('driveSourceDialog').close();});
     $('personalize').addEventListener('change', event => { prefs.personalize = event.target.checked; persistPrefs(); toast(prefs.personalize ? 'فُعّل السجل والتخصيص على هذا الجهاز فقط.' : 'توقف حفظ القراءات وعمليات البحث الجديدة.'); });
     $('searchHistoryEnabled').addEventListener('change', event => { prefs.searchHistory = event.target.checked; if (!prefs.searchHistory) { state.queries = []; store.set('queries', []); } persistPrefs(); toast(prefs.searchHistory ? 'فُعّل سجل البحث؛ ستُحفظ عمليات البحث التالية محلياً.' : 'أُوقف سجل البحث وحُذفت العبارات المحفوظة محلياً.'); });
