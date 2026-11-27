@@ -347,7 +347,7 @@ async function runFollowDigest(now=new Date()){
 }
 const followTimer=setInterval(()=>runFollowDigest().catch(error=>console.error('Follow digest failed:',error?.message||'unknown error')),60*60_000);followTimer.unref();setTimeout(()=>runFollowDigest().catch(()=>{}),120_000).unref();
 const legalFeedTimer=setInterval(()=>runDailyLegalFeed().catch(error=>console.error('Legal feed failed:',error?.message||'unknown error')),60*60_000);legalFeedTimer.unref();setTimeout(()=>runDailyLegalFeed().catch(()=>{}),90_000).unref();
-const cardAuditTimer=setInterval(()=>runWeeklyCardAudit().catch(error=>console.error('Weekly card audit failed:',error?.message||'unknown error')),60*60_000);cardAuditTimer.unref();
+const cardAuditTimer=setInterval(()=>runWeeklyCardAudit().catch(error=>console.error('Weekly card audit failed:',error?.message||'unknown error')),60*60_000);cardAuditTimer.unref();setTimeout(()=>runWeeklyCardAudit().catch(()=>{}),90_000).unref();/* يكفي استيقاظ قصير للخادم ليُولَّد التقرير المستحق */
 if(adminStore)setTimeout(()=>syncPublishedTexts().then(n=>{if(n){console.log('Published texts synced:',n);return adminStore.content.find({status:'published'}).toArray().then(rows=>library.setManagedContent(rows));}}).catch(()=>{}),15_000).unref?.();
 const legalPublishTimer=setInterval(()=>runLegalPublication()?.catch(()=>{}),5*60_000);legalPublishTimer.unref();
 legalReportTimer.unref();
