@@ -6,9 +6,9 @@
    - مجلد الماسح: واجهة File System Access (Chrome وEdge على الحاسوب).
    لا قراءة فائقة الدقة عبر نماذج خارجية في المكتبة: القراءة محلية دائمًا. */
 (() => {
-  const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
-  const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
-  const TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.esm.min.js';
+  const PDFJS = '/ocr/pdf.js';
+  const PDFJS_WORKER = '/ocr/pdf.worker.js';
+  const TESSERACT = '/ocr/tesseract.js';
   const IMAGE_RE = /\.(jpe?g|png|webp)$/i;
   const isPdf = file => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
   const isImage = file => /^image\/(jpeg|png|webp)$/.test(file.type) || IMAGE_RE.test(file.name);
@@ -42,23 +42,8 @@
     context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     return canvas;
   }
-  /* رمادي + مدّ التباين (من 2٪ إلى 98٪) يحسّن قراءة صور الهاتف الباهتة */
-  function enhanceForOcr(canvas) {
-    try {
-      const context = canvas.getContext('2d', { willReadFrequently: true }), image = context.getImageData(0, 0, canvas.width, canvas.height), data = image.data, hist = new Uint32Array(256);
-      for (let i = 0; i < data.length; i += 4) { const g = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000 | 0; data[i] = g; hist[g]++; }
-      const total = data.length / 4; let acc = 0, lo = 0, hi = 255;
-      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= total * 0.02) { lo = v; break; } }
-      acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= total * 0.02) { hi = v; break; } }
-      if (hi - lo < 40) { lo = 0; hi = 255; }
-      const scale = 255 / (hi - lo);
-      for (let i = 0; i < data.length; i += 4) { const g = Math.max(0, Math.min(255, ((data[i] - lo) * scale) | 0)); data[i] = data[i + 1] = data[i + 2] = g; }
-      context.putImageData(image, 0, 0);
-    } catch { /* نكتفي بالصورة كما هي */ }
-    return canvas;
-  }
-  const canvasToBlob = (canvas, quality = 0.86) => new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
   /* ضغط الصورة قبل رفعها أصلًا: يخفّف الرفع والتخزين المؤقت على الخادم */
+  const canvasToBlob = (canvas, quality = 0.86) => new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
   async function compressImage(file, { maxSide = 2600, quality = 0.86 } = {}) {
     const bitmap = await toBitmap(file), canvas = drawScaled(bitmap, maxSide); bitmap.close?.();
     const blob = await canvasToBlob(canvas, quality), size = { w: canvas.width, h: canvas.height }; canvas.width = canvas.height = 0;
@@ -108,8 +93,21 @@
 
   async function createOcr(lang, onProgress) {
     const module = await loadTesseract(), tesseract = module.default || module;
-    const worker = await withTimeout(tesseract.createWorker(lang, 1, { logger: m => { if (m.status === 'recognizing text') onProgress?.(m.progress || 0); } }), 180000, 'تعذر تحميل بيانات اللغة للتعرف الضوئي؛ تحققوا من الاتصال بالإنترنت ثم أعيدوا المحاولة.');
-    return { recognize: async canvas => String((await worker.recognize(enhanceForOcr(canvas))).data.text || '').trim(), stop: () => worker.terminate().catch(() => {}) };
+    const { prep, readPage } = await import('/ocr/page-reader.js');
+    const options = { workerPath: '/ocr/worker.min.js', corePath: '/ocr/tesseract-core-lstm.wasm.js', langPath: '/ocr/', workerBlobURL: false };
+    const worker = await tesseract.createWorker(lang, 1, { ...options, logger: m => {
+      if (m.status === 'recognizing text') onProgress?.(m.progress || 0);
+    } });
+    let arabic;
+    const getArabic = async () => arabic || (arabic = await tesseract.createWorker('ara', 1, options));
+    return {
+      recognize: async canvas => {
+        const prepared = prep(canvas);
+        try { return await readPage(worker, prepared, { ara: lang.includes('ara') ? getArabic : null }); }
+        finally { if (prepared !== canvas) prepared.width = prepared.height = 0; }
+      },
+      stop: async () => { await Promise.allSettled([worker.terminate(), arabic?.terminate()]); }
+    };
   }
 
   /** يقرأ ملفات متعددة ويعيد { text, pages, methods, notes }؛ onProgress(نسبة 0..1، رسالة). */
@@ -117,7 +115,8 @@
     const list = Array.from(files || []);
     if (!list.length) throw new Error('اختاروا ملفًا أو التقطوا صورة أولًا.');
     const notes = [], methods = new Set(), chunks = []; let pages = 0, ocr = null;
-    const ensureOcr = async () => ocr || (ocr = await createOcr(lang, ratio => onProgress(null, `التعرف الضوئي: ${Math.round(ratio * 100)}٪ من الصفحة الحالية…`)));
+    let reportPage = () => {};
+    const ensureOcr = async () => ocr || (ocr = await createOcr(lang, ratio => reportPage(ratio)));
     const failures = [];
     try {
       for (let index = 0; index < list.length; index++) {
@@ -128,18 +127,21 @@
           onProgress(slot(0.3), `استخراج النص من ${file.name}…`); const text = tidy(await serverExtract(file)); if (text) { chunks.push(text); methods.add('server'); pages += 1; } onProgress(slot(1), ''); continue;
         }
         if (isImage(file)) {
-          onProgress(slot(0.2), `قراءة الصورة ${file.name}…`); const bitmap = await toBitmap(file), canvas = drawScaled(bitmap, 3000); bitmap.close?.();
+          onProgress(slot(0), `قراءة الصورة ${file.name}…`); const bitmap = await toBitmap(file), canvas = drawScaled(bitmap, 3000); bitmap.close?.();
+          reportPage = ratio => onProgress(slot(ratio), file.name);
           const text = tidy(await (await ensureOcr()).recognize(canvas)); canvas.width = canvas.height = 0; if (text) { chunks.push(text); methods.add('ocr'); } pages += 1; onProgress(slot(1), ''); continue;
         }
         if (isPdf(file)) {
-          const pdfjs = await loadPdfjs(), pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise, total = pdf.numPages, count = Math.min(total, maxPages);
+          const pdfjs = await loadPdfjs(), pdf = await pdfjs.getDocument({ wasmUrl: '/ocr/wasm/', data: new Uint8Array(await file.arrayBuffer()) }).promise, total = pdf.numPages, count = Math.min(total, maxPages);
           if (total > count) notes.push(`قُرئت أول ${count} صفحة من ${total} في «${file.name}»؛ قسّموا الملف لقراءة البقية.`);
           for (let number = 1; number <= count; number++) {
             if (signal?.aborted) { await pdf.destroy(); throw new DOMException('aborted', 'AbortError'); }
-            onProgress(slot(number / count), `${file.name} — الصفحة ${number} من ${count}`);
+            onProgress(slot((number - 1) / count), `${file.name} — الصفحة ${number} من ${count}`);
             const page = await pdf.getPage(number); let text = pageTextFromContent(await page.getTextContent()), method = 'pdf-text';
             if (text.length < 30 || !textQuality(text).ok) {
-              const viewport = page.getViewport({ scale: 2 }), canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+              reportPage = ratio => onProgress(slot((number - 1 + ratio) / count), file.name + " · " + number + "/" + count);
+              const base = page.getViewport({ scale: 1 });
+              const viewport = page.getViewport({ scale: Math.min(300 / 72, 3400 / Math.max(base.width, base.height), Math.sqrt(8000000 / (base.width * base.height))) }), canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
               const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true }); context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
               await page.render({ canvasContext: context, viewport }).promise; text = tidy(await (await ensureOcr()).recognize(canvas)); method = 'ocr'; canvas.width = canvas.height = 0;
             }
@@ -154,7 +156,7 @@
     const text = chunks.join('\n\n').trim();
     const quality = textQuality(text);
     if (text.length < 40 && failures.length === list.length) throw failures[0];
-    if (text.length < 40) throw new Error('لم يُستخرج نص كافٍ. جرّبوا صورة أوضح (300 نقطة، مستقيمة، دون ظل) أو ألصقوا النص يدويًا.');
+    if (!text) throw new Error('لم يُستخرج نص كافٍ. جرّبوا صورة أوضح (300 نقطة، مستقيمة، دون ظل) أو ألصقوا النص يدويًا.');
     if (!quality.ok) notes.push('جودة القراءة منخفضة؛ راجعوا النص كاملًا وصححوه قبل الإرسال.');
     return { text, pages, methods: [...methods], notes, quality };
   }

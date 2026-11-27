@@ -125,7 +125,7 @@
     </section>
     <section class="contrib-block"><h4>الأصول المرفقة <b>${fmt(S.files.length)}</b></h4>${files}<small class="contrib-muted">يُحفظ الأصل لدى المكتبة ليقابله المدير بالنص. الحد: ${fmt(lim.originalsPerItem || 10)} ملفات، ${sizeLabel(lim.originalBytes || 8388608)} للملف الواحد.</small></section>
     <section class="contrib-block"><h4>النص المقروء <b id="textCount">${fmt(S.text.trim().length)}</b> حرف</h4>
-      <textarea id="fText" rows="10" dir="auto" placeholder="يظهر هنا النص المقروء من الأصل. يمكنكم تصحيحه أو لصق النص كاملًا مباشرة." ${S.busy ? 'readonly' : ''}>${esc(S.text)}</textarea>
+      <textarea id="fText" rows="10" dir="auto" placeholder="يظهر هنا النص المقروء من الأصل. يمكنكم تصحيحه أو لصق النص كاملًا مباشرة." ${S.busy ? 'readonly' : ''}>${esc(S.text)}</textarea><div><button type="button" data-ocr-save="fText">حفظ النص</button> <button type="button" data-ocr-share="fText">مشاركة النص</button></div>
       <small class="contrib-muted">القراءة الضوئية تجري داخل جهازكم، وقد تخطئ في الأسماء والأرقام والإحالات؛ راجعوا النص على الأصل قبل الإرسال. المدير يراجعه بدوره قبل أي نشر.</small></section>
     <div class="contrib-actions"><button class="secondary-button" type="button" data-act="prev"><span aria-hidden="true">→</span> السابق</button><button class="primary-button" type="button" data-act="next" ${S.busy ? 'disabled' : ''}>التالي: المراجعة والإرسال <span aria-hidden="true">←</span></button></div>`;
   }

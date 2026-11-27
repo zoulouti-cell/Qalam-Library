@@ -45,61 +45,6 @@
     if (event.target === dialog) dialog.close();
   });
 
-  async function loadOcrLibraries() {
-    say('جارٍ تحميل قارئ PDF ومحرك OCR وبيانات اللغة عند أول استخدام…');
-    const [pdfjs, tesseract] = await Promise.all([
-      import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs'),
-      import('https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.esm.min.js'),
-    ]);
-    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
-    return { pdfjs, tesseract: tesseract.default || tesseract };
-  }
-
-  async function recognizeImage(worker, file) {
-    const bitmap = await createImageBitmap(file);
-    const maxSide = 3000;
-    const ratio = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
-    canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
-    const context = canvas.getContext('2d', { alpha: false });
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const result = await worker.recognize(canvas);
-    canvas.width = canvas.height = 0;
-    return String(result.data.text || '').trim();
-  }
-
-  async function recognizePdf(pdfjs, worker, file, maxPages, fileIndex, fileCount) {
-    const data = new Uint8Array(await file.arrayBuffer());
-    const pdf = await pdfjs.getDocument({ data }).promise;
-    const totalPages = pdf.numPages;
-    const count = Math.min(maxPages, totalPages);
-    const pages = [];
-    for (let pageNumber = 1; pageNumber <= count; pageNumber += 1) {
-      say(`قراءة ${file.name} — الصفحة ${pageNumber} من ${count} · الملف ${fileIndex} من ${fileCount}`);
-      progress(((fileIndex - 1 + pageNumber / count) / fileCount) * 100);
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 1.8 });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      const context = canvas.getContext('2d', { alpha: false });
-      context.fillStyle = '#fff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: context, viewport }).promise;
-      const result = await worker.recognize(canvas);
-      const text = String(result.data.text || '').trim();
-      if (text) pages.push(`— ${file.name} · الصفحة ${pageNumber} —\n${text}`);
-      canvas.width = canvas.height = 0;
-      page.cleanup();
-    }
-    await pdf.destroy();
-    return { text: pages.join('\n\n'), pages: count, totalPages };
-  }
-
   $('runScannerOcr').addEventListener('click', async (event) => {
     if (busy) return;
     if (!selectedFiles.length) {
@@ -113,50 +58,21 @@
     $('openScannerDraft').hidden = true;
     $('scannerText').value = '';
     progress(1);
-    let worker;
     try {
-      const { pdfjs, tesseract } = await loadOcrLibraries();
-      const language = $('scannerLanguage').value;
-      worker = await tesseract.createWorker(language, 1, {
-        logger: (message) => {
-          if (message.status === 'recognizing text') {
-            say(`OCR محلي: ${Math.round((message.progress || 0) * 100)}٪ من الصفحة الحالية…`);
-          }
-        },
+      const result = await window.QalamReader.read(selectedFiles, {
+        lang: $('scannerLanguage').value,
+        maxPages: Math.max(1, Math.min(30, Number($('scannerMaxPages').value) || 10)),
+        onProgress: (ratio, message) => { if (ratio !== null) progress(ratio * 100); if (message) say(message); }
       });
-      const limit = Math.max(1, Math.min(30, Number($('scannerMaxPages').value) || 10));
-      const results = [];
-      let completedPages = 0;
-      for (let i = 0; i < selectedFiles.length; i += 1) {
-        const file = selectedFiles[i];
-        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
-          const result = await recognizePdf(pdfjs, worker, file, limit, i + 1, selectedFiles.length);
-          results.push(result.text);
-          completedPages += result.pages;
-          if (result.totalPages > result.pages) {
-            say(`عولجت أول ${result.pages} صفحات من ${file.name} (إجمالي ${result.totalPages}).`);
-          }
-        } else if (file.type.startsWith('image/')) {
-          say(`قراءة الصورة ${file.name} · الملف ${i + 1} من ${selectedFiles.length}…`);
-          progress(((i + 0.5) / selectedFiles.length) * 100);
-          const text = await recognizeImage(worker, file);
-          results.push(`— ${file.name} —\n${text}`);
-          completedPages += 1;
-        } else {
-          throw new Error(`نوع الملف غير مدعوم: ${file.name}`);
-        }
-        progress(((i + 1) / selectedFiles.length) * 100);
-      }
-      const text = results.filter(Boolean).join('\n\n');
-      if (text.trim().length < 40) throw new Error('الناتج قصير أو فارغ. جرّب صورة أوضح أو تحقق من لغة OCR.');
+      const { text, pages: completedPages } = result;
+      if (!text.trim()) throw new Error('الناتج قصير أو فارغ. جرّب صورة أوضح أو تحقق من لغة OCR.');
       $('scannerText').value = text;
       $('saveScannerDraft').disabled = false;
-      say(`اكتملت القراءة محلياً: ${completedPages} صفحة/صورة. راجع النص وصححه قبل حفظ المسودة.`, 'ok');
+      say(result.notes.length ? result.notes.join(' · ') : `اكتملت القراءة محلياً: ${completedPages} صفحة/صورة. راجع النص وصححه قبل حفظ المسودة.`, 'ok');
       progress(100);
     } catch (error) {
       say(error.message || 'تعذرت القراءة الضوئية. تحقق من الاتصال عند تحميل أدوات OCR أول مرة.', 'error');
     } finally {
-      if (worker) await worker.terminate().catch(() => {});
       busy = false;
       button.disabled = false;
     }
